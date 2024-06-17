@@ -1,12 +1,29 @@
 <template>
   <NPopover :delay="300">
     <template #trigger>
-      <span :class="{ best: baselineDamage && totalDamage === baselineDamage }">
-        {{ totalDamage.toLocaleString() }} ({{
-          ((totalDamage / baselineDamage || 1) * 100).toFixed(2)
-        }}
-        %)</span
-      >
+      <div style="display: flex; align-items: center">
+        <svg :width="width" :height="height">
+          <rect x="0" y="0" :width="width" :height="height" class="bg" />
+          <rect
+            v-for="dmg of ordered"
+            :x="dmg.x"
+            y="0"
+            :height="height"
+            :width="dmg.width"
+            :class="{
+              'magic-damage': dmg.type === 'magic',
+              'physical-damage': dmg.type === 'physical',
+              'true-damage': dmg.type === 'true'
+            }"
+          />
+        </svg>
+        <div
+          :class="{ best: baselineDamage && totalDamage === baselineDamage }"
+          style="margin-left: 6px; width: 40px; text-align: right; font-size: 11px"
+        >
+          {{ ((totalDamage / baselineDamage) * 100).toFixed(0) }} %
+        </div>
+      </div>
     </template>
     <div class="details">
       <div style="display: flex; align-items: center">
@@ -57,8 +74,8 @@ const props = withDefaults(
     physicalDamage: 1,
     totalDamage: 1,
     trueDamage: 1,
-    width: 80,
-    height: 12
+    width: 52,
+    height: 6
   }
 )
 
@@ -79,15 +96,15 @@ const ordered = computed(() => {
 
 <style lang="less" scoped>
 .physical-damage {
-  fill: rgb(225, 136, 68);
+  fill: rgb(225, 107, 68);
 }
 
 .magic-damage {
-  fill: rgb(118, 116, 187);
+  fill: rgb(91, 112, 180);
 }
 
 .true-damage {
-  fill: rgb(202, 202, 202);
+  fill: rgb(224, 224, 224);
 }
 
 .bg {
@@ -100,7 +117,7 @@ const ordered = computed(() => {
 }
 
 .details {
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .divider {
