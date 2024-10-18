@@ -63,9 +63,10 @@
 <script setup lang="ts">
 import CopyableText from '@renderer-shared/components/CopyableText.vue'
 import LcuImage from '@renderer-shared/components/LcuImage.vue'
-import { getSummonerByPuuid } from '@renderer-shared/http-api/summoner'
 import { laNotification } from '@renderer-shared/notification'
-import { SummonerInfo } from '@shared/types/lcu/summoner'
+import { useInstance } from '@renderer-shared/shards'
+import { LeagueClientRenderer } from '@renderer-shared/shards/league-client'
+import { SummonerInfo } from '@shared/types/league-client/summoner'
 import { summonerName } from '@shared/utils/name'
 import { NCard } from 'naive-ui'
 import { onMounted, ref } from 'vue'
@@ -85,12 +86,14 @@ const emits = defineEmits<{
   (e: 'toSummoner', puuid: string, sgpServerId?: string): void
 }>()
 
+const lc = useInstance<LeagueClientRenderer>('league-client-renderer')
+
 const selfData = ref<SummonerInfo>()
 
 onMounted(async () => {
   if (typeof props.summoner === 'string') {
     try {
-      selfData.value = (await getSummonerByPuuid(props.summoner)).data
+      selfData.value = (await lc.api.summoner.getSummonerByPuuid(props.summoner)).data
     } catch (error) {
       laNotification.warn('卡片组件', '加载召唤师信息时失败', error)
     }
