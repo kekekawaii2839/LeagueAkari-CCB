@@ -22,7 +22,6 @@ manager.use(LeagueClientRenderer)
 manager.use(LoggerRenderer)
 manager.use(PiniaMobxUtilsRenderer)
 manager.use(SettingUtilsRenderer)
-manager.use(SgpRenderer)
 manager.use(WindowManagerRenderer)
 
 export { manager }

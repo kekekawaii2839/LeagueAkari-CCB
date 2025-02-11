@@ -47,10 +47,6 @@ export class AuxWindowState {
 
   bounds: Rectangle | null = null
 
-  functionalityBounds: Record<string, Partial<Rectangle>> = {}
-
-  functionality: 'indicator' | 'opgg' = 'indicator'
-
   setStatus(status: 'normal' | 'maximized' | 'minimized') {
     this.status = status
   }
@@ -71,18 +67,9 @@ export class AuxWindowState {
     this.bounds = bounds
   }
 
-  setFunctionality(f: 'indicator' | 'opgg') {
-    this.functionality = f
-  }
-
-  setFunctionalityBounds(fb: Record<string, Partial<Rectangle>>) {
-    this.functionalityBounds = fb
-  }
-
   constructor() {
     makeAutoObservable(this, {
-      bounds: observable.ref,
-      functionalityBounds: observable.ref
+      bounds: observable.ref
     })
   }
 }

@@ -5,18 +5,7 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      name: 'root',
-      redirect: { name: 'indicator' }
-    },
-    {
-      path: '/indicator',
-      name: 'indicator',
-      component: () => import('@aux-window/views/indicator/Indicator.vue')
-    },
-    {
-      path: '/opgg',
-      name: 'opgg',
-      component: () => import('@aux-window/views/opgg/Opgg.vue')
+      component: () => import('@aux-window/views/Indicator.vue')
     }
   ]
 })

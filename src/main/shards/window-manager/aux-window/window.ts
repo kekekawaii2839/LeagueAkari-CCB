@@ -3,13 +3,12 @@ import { i18next } from '@main/i18n'
 import { AkariLogger } from '@main/shards/logger-factory'
 import { SetterSettingService } from '@main/shards/setting-factory/setter-setting-service'
 import { LEAGUE_AKARI_GITHUB } from '@shared/constants/common'
-import { BrowserWindow, Rectangle, dialog, screen, shell } from 'electron'
+import { BrowserWindow, dialog, screen, shell } from 'electron'
 import { comparer, computed } from 'mobx'
 import path from 'node:path'
 
 import type { WindowManagerMainContext } from '..'
 import icon from '../../../../../resources/LA_ICON.ico?asset'
-import opggIcon from '../../../../../resources/OPGG_ICON.ico?asset'
 import { AuxWindowSettings, AuxWindowState } from './state'
 
 export class AkariAuxWindow {
@@ -18,10 +17,8 @@ export class AkariAuxWindow {
   static INITIAL_SHOW = false
   static BASE_WIDTH = 340
   static BASE_HEIGHT = 420
-  static OPGG_BASE_WIDTH = 480
-  static OPGG_BASE_HEIGHT = 720
-  static OPGG_DEFAULT_WIDTH = 526
-  static OPGG_DEFAULT_HEIGHT = 720
+  static MIN_WIDTH = 340
+  static MIN_HEIGHT = 420
 
   public readonly settings = new AuxWindowSettings()
   public readonly state = new AuxWindowState()
@@ -57,12 +54,7 @@ export class AkariAuxWindow {
   async onInit() {
     await this._setting.applyToState()
 
-    this._context.mobx.propSync(this._namespace, 'state', this.state, [
-      'focus',
-      'ready',
-      'functionality',
-      'status'
-    ])
+    this._context.mobx.propSync(this._namespace, 'state', this.state, ['focus', 'ready', 'status'])
 
     this._context.mobx.propSync(this._namespace, 'settings', this.settings, [
       'enabled',
@@ -79,14 +71,9 @@ export class AkariAuxWindow {
       setter()
     })
 
-    const auxFBounds = await this._setting._getFromStorage('functionalityBounds')
-    if (auxFBounds) {
-      this.state.setFunctionalityBounds(auxFBounds)
-    }
-
-    const auxFunctionality = await this._setting._getFromStorage('functionality')
-    if (auxFunctionality) {
-      this.state.setFunctionality(auxFunctionality)
+    const bounds = await this._setting._getFromStorage('bounds')
+    if (bounds) {
+      this.state.setBounds(bounds)
     }
 
     this._handleObservations()
@@ -94,7 +81,7 @@ export class AkariAuxWindow {
   }
 
   private _handleObservations() {
-    const auxWindowIndicatorShowTiming = computed(() => {
+    const showTiming = computed(() => {
       if (!this.settings.autoShow) {
         return 'ignore'
       }
@@ -117,31 +104,10 @@ export class AkariAuxWindow {
       return 'hide'
     })
 
-    const auxWindowOpggShowTiming = computed(() => {
-      if (!this.settings.autoShow) {
-        return 'ignore'
-      }
-
-      if (!this.state.ready) {
-        return 'ignore'
-      }
-
-      switch (this._context.leagueClient.data.gameflow.phase) {
-        case 'ChampSelect':
-          return 'show'
-      }
-
-      return 'normal'
-    })
-
     // normally show & hide
     this._context.mobx.reaction(
-      () => auxWindowIndicatorShowTiming.get(),
+      () => showTiming.get(),
       (timing) => {
-        if (this.state.functionality !== 'indicator') {
-          return
-        }
-
         if (timing === 'ignore') {
           return
         }
@@ -153,43 +119,6 @@ export class AkariAuxWindow {
         }
       },
       { fireImmediately: true }
-    )
-
-    // shows only in champ select and never hides
-    this._context.mobx.reaction(
-      () => auxWindowOpggShowTiming.get(),
-      (timing) => {
-        if (this.state.functionality !== 'opgg') {
-          return
-        }
-
-        if (timing === 'show') {
-          this.showOrRestore(true)
-        }
-      }
-    )
-
-    this._context.mobx.reaction(
-      () => this.state.bounds,
-      (bounds) => {
-        if (bounds) {
-          const currentFunctionality = this.state.functionality
-          if (currentFunctionality) {
-            this.state.setFunctionalityBounds({
-              ...this.state.functionalityBounds,
-              [currentFunctionality]: bounds
-            })
-          }
-        }
-      },
-      { delay: 250, equals: comparer.shallow }
-    )
-
-    this._context.mobx.reaction(
-      () => this.state.functionality,
-      (f) => {
-        this._setting._saveToStorage('auxWindowFunctionality', f)
-      }
     )
 
     this._context.mobx.reaction(
@@ -226,11 +155,13 @@ export class AkariAuxWindow {
     )
 
     this._context.mobx.reaction(
-      () => this.state.functionalityBounds,
+      () => this.state.bounds,
       (bounds) => {
-        this._setting._saveToStorage('functionalityBounds', bounds)
+        if (bounds) {
+          this._setting._saveToStorage('bounds', bounds)
+        }
       },
-      { delay: 500 }
+      { delay: 250, equals: comparer.shallow }
     )
   }
 
@@ -287,10 +218,6 @@ export class AkariAuxWindow {
       const [width, height] = this._window?.getSize() || []
       return { width, height }
     })
-
-    this._context.ipc.onCall(this._namespace, 'setFunctionality', (_, f: 'indicator' | 'opgg') => {
-      this._adjustForFunctionality(f)
-    })
   }
 
   createWindow() {
@@ -303,8 +230,8 @@ export class AkariAuxWindow {
     this._window = new BrowserWindow({
       width: AkariAuxWindow.BASE_WIDTH,
       height: AkariAuxWindow.BASE_HEIGHT,
-      minWidth: AkariAuxWindow.BASE_WIDTH,
-      minHeight: AkariAuxWindow.BASE_HEIGHT,
+      minWidth: AkariAuxWindow.MIN_WIDTH,
+      minHeight: AkariAuxWindow.MIN_HEIGHT,
       resizable: true,
       frame: false,
       show: AkariAuxWindow.INITIAL_SHOW,
@@ -336,9 +263,11 @@ export class AkariAuxWindow {
 
     this.state.setShow(AkariAuxWindow.INITIAL_SHOW)
 
-    this._adjustForFunctionality(this.state.functionality)
-
-    this.state.setBounds(this._window.getBounds())
+    if (this.state.bounds) {
+      this._window.setBounds(this.state.bounds)
+    } else {
+      this._window.setSize(AkariAuxWindow.BASE_WIDTH, AkariAuxWindow.BASE_HEIGHT)
+    }
 
     this._window.setOpacity(this.settings.opacity)
 
@@ -459,19 +388,9 @@ export class AkariAuxWindow {
 
   resetPosition() {
     if (this._window) {
-      switch (this.state.functionality) {
-        case 'indicator':
-          this._window.setSize(AkariAuxWindow.BASE_WIDTH, AkariAuxWindow.BASE_HEIGHT)
-          break
-        case 'opgg':
-          this._window.setSize(
-            AkariAuxWindow.OPGG_DEFAULT_WIDTH,
-            AkariAuxWindow.OPGG_DEFAULT_HEIGHT
-          )
-      }
-
       const bounds = this._window.getBounds()
       const p = this._getCenteredRectangle(bounds.width, bounds.height)
+      this._window.setSize(AkariAuxWindow.BASE_WIDTH, AkariAuxWindow.BASE_HEIGHT)
       this._window.setPosition(p.x, p.y)
     }
 
@@ -514,58 +433,5 @@ export class AkariAuxWindow {
       }
       this._window.focus()
     }
-  }
-
-  private _adjustForFunctionality(f: 'indicator' | 'opgg') {
-    let bounds: Partial<Rectangle> = this.state.functionalityBounds[f]
-
-    switch (f) {
-      case 'indicator':
-        if (bounds) {
-          bounds = {
-            ...bounds,
-            width: Math.max(bounds.width || 0, AkariAuxWindow.BASE_WIDTH),
-            height: Math.max(bounds.height || 0, AkariAuxWindow.BASE_HEIGHT)
-          }
-        } else {
-          bounds = {
-            width: AkariAuxWindow.BASE_WIDTH,
-            height: AkariAuxWindow.BASE_HEIGHT
-          }
-        }
-
-        this._window?.setMinimumSize(AkariAuxWindow.BASE_WIDTH, AkariAuxWindow.BASE_HEIGHT)
-        this._window?.setTitle('Mini Akari')
-        this._window?.setBounds(bounds)
-        this._window?.setIcon(icon)
-        break
-      case 'opgg':
-        if (bounds) {
-          bounds = {
-            ...bounds,
-            width: Math.max(bounds.width || 0, AkariAuxWindow.OPGG_DEFAULT_WIDTH),
-            height: Math.max(bounds.height || 0, AkariAuxWindow.OPGG_DEFAULT_HEIGHT)
-          }
-        } else {
-          bounds = {
-            width: AkariAuxWindow.OPGG_DEFAULT_WIDTH,
-            height: AkariAuxWindow.OPGG_DEFAULT_HEIGHT
-          }
-        }
-
-        this._window?.setMinimumSize(
-          AkariAuxWindow.OPGG_BASE_WIDTH,
-          AkariAuxWindow.OPGG_BASE_HEIGHT
-        )
-        this._window?.setTitle('OP.GG Akari')
-        this._window?.setBounds(bounds)
-        this._window?.setIcon(opggIcon)
-        break
-      default:
-        this._window?.setTitle('Vanished Akari')
-        return
-    }
-
-    this.state.setFunctionality(f)
   }
 }
