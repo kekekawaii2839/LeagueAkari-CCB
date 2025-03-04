@@ -48,8 +48,6 @@ export class MainWindowState {
 
   show: boolean = true
 
-  size: [number, number] = [1380, 860]
-
   bounds: Rectangle | null
 
   setStatus(status: 'normal' | 'maximized' | 'minimized') {
@@ -68,17 +66,13 @@ export class MainWindowState {
     this.show = show
   }
 
-  setSize(size: [number, number]) {
-    this.size = size
-  }
-
   setBounds(bounds: Rectangle | null) {
     this.bounds = bounds
   }
 
   constructor() {
     makeAutoObservable(this, {
-      size: observable.ref
+      bounds: observable.ref
     })
   }
 }
