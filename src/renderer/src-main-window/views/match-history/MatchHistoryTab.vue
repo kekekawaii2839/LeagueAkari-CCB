@@ -20,6 +20,8 @@
         <RankedTable v-if="tab.rankedStats" :ranked-stats="tab.rankedStats" />
       </div>
     </NModal>
+
+    <!-- Floating header -->
     <Transition name="bi-fade">
       <div class="player-header-simplified" v-if="shouldShowTinyHeader">
         <div class="header-simplified-inner">
@@ -75,9 +77,12 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Main content -->
     <NScrollbar x-scrollable ref="scroll" @scroll="(e) => handleMainContentScroll(e)">
       <div class="inner-container" ref="inner-container">
         <div class="profile">
+          <!-- Profile -->
           <div class="header-profile">
             <div class="profile-image">
               <LcuImage
@@ -136,6 +141,8 @@
               </StreamerModeMaskedText>
             </div>
           </div>
+
+          <!-- Ranked stats -->
           <div class="header-ranked" v-if="tab.rankedStats">
             <RankedDisplay
               class="ranked"
@@ -161,6 +168,8 @@
               </NButton>
             </div>
           </div>
+
+          <!-- Refresh, Tag, ... -->
           <div class="buttons-container">
             <NButton
               secondary
@@ -186,6 +195,8 @@
             </NButton>
           </div>
         </div>
+
+        <!-- Shows on smaller screen -->
         <div class="show-on-smaller-screen">
           <NInputNumber
             size="small"
@@ -236,8 +247,11 @@
             :options="sgpTagOptions"
           ></NSelect>
         </div>
+
+        <!-- Main content -->
         <div class="content">
           <div class="left">
+            <!-- Pagination -->
             <div class="left-content-item">
               <div class="left-content-item-content">
                 <div style="display: flex; gap: 4px">
@@ -297,6 +311,8 @@
                 ></NSelect>
               </div>
             </div>
+
+            <!-- Shows when a summoner is private -->
             <div
               class="left-content-item privacy-private"
               v-if="!isSelfTab && tab.summoner && tab.summoner.privacy === 'PRIVATE'"
@@ -306,6 +322,8 @@
                 {{ t('MatchHistoryTab.private.content') }}
               </div>
             </div>
+
+            <!-- Shows when a summoner is tagged -->
             <div
               v-for="tagInfo of tab.tags"
               :key="tagInfo.selfPuuid"
@@ -336,6 +354,8 @@
                 <div class="left-content-item-content">{{ tagInfo.tag }}</div>
               </NScrollbar>
             </div>
+
+            <!-- In-game spectator status -->
             <div
               class="left-content-item"
               v-if="currentSgpServerSupported.common && tab.spectatorData"
@@ -349,6 +369,8 @@
                 @launch-spectator="handleLaunchSpectator"
               />
             </div>
+
+            <!-- Statistics -->
             <div class="left-content-item" v-if="analysis.matchHistory">
               <div class="left-content-item-title">{{ t('MatchHistoryTab.stats.title') }}</div>
               <div class="left-content-item-content">
@@ -471,6 +493,8 @@
                 </div>
               </div>
             </div>
+
+            <!-- Recently played with -->
             <div class="left-content-item" v-if="recentlyPlayers.teammates.length">
               <div class="left-content-item-title">
                 {{ t('MatchHistoryTab.recentPlayers.teammatesTitle') }}
@@ -508,6 +532,8 @@
                 </div>
               </div>
             </div>
+
+            <!-- Recently played against -->
             <div class="left-content-item" v-if="recentlyPlayers.opponents.length">
               <div class="left-content-item-title">
                 {{ t('MatchHistoryTab.recentPlayers.opponentsTitle') }}
@@ -548,7 +574,21 @@
                 </div>
               </div>
             </div>
+
+            <!-- Encountered games -->
+            <div class="left-content-item" v-if="!isSelfTab && tab.encounteredGamesPage?.total">
+              <EncounteredGames
+                :data="tab.encounteredGamesPage?.data"
+                :page="tab.encounteredGamesPage?.page"
+                :page-size="tab.encounteredGamesPage?.pageSize"
+                :total="tab.encounteredGamesPage?.total"
+                :loading="tab.isLoadingEncounteredGames"
+                @page-change="loadEncounteredGames"
+              />
+            </div>
           </div>
+
+          <!-- Right part -->
           <div class="right" ref="right">
             <MatchHistoryCard
               class="match-history-card-item"
@@ -639,6 +679,7 @@ import {
   useMatchHistoryTabsStore
 } from '@main-window/shards/match-history-tabs/store'
 
+import EncounteredGames from './widgets/EncounteredGames.vue'
 import IndicatorPulse from './widgets/IndicatorPulse.vue'
 import RankedDisplay from './widgets/RankedDisplay.vue'
 import SpectateStatus from './widgets/SpectateStatus.vue'
@@ -650,6 +691,7 @@ const { tab, index = 0 } = defineProps<{
 
 const { t } = useTranslation()
 
+// ==================== Instances ====================
 const lc = useInstance(LeagueClientRenderer)
 const rc = useInstance(RiotClientRenderer)
 const sgp = useInstance(SgpRenderer)
@@ -662,11 +704,29 @@ const app = useInstance(AppCommonRenderer)
 const lcs = useLeagueClientStore()
 const mhs = useMatchHistoryTabsStore()
 const sgps = useSgpStore()
+const as = useAppCommonStore()
 
 const notification = useNotification()
+const message = useMessage()
 
-const VIEW_NAMESPACE = 'view:MatchHistoryTab'
+// ==================== Reactive States ====================
+const isShowingRankedModal = ref(false)
+const isShowingTagEditModal = ref(false)
+const inputtingPage = ref(tab.matchHistoryPage?.page)
+const mainContentScrollTop = ref(0)
 
+// ==================== Template Refs ====================
+const scrollEl = useTemplateRef('scroll')
+const rightEl = useTemplateRef('right')
+const innerContainerEl = useTemplateRef('inner-container')
+
+// ==================== Composables ====================
+const isSmallScreen = useMediaQuery(`(max-width: 1100px)`)
+const sgpTagOptions = useSgpTagOptions()
+const { navigateToTabByPuuidAndSgpServerId } = mh.useNavigateToTab()
+const { summonerName: maskedSummonerName } = useStreamerModeMaskedText()
+
+// ==================== Computed States ====================
 const currentSgpServerSupported = computed(() => {
   return sgps.sgpServerConfig.servers[tab.sgpServerId] || { common: false, matchHistory: false }
 })
@@ -690,6 +750,209 @@ const analysis = computed(() => {
   }
 })
 
+const isSomethingLoading = computed(() => {
+  return (
+    tab.isLoadingMatchHistory ||
+    tab.isLoadingRankedStats ||
+    tab.isLoadingSavedInfo ||
+    tab.isLoadingSpectatorData ||
+    tab.isLoadingSummoner ||
+    tab.isLoadingSummonerProfile ||
+    tab.isLoadingEncounteredGames
+  )
+})
+
+const pageSizeOptions = computed(() => [
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 10 }),
+    value: 10
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 20 }),
+    value: 20
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 30 }),
+    value: 30
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 40 }),
+    value: 40
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 50 }),
+    value: 50
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 100 }),
+    value: 100
+  },
+  {
+    label: t('MatchHistoryTab.itemPerPage', { countV: 200 }),
+    value: 200
+  }
+])
+
+const shouldShowTinyHeader = computed(() => mainContentScrollTop.value > SHOW_TINY_HEADER_THRESHOLD)
+
+const frequentlyUsedChampions = computed(() => {
+  const a = analysis.value.matchHistory
+  if (!a) {
+    return []
+  }
+
+  return Object.values(a.champions)
+    .filter((c) => c.count >= FREQUENT_USE_CHAMPION_THRESHOLD)
+    .sort((a, b) => {
+      if (a.count !== b.count) {
+        return b.count - a.count
+      }
+
+      return b.win - a.win
+    })
+})
+
+const recentlyPlayers = computed(() => {
+  const relationship = analysis.value.playerRelationship
+
+  const processPlayers = (isOpponent: boolean) => {
+    return Object.values(relationship)
+      .filter((a) => a.games.length >= RECENTLY_PLAYED_PLAYER_THRESHOLD)
+      .map((a) => {
+        const filteredGames = a.games.filter((g) => g.isOpponent === isOpponent)
+        return { ...a, games: filteredGames }
+      })
+      .filter((a) => a.games.length >= RECENTLY_PLAYED_PLAYER_THRESHOLD)
+      .map((a) => {
+        const win = a.games.filter((g) => (isOpponent ? !g.win : g.win)).length
+        const lose = a.games.filter((g) => (isOpponent ? g.win : !g.win)).length
+        return { ...a, win, lose }
+      })
+      .sort((a, b) => {
+        if (a.games.length !== b.games.length) {
+          return b.games.length - a.games.length
+        }
+        return b.win - a.win
+      })
+  }
+
+  const teammates = processPlayers(false)
+  const opponents = processPlayers(true)
+
+  return { teammates, opponents }
+})
+
+// ==================== Constants ====================
+const VIEW_NAMESPACE = 'view:MatchHistoryTab'
+const SHOW_TINY_HEADER_THRESHOLD = 160
+const UPDATE_SPECTATOR_DATA_INTERVAL = 60 * 1000 // 1 分钟
+const ENCOUNTERED_GAMES_PAGE_SIZE = 20
+const FREQUENT_USE_CHAMPION_THRESHOLD = 1
+const RECENTLY_PLAYED_PLAYER_THRESHOLD = 2
+
+// ==================== Interval ====================
+const updateSpectatorData = async () => {
+  // 仅仅在当前大区支持 SGP API 时才更新
+  if (!sgps.availability.serversSupported.common) {
+    return
+  }
+
+  if (!sgps.isTokenReady) {
+    return
+  }
+
+  try {
+    const data = await sgp.getSpectatorGameflow(tab.puuid, tab.sgpServerId)
+
+    if (data === null) {
+      tab.spectatorData = null
+      return
+    }
+
+    tab.spectatorData = markRaw(data)
+  } catch (error) {
+    if (
+      (error as Error).name === 'AxiosError' &&
+      ((error as any).response?.status === 404 || (error as any).response?.status === 400)
+    ) {
+      tab.spectatorData = null
+      return
+    }
+
+    // 静默失败, 打印日志
+    log.warn(VIEW_NAMESPACE, `获取观战数据失败: ${tab.puuid} ${tab.sgpServerId}`, error)
+  }
+}
+
+const { resume: resumeSpectator, pause: pauseSpectator } = useIntervalFn(
+  updateSpectatorData,
+  UPDATE_SPECTATOR_DATA_INTERVAL,
+  { immediateCallback: false }
+)
+
+// ==================== Watchers ====================
+// 对于使用到 SGP API 的接口, 在 token 准备好后, 再次加载数据
+// 仅作为 workaround
+watch(
+  () => sgps.isTokenReady,
+  async (current, prev) => {
+    if (current && !prev) {
+      const fn1 = async () => {
+        if (tab.summoner === null) {
+          await loadSummoner()
+        }
+      }
+
+      const fn2 = async () => {
+        if (tab.matchHistoryPage === null) {
+          await loadMatchHistory()
+        }
+      }
+
+      const fn3 = async () => {
+        if (tab.spectatorData === null) {
+          await updateSpectatorData()
+        }
+      }
+
+      await Promise.all([fn1(), fn2(), fn3()])
+    }
+  }
+)
+
+watch(
+  () => tab.matchHistoryPage?.page,
+  (page) => {
+    inputtingPage.value = page
+  }
+)
+
+watch(
+  () => sgps.availability.serversSupported.common,
+  (ya) => {
+    if (ya) {
+      resumeSpectator()
+    } else {
+      pauseSpectator()
+    }
+  },
+  { immediate: true }
+)
+
+// workaround: KeepAlive 下 Naive UI 滚动条复位问题; 远古遗留, 未测试移除后是否会有问题
+watch(
+  () => mhs.currentTabId,
+  (tabId) => {
+    if (tabId === tab.id) {
+      nextTick(() => {
+        scrollEl.value?.scrollTo({ top: mainContentScrollTop.value })
+      })
+    }
+  },
+  { immediate: true }
+)
+
+// ==================== Functions ====================
 const loadSummoner = async () => {
   if (tab.isLoadingSummoner) {
     return
@@ -729,8 +992,7 @@ const loadSummoner = async () => {
             summoner: {
               gameName: data.gameName,
               tagLine: data.tagLine
-            },
-            isPinned: false
+            }
           })
         }
       }
@@ -745,8 +1007,7 @@ const loadSummoner = async () => {
           summoner: {
             gameName: data.gameName,
             tagLine: data.tagLine
-          },
-          isPinned: false
+          }
         })
       }
     }
@@ -998,34 +1259,43 @@ const loadTags = async () => {
   }
 }
 
-// 1100px - is same in which defined in CSS
-const isSmallScreen = useMediaQuery(`(max-width: 1100px)`)
+const loadEncounteredGames = async (page = 1) => {
+  if (tab.isLoadingEncounteredGames) {
+    return
+  }
 
-const scrollEl = useTemplateRef('scroll')
-const rightEl = useTemplateRef('right')
-const innerContainerEl = useTemplateRef('inner-container')
+  if (!lcs.summoner.me) {
+    return
+  }
 
-const as = useAppCommonStore()
+  tab.isLoadingEncounteredGames = true
 
-const handleToggleShowDetailedGame = (gameId: number, expand: boolean) => {
-  const thatGame = tab.matchHistoryPage?.games.find((g) => g.game.gameId === gameId)
-  if (thatGame) {
-    thatGame.isExpanded = expand
+  try {
+    const data = await sp.queryEncounteredGames({
+      puuid: tab.puuid,
+      selfPuuid: lcs.summoner.me.puuid,
+      pageSize: ENCOUNTERED_GAMES_PAGE_SIZE,
+      page
+    })
+    tab.encounteredGamesPage = {
+      data: markRaw(data.data),
+      page: data.page,
+      pageSize: data.pageSize,
+      total: data.total
+    }
+  } catch (error: any) {
+    notification.warning({
+      title: () => t('MatchHistoryTab.failedToLoadTitle'),
+      content: () =>
+        t('MatchHistoryTab.failedToLoadEncounteredGames', {
+          reason: error.message
+        }),
+      duration: 4000
+    })
+  } finally {
+    tab.isLoadingEncounteredGames = false
   }
 }
-
-const isShowingRankedModal = ref(false)
-
-const isSomethingLoading = computed(() => {
-  return (
-    tab.isLoadingMatchHistory ||
-    tab.isLoadingRankedStats ||
-    tab.isLoadingSavedInfo ||
-    tab.isLoadingSpectatorData ||
-    tab.isLoadingSummoner ||
-    tab.isLoadingSummonerProfile
-  )
-})
 
 const scrollToRightElTop = () => {
   if (rightEl.value && innerContainerEl.value) {
@@ -1039,86 +1309,27 @@ const scrollToRightElTop = () => {
   }
 }
 
-const handleRefresh = async () => {
-  try {
-    const mhFn = async () => {
-      await loadMatchHistory()
-      scrollToRightElTop()
-    }
-
-    await Promise.all([
-      loadSummoner(),
-      loadRankedStats(),
-      loadSummonerProfile(),
-      mhFn(),
-      loadTags(),
-      updateSpectatorData()
-    ])
-  } catch {}
-}
-
 const handleLoadMatchHistoryPage = async (page?: number) => {
   await loadMatchHistory(page)
   scrollToRightElTop()
 }
 
-const inputtingPage = ref(tab.matchHistoryPage?.page)
 const handleInputBlur = () => {
   inputtingPage.value = tab.matchHistoryPage?.page
 }
-
-const pageSizeOptions = computed(() => [
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 10 }),
-    value: 10
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 20 }),
-    value: 20
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 30 }),
-    value: 30
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 40 }),
-    value: 40
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 50 }),
-    value: 50
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 100 }),
-    value: 100
-  },
-  {
-    label: t('MatchHistoryTab.itemPerPage', { countV: 200 }),
-    value: 200
-  }
-])
 
 const handleChangePageSize = async (pageSize: number) => {
   await loadMatchHistory(tab.matchHistoryPage?.page, pageSize, tab.matchHistoryPage?.tag)
 }
 
-watch(
-  () => tab.matchHistoryPage?.page,
-  (page) => {
-    inputtingPage.value = page
-  }
-)
-
-const sgpTagOptions = useSgpTagOptions()
-
 const handleChangeSgpTag = async (tag: string) => {
   await loadMatchHistory(tab.matchHistoryPage?.page, tab.matchHistoryPage?.pageSize, tag)
 }
 
-const isShowingTagEditModal = ref(false)
 const handleTagPlayer = async () => {
   isShowingTagEditModal.value = true
 }
+
 const handleTagEdited = async (tag: string | null) => {
   if (!lcs.summoner.me || !lcs.auth) {
     return
@@ -1173,100 +1384,10 @@ const handleRemoveTag = async (puuid: string, selfPuuid: string) => {
   }
 }
 
-// 对于使用到 SGP API 的接口, 在 token 准备好后, 再次加载数据
-// 仅作为 workaround
-watch(
-  () => sgps.isTokenReady,
-  async (current, prev) => {
-    if (current && !prev) {
-      const fn1 = async () => {
-        if (tab.summoner === null) {
-          await loadSummoner()
-        }
-      }
-
-      const fn2 = async () => {
-        if (tab.matchHistoryPage === null) {
-          await loadMatchHistory()
-        }
-      }
-
-      const fn3 = async () => {
-        if (tab.spectatorData === null) {
-          await updateSpectatorData()
-        }
-      }
-
-      await Promise.all([fn1(), fn2(), fn3()])
-    }
-  }
-)
-
-if (mhs.settings.matchHistoryUseSgpApi) {
-  if (sgps.isTokenReady) {
-    handleRefresh()
-  }
-} else {
-  handleRefresh()
-}
-
-const FREQUENT_USE_CHAMPION_THRESHOLD = 1
-const RECENTLY_PLAYED_PLAYER_THRESHOLD = 2
-
-const frequentlyUsedChampions = computed(() => {
-  const a = analysis.value.matchHistory
-  if (!a) {
-    return []
-  }
-
-  return Object.values(a.champions)
-    .filter((c) => c.count >= FREQUENT_USE_CHAMPION_THRESHOLD)
-    .sort((a, b) => {
-      if (a.count !== b.count) {
-        return b.count - a.count
-      }
-
-      return b.win - a.win
-    })
-})
-
-const recentlyPlayers = computed(() => {
-  const relationship = analysis.value.playerRelationship
-
-  const processPlayers = (isOpponent: boolean) => {
-    return Object.values(relationship)
-      .filter((a) => a.games.length >= RECENTLY_PLAYED_PLAYER_THRESHOLD)
-      .map((a) => {
-        const filteredGames = a.games.filter((g) => g.isOpponent === isOpponent)
-        return { ...a, games: filteredGames }
-      })
-      .filter((a) => a.games.length >= RECENTLY_PLAYED_PLAYER_THRESHOLD)
-      .map((a) => {
-        const win = a.games.filter((g) => (isOpponent ? !g.win : g.win)).length
-        const lose = a.games.filter((g) => (isOpponent ? g.win : !g.win)).length
-        return { ...a, win, lose }
-      })
-      .sort((a, b) => {
-        if (a.games.length !== b.games.length) {
-          return b.games.length - a.games.length
-        }
-        return b.win - a.win
-      })
-  }
-
-  const teammates = processPlayers(false)
-  const opponents = processPlayers(true)
-
-  return { teammates, opponents }
-})
-
-const { navigateToTabByPuuidAndSgpServerId } = mh.useNavigateToTab()
-
-const handleToSummoner = (puuid: string, setCurrent = true) => {
-  if (setCurrent) {
-    navigateToTabByPuuidAndSgpServerId(puuid, tab.sgpServerId)
-  } else {
-    mh.createTab(puuid, tab.sgpServerId, false)
+const handleToggleShowDetailedGame = (gameId: number, expand: boolean) => {
+  const thatGame = tab.matchHistoryPage?.games.find((g) => g.game.gameId === gameId)
+  if (thatGame) {
+    thatGame.isExpanded = expand
   }
 }
 
@@ -1282,65 +1403,9 @@ const handleMouseUp = (event: MouseEvent, puuid: string) => {
   }
 }
 
-const SHOW_TINY_HEADER_THRESHOLD = 160
-const mainContentScrollTop = ref(0)
 const handleMainContentScroll = (e: Event) => {
   mainContentScrollTop.value = (e.target as HTMLElement).scrollTop
 }
-
-const shouldShowTinyHeader = computed(() => mainContentScrollTop.value > SHOW_TINY_HEADER_THRESHOLD)
-
-// 从这里开始, 将逐渐移除对全局状态的依赖
-const UPDATE_SPECTATOR_DATA_INTERVAL = 60 * 1000 // 1 分钟
-const updateSpectatorData = async () => {
-  // 仅仅在当前大区支持 SGP API 时才更新
-  if (!sgps.availability.serversSupported.common) {
-    return
-  }
-
-  if (!sgps.isTokenReady) {
-    return
-  }
-
-  try {
-    const data = await sgp.getSpectatorGameflow(tab.puuid, tab.sgpServerId)
-
-    if (data === null) {
-      tab.spectatorData = null
-      return
-    }
-
-    tab.spectatorData = markRaw(data)
-  } catch (error) {
-    if (
-      (error as Error).name === 'AxiosError' &&
-      ((error as any).response?.status === 404 || (error as any).response?.status === 400)
-    ) {
-      tab.spectatorData = null
-      return
-    }
-
-    // 静默失败, 打印日志
-    log.warn(VIEW_NAMESPACE, `获取观战数据失败: ${tab.puuid} ${tab.sgpServerId}`, error)
-  }
-}
-const { resume: resumeSpectator, pause: pauseSpectator } = useIntervalFn(
-  updateSpectatorData,
-  UPDATE_SPECTATOR_DATA_INTERVAL,
-  { immediateCallback: true }
-)
-
-watch(
-  () => sgps.availability.serversSupported.common,
-  (ya) => {
-    if (ya) {
-      resumeSpectator()
-    } else {
-      pauseSpectator()
-    }
-  },
-  { immediate: true }
-)
 
 const handleLaunchSpectator = async (_: string, useLcuApi: boolean) => {
   try {
@@ -1380,20 +1445,24 @@ const handleLaunchSpectator = async (_: string, useLcuApi: boolean) => {
   }
 }
 
-// workaround: KeepAlive 下 Naive UI 滚动条复位问题
-watch(
-  () => mhs.currentTabId,
-  (tabId) => {
-    if (tabId === tab.id) {
-      nextTick(() => {
-        scrollEl.value?.scrollTo({ top: mainContentScrollTop.value })
-      })
+const handleRefresh = async () => {
+  try {
+    const mhFn = async () => {
+      await loadMatchHistory()
+      scrollToRightElTop()
     }
-  },
-  { immediate: true }
-)
 
-const message = useMessage()
+    await Promise.all([
+      loadSummoner(),
+      loadRankedStats(),
+      loadSummonerProfile(),
+      mhFn(),
+      loadTags(),
+      updateSpectatorData(),
+      loadEncounteredGames()
+    ])
+  } catch {}
+}
 
 const handleScreenshot = async () => {
   if (!innerContainerEl.value) {
@@ -1437,7 +1506,22 @@ const handleScreenshot = async () => {
   }
 }
 
-const { summonerName: maskedSummonerName } = useStreamerModeMaskedText()
+const handleToSummoner = (puuid: string, setCurrent = true) => {
+  if (setCurrent) {
+    navigateToTabByPuuidAndSgpServerId(puuid, tab.sgpServerId)
+  } else {
+    mh.createTab(puuid, tab.sgpServerId, false)
+  }
+}
+
+// ==================== Initialization ====================
+if (mhs.settings.matchHistoryUseSgpApi) {
+  if (sgps.isTokenReady) {
+    handleRefresh()
+  }
+} else {
+  handleRefresh()
+}
 
 defineExpose({
   id: tab.id,
