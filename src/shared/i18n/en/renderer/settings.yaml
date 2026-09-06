@@ -132,6 +132,21 @@ settings:
         label: Rebuild WMI
         description: If WMIC does not work properly, try this
         rebuildButton: Rebuild WMI
+    httpProxy:
+      title: Network Proxy
+      strategy:
+        label: HTTP Proxy
+        description: Configure the proxy for network requests throughout the app, including data, images, and update downloads. Local client connections are unaffected
+        options:
+          fixed-servers: Manual Proxy
+          system: Follow System
+          direct: Off
+      host:
+        label: Proxy Host
+        description: The host of the proxy server
+      port:
+        label: Proxy Port
+        description: The port of the proxy server
     misc:
       title: Misc
       logLevel:
@@ -147,20 +162,6 @@ settings:
         enableConfirmation: Will enable hardware acceleration, restart the application to apply changes
         positiveText: Restart and Quit
         negativeText: Cancel
-      httpProxy:
-        strategy:
-          label: HTTP Proxy
-          description: Configure the proxy for external HTTP requests. Follow System currently applies to OP.GG and 101; local LCU requests are unaffected
-          options:
-            force: Use Proxy
-            auto: Auto
-            disable: Disable
-        host:
-          label: Proxy Host
-          description: The host of the proxy server
-        port:
-          label: Proxy Port
-          description: The port of the proxy server
       uninstallApp:
         label: Uninstall Application
         description: Uninstall the application, which will delete all data and configurations

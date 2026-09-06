@@ -132,6 +132,21 @@ settings:
         label: 重建 WMI
         description: 如果 WMI 无法正常使用，可尝试此修复选项
         rebuildButton: 重建 WMI
+    httpProxy:
+      title: 网络代理
+      strategy:
+        label: HTTP 代理
+        description: 设置整个应用外部 HTTP 请求的代理，包括数据、图片和更新下载；本地客户端连接不受影响
+        options:
+          fixed-servers: 手动代理
+          system: 跟随系统
+          direct: 关闭代理
+      host:
+        label: 代理主机
+        description: 代理服务器的主机地址
+      port:
+        label: 代理端口
+        description: 代理服务器的端口
     misc:
       title: 其他
       logLevel:
@@ -147,20 +162,6 @@ settings:
         enableConfirmation: 将启用硬件加速，重启应用以应用更改
         positiveText: 重启应用并退出
         negativeText: 取消
-      httpProxy:
-        strategy:
-          label: HTTP 代理
-          description: 设置应用外部 HTTP 请求的代理。跟随系统目前用于 OP.GG 和 101；LCU 本地请求不受影响
-          options:
-            force: 使用代理
-            auto: 跟随系统
-            disable: 不使用代理
-        host:
-          label: 代理主机
-          description: 代理服务器的主机地址
-        port:
-          label: 代理端口
-          description: 代理服务器的端口
       uninstallApp:
         label: 卸载应用
         description: 卸载应用，将删除所有数据和配置

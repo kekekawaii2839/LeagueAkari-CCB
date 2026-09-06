@@ -6,11 +6,11 @@ import type { AxiosInstance } from 'axios'
 import type { AxiosRetry } from 'axios-retry'
 import { z } from 'zod'
 
-import { ExternalHttpMain } from '../external-http'
 import { FeatureGatingMain } from '../feature-gating'
 import { AkariIpcMain } from '../ipc'
 import { type AkariLogger, LoggerFactoryMain } from '../logger-factory'
 import { MobxUtilsMain } from '../mobx-utils'
+import { NetworkMain } from '../network'
 import { SettingFactoryMain } from '../setting-factory'
 import type { SetterSettingService } from '../setting-factory/setter-setting-service'
 import {
@@ -51,7 +51,7 @@ export class ChampionDataMain implements IAkariShardInitDispose {
   private readonly _ipcHandlers: ChampionDataIpcHandlers
 
   constructor(
-    private readonly _externalHttp: ExternalHttpMain,
+    private readonly _network: NetworkMain,
     private readonly _featureGating: FeatureGatingMain,
     private readonly _ipc: AkariIpcMain,
     loggerFactory: LoggerFactoryMain,
@@ -126,7 +126,7 @@ export class ChampionDataMain implements IAkariShardInitDispose {
   }
 
   private _createHttpClient(headers?: Record<string, string>) {
-    const client = this._externalHttp.createAxiosClient({ timeout: 8_000, headers })
+    const client = this._network.createAxiosClient({ timeout: 8_000, headers })
     axiosRetry(client, {
       retries: 1,
       shouldResetTimeout: true,

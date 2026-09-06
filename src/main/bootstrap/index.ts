@@ -12,7 +12,6 @@ import { AutoSelectMain } from '@main/shards/auto-select'
 import { ChampionDataMain } from '@main/shards/champion-data'
 import { ClientInstallationMain } from '@main/shards/client-installation'
 import { ConfigMigrateMain } from '@main/shards/config-migrate'
-import { ExternalHttpMain } from '@main/shards/external-http'
 import { ExtraAssetsMain } from '@main/shards/extra-assets'
 import { FeatureGatingMain } from '@main/shards/feature-gating'
 import { GameClientMain } from '@main/shards/game-client'
@@ -24,6 +23,7 @@ import { LeagueClientUxMain } from '@main/shards/league-client-ux'
 import { LoggerFactoryMain } from '@main/shards/logger-factory'
 import { MainWindowUiMain } from '@main/shards/main-window-ui'
 import { MobxUtilsMain } from '@main/shards/mobx-utils'
+import { NetworkMain } from '@main/shards/network'
 import { OngoingGameMain } from '@main/shards/ongoing-game'
 import { RendererDebugMain } from '@main/shards/renderer-debug'
 import { RespawnTimerMain } from '@main/shards/respawn-timer'
@@ -315,7 +315,7 @@ export function bootstrap() {
 
     // connection & data provider shards
     manager.use(ConfigMigrateMain)
-    manager.use(ExternalHttpMain)
+    manager.use(NetworkMain)
     manager.use(SettingFactoryMain)
     manager.use(StorageMain)
 
