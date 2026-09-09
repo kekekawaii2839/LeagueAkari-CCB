@@ -1,5 +1,6 @@
 import { createManager } from '@renderer-shared/shards'
 import { AkariApiRenderer } from '@renderer-shared/shards/akari-api'
+import { AkariNavigationRenderer } from '@renderer-shared/shards/akari-navigation'
 import { AkariProtocolRenderer } from '@renderer-shared/shards/akari-protocol'
 import { AppCommonRenderer } from '@renderer-shared/shards/app-common'
 import { AutoChampConfigRenderer } from '@renderer-shared/shards/auto-champ-config'
@@ -8,6 +9,7 @@ import { AutoMiscRenderer } from '@renderer-shared/shards/auto-misc'
 import { AutoSelectRenderer } from '@renderer-shared/shards/auto-select'
 import { ClientInstallationRenderer } from '@renderer-shared/shards/client-installation'
 import { ExtraAssetsRenderer } from '@renderer-shared/shards/extra-assets'
+import { FeatureGatingRenderer } from '@renderer-shared/shards/feature-gating'
 import { GameClientRenderer } from '@renderer-shared/shards/game-client'
 import { InGameSendRenderer } from '@renderer-shared/shards/in-game-send'
 import { AkariIpcRenderer } from '@renderer-shared/shards/ipc'
@@ -15,6 +17,7 @@ import { KeyboardShortcutsRenderer } from '@renderer-shared/shards/keyboard-shor
 import { LeagueClientRenderer } from '@renderer-shared/shards/league-client'
 import { LeagueClientUxRenderer } from '@renderer-shared/shards/league-client-ux'
 import { LoggerRenderer } from '@renderer-shared/shards/logger'
+import { NetworkRenderer } from '@renderer-shared/shards/network'
 import { OngoingGameRenderer } from '@renderer-shared/shards/ongoing-game'
 import { PiniaMobxUtilsRenderer } from '@renderer-shared/shards/pinia-mobx-utils'
 import { RendererDebugRenderer } from '@renderer-shared/shards/renderer-debug'
@@ -37,6 +40,7 @@ import { SimpleNotificationsRenderer } from './simple-notifications'
 
 const manager = createManager()
 
+manager.use(AkariNavigationRenderer)
 manager.use(AkariIpcRenderer)
 manager.use(AkariApiRenderer)
 manager.use(AkariProtocolRenderer)
@@ -47,6 +51,7 @@ manager.use(AutoSelectRenderer)
 manager.use(AutoMiscRenderer)
 manager.use(ClientInstallationRenderer)
 manager.use(ExtraAssetsRenderer)
+manager.use(FeatureGatingRenderer)
 manager.use(GameClientRenderer)
 manager.use(InGameSendRenderer)
 manager.use(KeyboardShortcutsRenderer)
@@ -56,6 +61,7 @@ manager.use(LeagueClientUxRenderer)
 manager.use(LoggerRenderer)
 manager.use(MainWindowUiRenderer)
 manager.use(MemberAnalysisRenderer)
+manager.use(NetworkRenderer)
 manager.use(PlayerTabsRenderer)
 manager.use(OngoingGameRenderer)
 manager.use(PiniaMobxUtilsRenderer)

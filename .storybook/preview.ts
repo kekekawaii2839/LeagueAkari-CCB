@@ -4,9 +4,11 @@ import '@renderer-shared/assets/css/base-styles.css'
 import '@renderer-shared/assets/css/github-markdown.css'
 import '@renderer-shared/assets/css/lol-view.css'
 import '@renderer-shared/assets/css/theme-system.css'
+import { useColorThemeAttr } from '@renderer-shared/composables/useColorThemeAttr'
 import { i18next } from '@renderer-shared/i18n'
-import { GameResourceProvider } from '@renderer-shared/providers/game-resource'
-import { createStorybookGameResourceProvider } from '@renderer-shared/providers/game-resource/storybook'
+import { AkariResourceProvider } from '@renderer-shared/providers/akari-resource'
+import { createStorybookAkariResourceProvider } from '@renderer-shared/providers/akari-resource/storybook'
+import { useAppCommonStore } from '@renderer-shared/shards/app-common/store'
 import {
   getNaiveUiLocale,
   getNaiveUiTheme,
@@ -77,13 +79,14 @@ const preview: Preview = {
     (story, context) => ({
       components: {
         Story: story(),
-        GameResourceProvider,
+        AkariResourceProvider,
         NConfigProvider,
         NDialogProvider,
         NMessageProvider,
         NNotificationProvider
       },
       setup() {
+        const appCommon = useAppCommonStore()
         const themeId = computed(() => {
           const value = context.globals.themeId
           return THEME_IDS.includes(value) ? value : 'dark'
@@ -106,15 +109,16 @@ const preview: Preview = {
 
           return '1120px'
         })
-        const gameResourceProvider = createStorybookGameResourceProvider({
+        const akariResourceProvider = createStorybookAkariResourceProvider({
           locale,
           colorMode: colorTheme
         })
 
+        useColorThemeAttr(colorTheme, themeId)
+
         watchEffect(() => {
-          document.documentElement.dataset.theme = colorTheme.value
-          document.documentElement.dataset.themeId = themeId.value
-          document.documentElement.style.colorScheme = colorTheme.value
+          appCommon.settings.theme = themeId.value
+          appCommon.settings.locale = locale.value
           void i18next.changeLanguage(locale.value)
         })
 
@@ -123,7 +127,7 @@ const preview: Preview = {
           naiveUiTheme,
           naiveUiThemeOverrides,
           storyPanelMaxWidth,
-          gameResourceProvider
+          akariResourceProvider
         }
       },
       template: `
@@ -143,9 +147,9 @@ const preview: Preview = {
                     class="akari-story-panel"
                     :style="{ '--akari-story-panel-max-width': storyPanelMaxWidth }"
                   >
-                    <GameResourceProvider :value="gameResourceProvider">
+                    <AkariResourceProvider :value="akariResourceProvider">
                       <Story />
-                    </GameResourceProvider>
+                    </AkariResourceProvider>
                   </div>
                 </div>
               </NDialogProvider>

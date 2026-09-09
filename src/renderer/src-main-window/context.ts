@@ -1,10 +1,13 @@
 import { InjectionKey, MaybeRefOrGetter, Ref, inject, provide, toRef } from 'vue'
 
+import type { SearchPanePage } from './components/search-pane'
+
 export type AppContext = {
   contentWidth: Ref<number>
   contentHeight: Ref<number>
 
-  openSettingsModal: (tabName?: string) => void
+  openSearch: (page?: SearchPanePage) => void
+  openSettingsModal: () => void
 }
 
 export const MainWindowAppContext: InjectionKey<AppContext> = Symbol('MainWindowAppContext')
@@ -12,11 +15,13 @@ export const MainWindowAppContext: InjectionKey<AppContext> = Symbol('MainWindow
 export function provideMainWindowAppContext(props: {
   contentWidth: MaybeRefOrGetter<number>
   contentHeight: MaybeRefOrGetter<number>
-  openSettingsModal: (tabName?: string) => void
+  openSearch: (page?: SearchPanePage) => void
+  openSettingsModal: () => void
 }) {
   provide(MainWindowAppContext, {
     contentWidth: toRef(props.contentWidth),
     contentHeight: toRef(props.contentHeight),
+    openSearch: props.openSearch,
     openSettingsModal: props.openSettingsModal
   })
 }

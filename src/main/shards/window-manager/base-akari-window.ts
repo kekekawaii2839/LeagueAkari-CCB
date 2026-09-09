@@ -11,9 +11,10 @@ import {
   dialog,
   shell
 } from 'electron'
-import { comparer, runInAction } from 'mobx'
+import { compareShallow, runInAction } from 'mobx'
 import EventEmitter from 'node:events'
 import path from 'node:path'
+import { z } from 'zod'
 
 import type { WindowManagerMain } from '.'
 import { AkariProtocolMain } from '../akari-protocol'
@@ -172,8 +173,8 @@ export abstract class BaseAkariWindow<
       this._namespace,
       {
         // @ts-ignore
-        pinned: { default: this.settings.pinned },
-        opacity: { default: this.settings.opacity },
+        pinned: { default: this.settings.pinned, schema: z.boolean() },
+        opacity: { default: this.settings.opacity, schema: z.number() },
         ...this._config.settingSchema
       },
       this.settings
@@ -283,7 +284,7 @@ export abstract class BaseAkariWindow<
           this._settingService._saveToStorage('trackedBounds', bounds, { delay: 1000 })
         }
       },
-      { equals: comparer.shallow }
+      { equals: compareShallow }
     )
 
     this._context.mobxUtils.reaction(
@@ -309,7 +310,9 @@ export abstract class BaseAkariWindow<
         sandbox: false,
         spellcheck: false,
         partition: this._partition,
-        backgroundThrottling: false,
+        // Disabling this can leave hidden Windows windows with stale rendering and input state.
+        // Keep Electron's default throttling behavior unless a window has a proven need to opt out.
+        backgroundThrottling: true,
         additionalArguments: [`--akari-window-type=${this._namespaceSuffix}`],
         ...webPreferences
       },
@@ -614,39 +617,99 @@ export abstract class BaseAkariWindow<
 
   showOrRestore(inactive = false) {
     if (this._window) {
-      if (!this.state.show) {
+      if (this._window.isMinimized()) {
+        this._window.restore()
+
+        if (!inactive) {
+          this._window.focus()
+        }
+
+        this._syncShowStateFromWindow()
+
+        return
+      }
+
+      const nativeVisible = this._window.isVisible()
+      if (!this.state.show || !nativeVisible) {
+        if (this.state.show !== nativeVisible) {
+          this._logger.warn(
+            `Window visibility state mismatch (${this._namespace}): state.show=${this.state.show}, nativeVisible=${nativeVisible}; reissuing show`
+          )
+        }
+
         if (inactive) {
           this._window.showInactive()
         } else {
           this._window.show()
         }
 
+        this._syncShowStateFromWindow()
+
         return
       }
-
-      if (this._window.isMinimized()) {
-        this._window.restore()
-      }
-
       if (!inactive) {
         this._window.focus()
       }
+
+      this._syncShowStateFromWindow()
     }
   }
 
   show(inactive = false) {
-    if (this._window && !this.state.show) {
+    if (!this._window) {
+      return
+    }
+
+    if (this._window.isMinimized()) {
+      this._window.restore()
+
+      if (!inactive) {
+        this._window.focus()
+      }
+
+      this._syncShowStateFromWindow()
+
+      return
+    }
+
+    const nativeVisible = this._window.isVisible()
+    if (!this.state.show || !nativeVisible) {
+      if (this.state.show !== nativeVisible) {
+        this._logger.warn(
+          `Window visibility state mismatch (${this._namespace}): state.show=${this.state.show}, nativeVisible=${nativeVisible}; reissuing show`
+        )
+      }
+
       if (inactive) {
         this._window.showInactive()
       } else {
         this._window.show()
       }
+
+      this._syncShowStateFromWindow()
     }
   }
 
   hide() {
-    if (this._window && this.state.show) {
+    if (!this._window) {
+      return
+    }
+
+    if (this._window.isVisible() || this._window.isMinimized()) {
       this._window.hide()
+    }
+
+    this._syncShowStateFromWindow()
+  }
+
+  private _syncShowStateFromWindow() {
+    if (!this._window) {
+      return
+    }
+
+    const show = this._window.isVisible()
+    if (this.state.show !== show) {
+      runInAction(() => (this.state.show = show))
     }
   }
 

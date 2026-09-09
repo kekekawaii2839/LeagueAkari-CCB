@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "upstreamBaseline": "ba522009f0d85b0ee0979e76e3b92724555d4c53",
+  "upstreamBaseline": "f31c1cd27f8eb131abe4f74e5b89d7adaf1949ed",
   "budget": {
-    "targetFiles": 7,
-    "hardMaxFiles": 10,
+    "targetFiles": 8,
+    "hardMaxFiles": 11,
     "targetChangedLines": 220,
     "hardMaxChangedLines": 350
   },
@@ -70,8 +70,14 @@
     {
       "id": "vendored-yarn-alignment",
       "upstreamFile": "package.json",
-      "purpose": "Align packageManager with the checked-in Yarn 4.9.1 executable",
+      "purpose": "Keep CCB package identity and declared fork test dependencies while following the checked-in upstream Yarn executable",
       "replacementIfUpstreamChanges": "Update both packageManager and yarnPath together"
+    },
+    {
+      "id": "fork-dependency-lock",
+      "upstreamFile": "yarn.lock",
+      "purpose": "Lock the CCB test dependency declared in package.json",
+      "replacementIfUpstreamChanges": "Regenerate with the repository-pinned Yarn after dependency changes"
     },
     {
       "id": "fork-repository-link",

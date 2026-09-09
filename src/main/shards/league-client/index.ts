@@ -9,13 +9,14 @@ import { RadixEventEmitter } from '@shared/utils/event-emitter'
 import { sleep } from '@shared/utils/sleep'
 import axios, { AxiosInstance, AxiosRequestConfig, isAxiosError } from 'axios'
 import { AxiosRetry } from 'axios-retry'
-import { comparer } from 'mobx'
+import { compareShallow } from 'mobx'
 import fs from 'node:fs'
 import { ClientRequestArgs } from 'node:http'
 import https from 'node:https'
 import path from 'node:path'
 import PQueue from 'p-queue'
 import WebSocket from 'ws'
+import { z } from 'zod'
 
 import { AkariProtocolMain } from '../akari-protocol'
 import { AkariIpcMain } from '../ipc'
@@ -113,7 +114,7 @@ export class LeagueClientMain implements IAkariShardInitDispose {
     this._settingService = _settingFactory.register(
       LeagueClientMain.id,
       {
-        autoConnect: { default: this.settings.autoConnect }
+        autoConnect: { default: this.settings.autoConnect, schema: z.boolean() }
       },
       this.settings
     )
@@ -365,7 +366,7 @@ export class LeagueClientMain implements IAkariShardInitDispose {
           this._logger.debug(`LCU state changed: ${s}`, a)
         }
       },
-      { equals: comparer.shallow }
+      { equals: compareShallow }
     )
 
     /**
@@ -670,7 +671,7 @@ export class LeagueClientMain implements IAkariShardInitDispose {
    * 不知道现在是否需要
    */
   async fixWindowMethodA(config?: { baseHeight: number; baseWidth: number }) {
-    if (!NATIVE_SUPPORT.adjustLeagueClientWindowSize) {
+    if (!NATIVE_SUPPORT.adjustLeagueClientWindowSize.available) {
       return
     }
 

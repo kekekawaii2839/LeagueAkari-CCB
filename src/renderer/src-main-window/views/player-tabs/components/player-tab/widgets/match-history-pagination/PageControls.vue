@@ -7,7 +7,7 @@
       size="small"
       :options="pageSizeOptions"
       :render-label="renderPageSizeLabel"
-      class="mr-2"
+      class="mr-2 @[480px]:hidden"
     />
 
     <NButton
@@ -44,7 +44,7 @@
             v-model:value="arbitraryPage"
             :disabled="isPaginationDisabled"
             :min="1"
-            @keyup.enter="handleGoToArbitraryPage"
+            @keydown.enter="handleArbitraryPageEnter"
           />
           <NButton
             size="small"
@@ -179,6 +179,14 @@ const handleGoToArbitraryPage = () => {
   loadMatchHistory({
     startIndex: (arbitraryPage.value - 1) * currentPageSize.value
   })
+}
+
+const handleArbitraryPageEnter = (event: KeyboardEvent) => {
+  if (event.isComposing) {
+    return
+  }
+
+  handleGoToArbitraryPage()
 }
 
 const handleGoToFirstPage = () => {

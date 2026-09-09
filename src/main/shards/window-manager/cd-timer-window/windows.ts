@@ -1,9 +1,10 @@
 import { NATIVE_SUPPORT, nativeInput } from '@main/native'
 import { GameClientMain } from '@main/shards/game-client'
 import { AkariIpcError } from '@main/shards/ipc'
-import icon from '@resources/LA_ICON.ico?asset'
+import icon from '@resources/LA_ICON.ico?asset&asarUnpack'
 import { sleep } from '@shared/utils/sleep'
-import { comparer, computed } from 'mobx'
+import { compareShallow, computed } from 'mobx'
+import { z } from 'zod'
 
 import { BaseAkariWindow } from '../base-akari-window'
 import type { WindowManagerMainContext } from '../context'
@@ -53,12 +54,22 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
       settingSchema: {
         pinned: {
           default: settings.pinned,
+          schema: z.boolean(),
           transform: () => true
         },
-        enabled: { default: settings.enabled },
-        showShortcut: { default: settings.showShortcut },
-        timerType: { default: settings.timerType },
-        reverseAdjustmentDirection: { default: settings.reverseAdjustmentDirection }
+        enabled: {
+          default: settings.enabled,
+          schema: z.boolean(),
+          restore: ({ value }) =>
+            NATIVE_SUPPORT.nativeInput.available ? (value as boolean) : false,
+          transform: ({ value }) => NATIVE_SUPPORT.nativeInput.available && value
+        },
+        showShortcut: { default: settings.showShortcut, schema: z.string().nullable() },
+        timerType: { default: settings.timerType, schema: z.enum(['countdown', 'countup']) },
+        reverseAdjustmentDirection: {
+          default: settings.reverseAdjustmentDirection,
+          schema: z.boolean()
+        }
       },
       browserWindowOptions: {
         title: AkariCdTimerWindow.TITLE,
@@ -66,7 +77,7 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
         show: false,
         frame: false,
         resizable: false,
-        focusable: true, // true + type:'panel' 保证点击时游戏走正常失活流程，不会最小化
+        focusable: false,
         type: 'panel',
         alwaysOnTop: true,
         maximizable: false,
@@ -79,7 +90,7 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
         autoHideMenuBar: true,
         backgroundColor: '#00000000',
         webPreferences: {
-          backgroundThrottling: false
+          backgroundThrottling: true
         },
         titleBarStyle: 'hidden',
         trafficLightPosition: { x: 8, y: 8 }
@@ -104,17 +115,12 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
             this._applyOverlayWindowBehavior()
           })
 
-          this._window?.on('focus', () => {
-            // focusable: true 时可能正常获焦（如用户点击计时器区域），属预期行为
-            this._logger.debug('cd-timer window focused')
-          })
-
           this._window?.on('system-context-menu', (event) => {
             event.preventDefault()
           })
         }
       },
-      { fireImmediately: true, equals: comparer.shallow }
+      { fireImmediately: true, equals: compareShallow }
     )
 
     this._mobxUtils.reaction(
@@ -124,7 +130,7 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
           return
         }
 
-        if (enabled) {
+        if (enabled && NATIVE_SUPPORT.nativeInput.available) {
           this.createWindow()
         } else {
           this.close(true)
@@ -132,7 +138,7 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
       },
       {
         fireImmediately: true,
-        equals: comparer.shallow,
+        equals: compareShallow,
         delay: 500
       }
     )
@@ -167,7 +173,7 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
     )
 
     const shouldUseCdTimer = computed(() => {
-      if (!this.state.ready || !this.settings.enabled) {
+      if (!NATIVE_SUPPORT.nativeInput.available || !this.state.ready || !this.settings.enabled) {
         return false
       }
 
@@ -274,10 +280,12 @@ export class AkariCdTimerWindow extends BaseAkariWindow<CdTimerWindowState, CdTi
   override async onInit() {
     await super.onInit()
 
-    if (NATIVE_SUPPORT.nativeInput.available) {
-      this._registerIpcHandlers()
+    if (!NATIVE_SUPPORT.nativeInput.available) {
+      await this._settingService.set('enabled', false)
+      return
     }
 
+    this._registerIpcHandlers()
     this._watchCdTimerWindow()
   }
 

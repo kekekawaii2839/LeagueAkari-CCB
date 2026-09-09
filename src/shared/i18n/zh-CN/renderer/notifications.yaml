@@ -2,14 +2,14 @@ notifications:
   updateModal:
     newVersion: 新版本
     versionFeatures: 版本特性
-    newVersionAvailable: 新版本可用：{{version}} (当前版本：{{currentVersion}})
-    currentVersion: 当前版本：{{version}}
     releasePage: 发布页面
     externalDownload: 外链下载
     startUpdate: 立即更新
     downloading: 正在下载 {{progress}}%
-    waitingForRestart: 关闭后更新
+    cancelUpdate: 取消更新
+    waitingForRestart: 关闭并更新
     downloadFailed: 下载失败
+    retryUpdate: 重试更新
     noUpdateMd: 无发布说明
     ignoreThisVersion: 忽略此版本
     noUpdate: 无更新
@@ -17,6 +17,9 @@ notifications:
     elevatedStartup:
       title: 正在以管理员身份运行
       content: $t(common:appName) 当前正在以高权限运行
+    nativeInputInitializationFailed:
+      title: 原生输入组件初始化失败
+      content: 快捷键和游戏内模拟输入功能已停用。请检查安全软件是否拦截或占用相关文件，然后重启 $t(common:appName)。详情请查看日志。
     newReleaseHints:
       title: 新版本可用
       content: 新版本 {{version}} 已经发布

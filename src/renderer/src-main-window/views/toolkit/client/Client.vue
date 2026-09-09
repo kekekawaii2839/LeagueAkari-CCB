@@ -2,8 +2,12 @@
   <div class="h-full w-full">
     <NScrollbar class="relative h-full max-w-full">
       <div class="mx-auto flex max-w-[800px] flex-col gap-6 p-6">
-        <SettingsSection :title="t('toolkit.client.gameClient.title')">
+        <SettingsSection
+          setting-id="toolkit.client.game-client"
+          :title="t('toolkit.client.gameClient.title')"
+        >
           <SettingsRow
+            setting-id="toolkit.client.game-client.terminate-shortcut-enabled"
             :disabled="!as.nativeSupport.nativeInput.available"
             :label="
               nativeInputRequiresElevation
@@ -32,6 +36,7 @@
             />
           </SettingsRow>
           <SettingsRow
+            setting-id="toolkit.client.game-client.terminate-shortcut"
             :disabled="!as.nativeSupport.nativeInput.available"
             :label="
               nativeInputRequiresElevation
@@ -56,6 +61,7 @@
             />
           </SettingsRow>
           <SettingsRow
+            setting-id="toolkit.client.game-client.settings-file-mode"
             :label-description="t('toolkit.client.gameClient.settingsFileMode.description')"
             :label-width="320"
           >
@@ -86,8 +92,12 @@
             />
           </SettingsRow>
         </SettingsSection>
-        <SettingsSection :title="t('toolkit.client.leagueClientUx.title')">
+        <SettingsSection
+          setting-id="toolkit.client.league-client-ux"
+          :title="t('toolkit.client.leagueClientUx.title')"
+        >
           <SettingsRow
+            setting-id="toolkit.client.league-client-ux.adjust-window-size"
             :disabled="!adjustLeagueClientWindowSizeSupported"
             :label="
               adjustWindowRequiresElevation
@@ -116,7 +126,7 @@
                 :min="1"
                 @update:value="(val) => (fixWindowMethodAOptions.baseWidth = val || 0)"
                 :value="fixWindowMethodAOptions.baseWidth"
-                @keyup.enter="() => fixWindowInputButton2?.focus()"
+                @keydown.enter="handleFixWindowWidthEnter"
               >
                 <template #prefix>W</template>
               </NInputNumber>
@@ -129,7 +139,7 @@
                 :min="1"
                 @update:value="(val) => (fixWindowMethodAOptions.baseHeight = val || 0)"
                 :value="fixWindowMethodAOptions.baseHeight"
-                @keyup.enter="() => handleFixWindowMethodA()"
+                @keydown.enter="handleFixWindowHeightEnter"
                 ><template #prefix>H</template>
               </NInputNumber>
               <NButton
@@ -149,10 +159,11 @@
 </template>
 
 <script setup lang="ts">
-import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
-import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
+import SettingsRow from '@main-window/settings-navigation/NavigableSettingsRow.vue'
+import SettingsSection from '@main-window/settings-navigation/NavigableSettingsSection.vue'
 import TooltipWithIcon from '@renderer-shared/components/TooltipWithIcon.vue'
 import { useInstance } from '@renderer-shared/shards'
+import { resolveNativeInputStatus } from '@renderer-shared/shards/app-common/native-input-status'
 import { useAppCommonStore } from '@renderer-shared/shards/app-common/store'
 import { GameClientRenderer } from '@renderer-shared/shards/game-client'
 import { useGameClientStore } from '@renderer-shared/shards/game-client/store'
@@ -175,14 +186,24 @@ const gc = useInstance(GameClientRenderer)
 
 const dialog = useDialog()
 
+const nativeInputStatus = computed(() =>
+  resolveNativeInputStatus(as.nativeSupport.nativeInput, as.isElevated)
+)
 const nativeInputRequiresElevation = computed(
-  () => as.nativeSupport.nativeInput.requiresElevation && !as.isElevated
+  () => nativeInputStatus.value === 'requires-elevation'
 )
-const nativeInputStatusDescription = computed(() =>
-  as.nativeSupport.nativeInput.availableOnCurrentPlatform
-    ? t('toolkit.client.gameClient.nativeAddonRequiresAdministrator')
-    : t('toolkit.client.gameClient.windowsOnlyNativeAddon')
-)
+const nativeInputStatusDescription = computed(() => {
+  switch (nativeInputStatus.value) {
+    case 'unsupported-platform':
+      return t('toolkit.client.gameClient.windowsOnlyNativeAddon')
+    case 'requires-elevation':
+      return t('toolkit.client.gameClient.nativeAddonRequiresAdministrator')
+    case 'initialization-failed':
+      return t('toolkit.client.gameClient.nativeAddonInitializationFailed')
+    default:
+      return ''
+  }
+})
 
 const adjustWindowRequirement = computed(() => as.nativeSupport.adjustLeagueClientWindowSize)
 const adjustWindowRequiresElevation = computed(
@@ -218,6 +239,18 @@ const handleFixWindowMethodA = async () => {
       }
     }
   })
+}
+
+const handleFixWindowWidthEnter = (event: KeyboardEvent) => {
+  if (!event.isComposing) {
+    fixWindowInputButton2.value?.focus()
+  }
+}
+
+const handleFixWindowHeightEnter = (event: KeyboardEvent) => {
+  if (!event.isComposing) {
+    void handleFixWindowMethodA()
+  }
 }
 
 const message = useMessage()

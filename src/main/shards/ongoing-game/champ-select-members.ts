@@ -2,29 +2,24 @@ import { magic } from '@main/native'
 import { EMPTY_PUUID } from '@shared/constants/common'
 import { ChampSelectSession, ChampSelectTeam } from '@shared/types/league-client/champ-select'
 
-export interface ChampSelectVisibilityConfigLike {
-  spotlight: {
-    deobfuscation: boolean
-  }
-}
-
 export interface VisibleChampSelectMember {
   puuid: string
   teamIdentifier: string
   championId: number
   position: string
+  isAutofilled: boolean
   spell1Id: number
   spell2Id: number
 }
 
 export function collectVisibleChampSelectMembers(
   session: ChampSelectSession,
-  config: ChampSelectVisibilityConfigLike
+  deobfuscationEnabled: boolean
 ): VisibleChampSelectMember[] {
   const members: VisibleChampSelectMember[] = []
 
   const collectMember = (member: ChampSelectTeam) => {
-    const puuid = getVisibleChampSelectPuuid(member, config)
+    const puuid = getVisibleChampSelectPuuid(member, deobfuscationEnabled)
     if (!puuid) {
       return
     }
@@ -35,6 +30,7 @@ export function collectVisibleChampSelectMembers(
       teamIdentifier,
       championId: member.championId || member.championPickIntent || 0,
       position: member.assignedPosition.toUpperCase(),
+      isAutofilled: member.isAutofilled,
       spell1Id: member.spell1Id || 0,
       spell2Id: member.spell2Id || 0
     })
@@ -46,15 +42,8 @@ export function collectVisibleChampSelectMembers(
   return members
 }
 
-export function getVisibleChampSelectPuuid(
-  member: ChampSelectTeam,
-  config: ChampSelectVisibilityConfigLike
-) {
-  if (
-    member.nameVisibilityType === 'HIDDEN' &&
-    member.obfuscatedPuuid &&
-    config.spotlight.deobfuscation
-  ) {
+export function getVisibleChampSelectPuuid(member: ChampSelectTeam, deobfuscationEnabled: boolean) {
+  if (member.nameVisibilityType === 'HIDDEN' && member.obfuscatedPuuid && deobfuscationEnabled) {
     return magic(member.obfuscatedPuuid) || null
   }
 

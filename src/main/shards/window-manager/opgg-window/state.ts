@@ -1,5 +1,5 @@
 import { Rectangle } from 'electron'
-import { makeAutoObservable, observable } from 'mobx'
+import { makeAutoObservable, observableRef } from 'mobx'
 
 export class OpggWindowSettings {
   enabled: boolean = true
@@ -7,6 +7,7 @@ export class OpggWindowSettings {
   opacity: number = 1
   pinned: boolean = true
   showShortcut: string | null = null
+  showSkinSelector: boolean = false
 
   setOpacity(opacity: number) {
     this.opacity = opacity
@@ -26,6 +27,10 @@ export class OpggWindowSettings {
 
   setShowShortcut(showShortcut: string | null) {
     this.showShortcut = showShortcut
+  }
+
+  setShowSkinSelector(showSkinSelector: boolean) {
+    this.showSkinSelector = showSkinSelector
   }
 
   constructor() {
@@ -69,7 +74,7 @@ export class OpggWindowState {
 
   constructor() {
     makeAutoObservable(this, {
-      trackedBounds: observable.ref
+      trackedBounds: observableRef
     })
   }
 }

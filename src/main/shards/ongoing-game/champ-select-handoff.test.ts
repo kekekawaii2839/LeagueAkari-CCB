@@ -140,14 +140,8 @@ function createContext(options: {
       _removeFromStorage: storage.remove
     },
     state,
-    akariApi: {
-      state: {
-        ongoingGameConfig: {
-          spotlight: {
-            deobfuscation: options.deobfuscation ?? true
-          }
-        }
-      }
+    featureGating: {
+      isEnabled: vi.fn(() => options.deobfuscation ?? true)
     },
     leagueClient: {
       data: {
@@ -205,13 +199,7 @@ describe('buildChampSelectHandoffSnapshot', () => {
       ]
     })
 
-    expect(
-      buildChampSelectHandoffSnapshot(session, {
-        spotlight: {
-          deobfuscation: true
-        }
-      })
-    ).toEqual({
+    expect(buildChampSelectHandoffSnapshot(session, true)).toEqual({
       gameId: 12345,
       teams: {
         'TEAM-100': ['p1'],
@@ -240,13 +228,7 @@ describe('buildChampSelectHandoffSnapshot', () => {
       myTeam: [createMember({ puuid: 'p1', championId: 1, team: 100 })]
     })
 
-    expect(
-      buildChampSelectHandoffSnapshot(session, {
-        spotlight: {
-          deobfuscation: false
-        }
-      })
-    ).toBeNull()
+    expect(buildChampSelectHandoffSnapshot(session, false)).toBeNull()
   })
 
   it('collects visible champ-select members for other controllers', () => {
@@ -257,6 +239,7 @@ describe('buildChampSelectHandoffSnapshot', () => {
           puuid: 'p1',
           championId: 1,
           assignedPosition: 'top',
+          isAutofilled: true,
           spell1Id: 4,
           spell2Id: 14,
           team: 100
@@ -274,18 +257,13 @@ describe('buildChampSelectHandoffSnapshot', () => {
       ]
     })
 
-    expect(
-      collectVisibleChampSelectMembers(session, {
-        spotlight: {
-          deobfuscation: false
-        }
-      })
-    ).toEqual([
+    expect(collectVisibleChampSelectMembers(session, false)).toEqual([
       {
         puuid: 'p1',
         teamIdentifier: 'TEAM-100',
         championId: 1,
         position: 'TOP',
+        isAutofilled: true,
         spell1Id: 4,
         spell2Id: 14
       },
@@ -294,6 +272,7 @@ describe('buildChampSelectHandoffSnapshot', () => {
         teamIdentifier: 'TEAM-200',
         championId: 99,
         position: 'MIDDLE',
+        isAutofilled: false,
         spell1Id: 7,
         spell2Id: 4
       }

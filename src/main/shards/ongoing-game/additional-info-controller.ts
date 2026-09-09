@@ -1,9 +1,10 @@
 import { EMPTY_PUUID } from '@shared/constants/common'
-import { AdditionalResult } from '@shared/shards/ongoing-game'
+import { ONGOING_GAME_GSM_BY_PUUID_FEATURE_GATE } from '@shared/shards/feature-gating/keys'
+import { AdditionalResult, OngoingGamePositionAssignment } from '@shared/shards/ongoing-game'
 import { isAbortError } from '@shared/utils/queue-keeper'
-import { ParsedRole, parseSelectedRole } from '@shared/utils/ranked'
+import { parseSelectedRole } from '@shared/utils/ranked'
 import { isAxiosError } from 'axios'
-import { comparer } from 'mobx'
+import { compareStructural } from 'mobx'
 
 import { ONGOING_GAME_LOADING_PRIORITY, type OngoingGameMainContext } from './context'
 import { memberMerge } from './member-merge'
@@ -27,6 +28,18 @@ type AdditionalInfoQueryResult = {
   teamTwo: TeamPropsToBeExtracted[]
   spells: SummonerSpellSelection[]
   gameMode: string
+}
+
+function getTeamMemberPositionAssignment(
+  member: TeamPropsToBeExtracted
+): OngoingGamePositionAssignment {
+  const role = parseSelectedRole(member.selectedRole)
+
+  return {
+    position: member.selectedPosition,
+    role,
+    isAutofilled: role.assignmentReason === 'AUTOFILL'
+  }
 }
 
 export function extractTeamMembers(
@@ -65,13 +78,10 @@ export function extractTeamMembers(
       ),
       positions: all.reduce(
         (acc, p) => {
-          acc[p.puuid] = {
-            position: p.selectedPosition,
-            role: parseSelectedRole(p.selectedRole)
-          }
+          acc[p.puuid] = getTeamMemberPositionAssignment(p)
           return acc
         },
-        {} as Record<string, { position: string; role: ParsedRole | null }>
+        {} as Record<string, OngoingGamePositionAssignment>
       )
     }
   }
@@ -108,10 +118,10 @@ export function extractTeamMembers(
     ),
     positions: all.reduce(
       (acc, p) => {
-        acc[p.puuid] = { position: p.selectedPosition, role: parseSelectedRole(p.selectedRole) }
+        acc[p.puuid] = getTeamMemberPositionAssignment(p)
         return acc
       },
-      {} as Record<string, { position: string; role: ParsedRole | null }>
+      {} as Record<string, OngoingGamePositionAssignment>
     )
   } as AdditionalResult
 }
@@ -120,23 +130,24 @@ export class OngoingGameAdditionalInfoController {
   constructor(private readonly _context: OngoingGameMainContext) {}
 
   watch() {
-    const { leagueClient, mobxUtils, state } = this._context
+    const { featureGating, leagueClient, mobxUtils, state } = this._context
 
     mobxUtils.reaction(
       () => ({
         queryStage: state.queryStage,
         selfPuuid: leagueClient.data.summoner.me?.puuid,
-        draft: state.draft
+        draft: state.draft,
+        gsmByPuuidEnabled: featureGating.isEnabled(ONGOING_GAME_GSM_BY_PUUID_FEATURE_GATE, true)
       }),
       () => {
         this.update()
       },
-      { delay: 300, equals: comparer.structural, fireImmediately: true }
+      { delay: 300, equals: compareStructural, fireImmediately: true }
     )
   }
 
   update() {
-    const { akariApi, leagueClient, queueKeeper, state } = this._context
+    const { featureGating, leagueClient, queueKeeper, state } = this._context
 
     if (
       state.draft ||
@@ -155,7 +166,7 @@ export class OngoingGameAdditionalInfoController {
 
     const tasks: (() => Promise<AdditionalInfoQueryResult | null>)[] = []
 
-    if (akariApi.state.ongoingGameConfig.spotlight.gsmByPuuid) {
+    if (featureGating.isEnabled(ONGOING_GAME_GSM_BY_PUUID_FEATURE_GATE, true)) {
       tasks.push(() => this._getGsmGameMembers(puuid))
     }
 
@@ -174,7 +185,7 @@ export class OngoingGameAdditionalInfoController {
           spell2Id: number
         }
       >
-      const mergedPositions = {} as Record<string, { position: string; role: ParsedRole | null }>
+      const mergedPositions = {} as Record<string, OngoingGamePositionAssignment>
 
       for (const result of results) {
         if (result.status === 'fulfilled' && result.value) {

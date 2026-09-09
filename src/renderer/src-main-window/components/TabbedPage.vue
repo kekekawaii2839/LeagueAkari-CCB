@@ -6,9 +6,10 @@
         <span class="text-base font-bold">{{ title }}</span>
       </div>
       <NTabs
-        v-model:value="currentTab"
+        :value="currentTab"
         :theme-overrides="{ tabGapMediumBar: '18px' }"
         size="medium"
+        @update:value="handleUserTabChange"
       >
         <NTab v-for="tab in tabs" :key="tab.key" :name="tab.key" :tab="tab.name">
           <div class="flex items-center gap-1">
@@ -19,10 +20,7 @@
       </NTabs>
     </div>
     <div class="relative h-0 flex-1">
-      <KeepAlive v-if="disableTransition">
-        <component :is="currentTabComponent" :key="currentTab" />
-      </KeepAlive>
-      <Transition v-else :name="transitionType">
+      <Transition :name="transitionType" :css="!transitionsDisabled">
         <KeepAlive>
           <component :is="currentTabComponent" :key="currentTab" />
         </KeepAlive>
@@ -32,16 +30,20 @@
 </template>
 
 <script setup lang="ts">
+import { useAkariNavigationStep } from '@renderer-shared/shards/akari-navigation'
 import { NIcon, NTab, NTabs } from 'naive-ui'
 import {
   Component as ComponentC,
   FunctionalComponent,
   computed,
+  nextTick,
   onActivated,
   ref,
   watch
 } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+import { createMainPageNavigationStepKey } from '@main-window/navigation-steps'
 
 export interface TabConfig {
   key: string
@@ -64,6 +66,10 @@ const props = defineProps<{
 }>()
 
 const currentTab = ref(props.defaultTab ?? props.tabs[0]?.key ?? '')
+const navigationTransitionDisabled = ref(false)
+const transitionsDisabled = computed(
+  () => Boolean(props.disableTransition) || navigationTransitionDisabled.value
+)
 
 const currentTabComponent = computed(() => {
   const tab = props.tabs.find((t) => t.key === currentTab.value)
@@ -74,7 +80,7 @@ const transitionType = ref<'move-from-right-fade' | 'move-from-left-fade'>('move
 watch(
   () => currentTab.value,
   (cur, prev) => {
-    if (props.disableTransition) {
+    if (transitionsDisabled.value) {
       return
     }
 
@@ -97,28 +103,79 @@ watch(
 
 const route = useRoute()
 const router = useRouter()
+let navigationActivationSequence = 0
 
-onActivated(() => {
-  router.replace({ name: props.routeName, params: { section: currentTab.value } })
+type TabActivationSource = 'user' | 'route' | 'navigation'
+
+const isKnownTab = (value: string) => props.tabs.some((tab) => tab.key === value)
+
+const activateTab = async (value: string, source: TabActivationSource, signal?: AbortSignal) => {
+  if (!isKnownTab(value)) {
+    return false
+  }
+
+  const tabChanged = currentTab.value !== value
+  const sequence = tabChanged && source !== 'user' ? ++navigationActivationSequence : null
+
+  if (sequence !== null) {
+    navigationTransitionDisabled.value = true
+  }
+  if (tabChanged) {
+    currentTab.value = value
+    await nextTick()
+  }
+
+  if (
+    source !== 'route' &&
+    (route.name !== props.routeName || route.params.section !== value) &&
+    !signal?.aborted
+  ) {
+    await router.replace({ name: props.routeName, params: { section: value } })
+    await nextTick()
+  }
+
+  if (sequence !== null && sequence === navigationActivationSequence) {
+    navigationTransitionDisabled.value = false
+    await nextTick()
+  }
+
+  return true
+}
+
+const handleUserTabChange = (value: string) => {
+  void activateTab(value, 'user')
+}
+
+useAkariNavigationStep<string>({
+  key: createMainPageNavigationStepKey(props.routeName),
+  activate: async (payload, { signal }) => {
+    const activated = await activateTab(payload, 'navigation', signal)
+    if (!activated) {
+      return { status: 'unavailable', reason: 'unknown-page-tab' }
+    }
+    return undefined
+  }
 })
 
-watch(
-  () => currentTab.value,
-  (cur) => {
-    router.replace({ name: props.routeName, params: { section: cur } })
-  },
-  { immediate: true }
-)
+onActivated(() => {
+  const section = route.params.section
+  if (route.name === props.routeName && typeof section === 'string' && isKnownTab(section)) {
+    void activateTab(section, 'route')
+    return
+  }
+
+  void activateTab(currentTab.value, 'navigation')
+})
 
 // route to section
 watch(
   [() => route.name, () => route.params.section],
   ([name, section]) => {
-    if (name !== props.routeName || !section) {
+    if (name !== props.routeName || typeof section !== 'string') {
       return
     }
 
-    currentTab.value = section as string
+    void activateTab(section, 'route')
   },
   { immediate: true }
 )

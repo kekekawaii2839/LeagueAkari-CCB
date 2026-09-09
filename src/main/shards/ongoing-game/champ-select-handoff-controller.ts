@@ -1,4 +1,5 @@
-import { comparer } from 'mobx'
+import { ONGOING_GAME_DEOBFUSCATION_FEATURE_GATE } from '@shared/shards/feature-gating/keys'
+import { compareStructural } from 'mobx'
 
 import {
   ChampSelectHandoffSnapshot,
@@ -62,13 +63,16 @@ export class OngoingGameChampSelectHandoffController {
   }
 
   private _watchSnapshotRecording() {
-    const { akariApi, leagueClient, mobxUtils, state } = this._context
+    const { featureGating, leagueClient, mobxUtils, state } = this._context
 
     mobxUtils.reaction(
       () => {
-        const config = akariApi.state.ongoingGameConfig
+        const deobfuscationEnabled = featureGating.isEnabled(
+          ONGOING_GAME_DEOBFUSCATION_FEATURE_GATE,
+          true
+        )
 
-        if (!config.spotlight.deobfuscation || state.draft) {
+        if (!deobfuscationEnabled || state.draft) {
           return null
         }
 
@@ -76,14 +80,17 @@ export class OngoingGameChampSelectHandoffController {
           return null
         }
 
-        return buildChampSelectHandoffSnapshot(leagueClient.data.champSelect.session, config)
+        return buildChampSelectHandoffSnapshot(
+          leagueClient.data.champSelect.session,
+          deobfuscationEnabled
+        )
       },
       (snapshot) => {
         if (snapshot) {
           this._saveSnapshot(snapshot)
         }
       },
-      { delay: 300, equals: comparer.structural, fireImmediately: true }
+      { delay: 300, equals: compareStructural, fireImmediately: true }
     )
   }
 
@@ -103,7 +110,7 @@ export class OngoingGameChampSelectHandoffController {
           this.clear()
         }
       },
-      { equals: comparer.structural, fireImmediately: true }
+      { equals: compareStructural, fireImmediately: true }
     )
   }
 
@@ -135,6 +142,6 @@ export class OngoingGameChampSelectHandoffController {
   }
 
   private _isFeatureEnabled() {
-    return Boolean(this._context.akariApi.state.ongoingGameConfig.spotlight.deobfuscation)
+    return this._context.featureGating.isEnabled(ONGOING_GAME_DEOBFUSCATION_FEATURE_GATE, true)
   }
 }

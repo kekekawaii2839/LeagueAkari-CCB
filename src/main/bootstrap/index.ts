@@ -1,7 +1,7 @@
 import { is, optimizer } from '@electron-toolkit/utils'
 import '@main/i18n'
 import { initAppLogger } from '@main/logger'
-import { isElevated } from '@main/native'
+import { initializeNativeRuntime } from '@main/native'
 import { AkariApiMain } from '@main/shards/akari-api'
 import { AkariProtocolMain } from '@main/shards/akari-protocol'
 import { AppCommonMain } from '@main/shards/app-common'
@@ -9,9 +9,11 @@ import { AutoChampionConfigMain } from '@main/shards/auto-champ-config'
 import { AutoGameflowMain } from '@main/shards/auto-gameflow'
 import { AutoMiscMain } from '@main/shards/auto-misc'
 import { AutoSelectMain } from '@main/shards/auto-select'
+import { ChampionDataMain } from '@main/shards/champion-data'
 import { ClientInstallationMain } from '@main/shards/client-installation'
 import { ConfigMigrateMain } from '@main/shards/config-migrate'
 import { ExtraAssetsMain } from '@main/shards/extra-assets'
+import { FeatureGatingMain } from '@main/shards/feature-gating'
 import { GameClientMain } from '@main/shards/game-client'
 import { InGameSendMain } from '@main/shards/in-game-send'
 import { AkariIpcMain } from '@main/shards/ipc'
@@ -19,9 +21,11 @@ import { KeyboardShortcutsMain } from '@main/shards/keyboard-shortcuts'
 import { LeagueClientMain } from '@main/shards/league-client'
 import { LeagueClientUxMain } from '@main/shards/league-client-ux'
 import { LoggerFactoryMain } from '@main/shards/logger-factory'
+import { MainWindowUiMain } from '@main/shards/main-window-ui'
 import { MemberAnalysisMain } from '@main/shards/member-analysis'
 import { installForkLogRedaction } from '@main/shards/member-analysis/fork-log-redaction'
 import { MobxUtilsMain } from '@main/shards/mobx-utils'
+import { NetworkMain } from '@main/shards/network'
 import { OngoingGameMain } from '@main/shards/ongoing-game'
 import { RendererDebugMain } from '@main/shards/renderer-debug'
 import { RespawnTimerMain } from '@main/shards/respawn-timer'
@@ -264,6 +268,14 @@ export function bootstrap() {
     // 处理应用级别的错误
     handleUnhandledErrors(logger)
 
+    const nativeRuntime = initializeNativeRuntime()
+    if (nativeRuntime.inputInitializationError) {
+      logger.warn({
+        message: `Failed to initialize native input addon ${formatError(nativeRuntime.inputInitializationError)}`,
+        namespace: 'native'
+      })
+    }
+
     // 启用所有 akari shard
     const manager = new AkariManager()
     manager.global.logger = logger
@@ -273,7 +285,7 @@ export function bootstrap() {
       value: baseConfig,
       write: (config: any) => writeBaseConfig(config)
     }
-    manager.global.isElevated = isElevated
+    manager.global.isElevated = nativeRuntime.isElevated
     manager.global.platform = os.platform() as 'darwin' | 'win32'
     manager.global.version = app.getVersion()
     manager.global.isWindows11_22H2_OrHigher = isWindows11_22H2_OrHigher()
@@ -290,7 +302,7 @@ export function bootstrap() {
       events.emit('log-level-changed', level)
     }
 
-    if (isElevated) {
+    if (nativeRuntime.isElevated) {
       logger.info({
         message: `Application started with administrator privileges`,
         namespace: 'app'
@@ -306,6 +318,7 @@ export function bootstrap() {
 
     // connection & data provider shards
     manager.use(ConfigMigrateMain)
+    manager.use(NetworkMain)
     manager.use(SettingFactoryMain)
     manager.use(StorageMain)
 
@@ -318,15 +331,18 @@ export function bootstrap() {
     // application specific shards
     manager.use(ClientInstallationMain)
     manager.use(WindowManagerMain)
+    manager.use(MainWindowUiMain)
     manager.use(TrayMain)
     manager.use(KeyboardShortcutsMain)
     manager.use(SelfUpdateMain)
+    manager.use(FeatureGatingMain)
 
     // functional shards
     manager.use(AutoChampionConfigMain)
     manager.use(AutoGameflowMain)
     manager.use(AutoMiscMain)
     manager.use(AutoSelectMain)
+    manager.use(ChampionDataMain)
     manager.use(InGameSendMain)
     manager.use(MemberAnalysisMain)
     manager.use(OngoingGameMain)

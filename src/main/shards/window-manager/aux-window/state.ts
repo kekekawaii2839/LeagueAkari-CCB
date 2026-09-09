@@ -1,12 +1,11 @@
 import { Rectangle } from 'electron'
-import { makeAutoObservable, observable } from 'mobx'
+import { makeAutoObservable, observableRef } from 'mobx'
 
 export class AuxWindowSettings {
   enabled: boolean = true
   autoShow: boolean = true
   opacity: number = 1
   pinned: boolean = true
-  showSkinSelector: boolean = false
 
   setOpacity(opacity: number) {
     this.opacity = opacity
@@ -14,10 +13,6 @@ export class AuxWindowSettings {
 
   setPinned(pinned: boolean) {
     this.pinned = pinned
-  }
-
-  setShowSkinSelector(show: boolean) {
-    this.showSkinSelector = show
   }
 
   setAutoShow(autoShow: boolean) {
@@ -69,7 +64,7 @@ export class AuxWindowState {
 
   constructor() {
     makeAutoObservable(this, {
-      trackedBounds: observable.ref
+      trackedBounds: observableRef
     })
   }
 }

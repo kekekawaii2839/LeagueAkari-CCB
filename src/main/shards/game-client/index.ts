@@ -9,6 +9,7 @@ import { IAkariShardInitDispose, Shard } from '@shared/akari-shard'
 import { GameClientHttpApiAxiosHelper } from '@shared/http-api-axios-helper/game-client'
 import axios from 'axios'
 import https from 'https'
+import { z } from 'zod'
 
 import { ClientInstallationMain } from '../client-installation'
 import { AkariIpcMain } from '../ipc'
@@ -49,6 +50,7 @@ export class GameClientMain implements IAkariShardInitDispose {
 
   private readonly _httpClient = axios.create({
     baseURL: GameClientMain.GAME_CLIENT_BASE_URL,
+    proxy: false,
     httpsAgent: new https.Agent({
       rejectUnauthorized: false,
       keepAlive: true,
@@ -77,9 +79,13 @@ export class GameClientMain implements IAkariShardInitDispose {
     this._settingService = _settingFactory.register(
       GameClientMain.id,
       {
-        terminateGameClientWithShortcut: { default: this.settings.terminateGameClientWithShortcut },
+        terminateGameClientWithShortcut: {
+          default: this.settings.terminateGameClientWithShortcut,
+          schema: z.boolean()
+        },
         terminateShortcut: {
           default: this.settings.terminateShortcut,
+          schema: z.string().nullable(),
           sideEffect: ({ value }) =>
             this._shortcutController.applyTerminateShortcutSettingSideEffect(value)
         }
@@ -124,7 +130,7 @@ export class GameClientMain implements IAkariShardInitDispose {
 
     pids.forEach((pid) => {
       this._logger.info('Process exists', pid)
-      if (NATIVE_SUPPORT.isProcessForeground && !isProcessForeground(pid)) {
+      if (NATIVE_SUPPORT.isProcessForeground.available && !isProcessForeground(pid)) {
         this._logger.info('Process is not in foreground', pid)
         return
       }
@@ -143,7 +149,7 @@ export class GameClientMain implements IAkariShardInitDispose {
   }
 
   static async isGameClientForeground() {
-    if (!NATIVE_SUPPORT.isProcessForeground) {
+    if (!NATIVE_SUPPORT.isProcessForeground.available) {
       return false
     }
 
@@ -153,7 +159,7 @@ export class GameClientMain implements IAkariShardInitDispose {
   }
 
   async isGameClientForegroundCached() {
-    if (!NATIVE_SUPPORT.isProcessForeground) {
+    if (!NATIVE_SUPPORT.isProcessForeground.available) {
       return false
     }
 

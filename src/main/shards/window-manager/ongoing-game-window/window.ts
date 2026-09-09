@@ -1,8 +1,9 @@
 import { is } from '@electron-toolkit/utils'
 import { NATIVE_SUPPORT } from '@main/native'
 import { GameClientMain } from '@main/shards/game-client'
-import icon from '@resources/LA_ICON.ico?asset'
-import { comparer } from 'mobx'
+import icon from '@resources/LA_ICON.ico?asset&asarUnpack'
+import { compareShallow } from 'mobx'
+import { z } from 'zod'
 
 import { BaseAkariWindow } from '../base-akari-window'
 import type { WindowManagerMainContext } from '../context'
@@ -38,10 +39,11 @@ export class AkariOngoingGameWindow extends BaseAkariWindow<
       settingSchema: {
         pinned: {
           default: settings.pinned,
+          schema: z.boolean(),
           transform: () => true
         },
-        enabled: { default: settings.enabled },
-        showShortcut: { default: settings.showShortcut }
+        enabled: { default: settings.enabled, schema: z.boolean() },
+        showShortcut: { default: settings.showShortcut, schema: z.string().nullable() }
       },
       browserWindowOptions: {
         title: AkariOngoingGameWindow.TITLE,
@@ -61,7 +63,8 @@ export class AkariOngoingGameWindow extends BaseAkariWindow<
         autoHideMenuBar: true,
         backgroundColor: '#00000000',
         webPreferences: {
-          backgroundThrottling: false // focusable 和 backgroundThrottling 一起使用, 会出现莫名其妙的 BUG
+          // focusable: false combined with disabled throttling loses mouse input after hide/show on Windows.
+          backgroundThrottling: true
         }
       }
     })
@@ -89,7 +92,7 @@ export class AkariOngoingGameWindow extends BaseAkariWindow<
       },
       {
         fireImmediately: true,
-        equals: comparer.shallow,
+        equals: compareShallow,
         delay: 500
       }
     )
