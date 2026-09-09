@@ -55,6 +55,10 @@ jobs:
           node packaging/scan-packaged-artifact.mjs .phase7-package/win-unpacked
           $archive = Get-ChildItem .phase7-package -Filter *.7z -File
           if ($archive.Count -ne 1) { throw "Expected exactly one CCB archive" }
+          $version = node -p "require('./package.json').version"
+          $canonicalArchive = Join-Path $archive.DirectoryName "League Akari CCB-$version-x64.7z"
+          Move-Item -LiteralPath $archive.FullName -Destination $canonicalArchive
+          $archive = Get-Item -LiteralPath $canonicalArchive
           $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($archive.Name)" | Set-Content -LiteralPath "$($archive.FullName).sha256" -Encoding utf8
 
