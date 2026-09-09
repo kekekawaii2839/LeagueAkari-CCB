@@ -100,7 +100,7 @@ export class AkariApiReleaseLoader {
       throw new Error(`Invalid stable CCB release tag: ${release.tag_name}`)
     }
 
-    const fileName = `League Akari CCB-${version}-x64.7z`
+    const fileName = `League.Akari.CCB-${version}-x64.7z`
     const checksumFileName = `${fileName}.sha256`
     const archive = release.assets.find((asset) => asset.name === fileName)
     const checksum = release.assets.find((asset) => asset.name === checksumFileName)

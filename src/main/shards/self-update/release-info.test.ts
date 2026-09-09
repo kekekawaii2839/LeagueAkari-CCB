@@ -11,12 +11,12 @@ const release: AkariRelease = {
     {
       platform: 'win32',
       arch: 'x64',
-      fileName: 'League Akari CCB-1.6.0-x64.7z',
+      fileName: 'League.Akari.CCB-1.6.0-x64.7z',
       size: 1024,
       contentType: 'application/x-7z-compressed',
       sha256: 'a'.repeat(64),
       downloadUrl:
-        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v1.6.0/League%20Akari%20CCB-1.6.0-x64.7z'
+        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v1.6.0/League.Akari.CCB-1.6.0-x64.7z'
     }
   ]
 }
@@ -36,7 +36,7 @@ describe('self-update release info', () => {
       isSupportedWin32X64Artifact({
         ...artifact,
         contentType: 'application/octet-stream',
-        fileName: 'League Akari CCB-1.6.0-x64.7Z'
+        fileName: 'League.Akari.CCB-1.6.0-x64.7Z'
       })
     ).toBe(true)
   })
@@ -75,7 +75,7 @@ describe('self-update release info', () => {
       isUpdateSupported: true,
       artifact: release.artifacts[0]
     })
-    expect(releaseInfo?.artifact?.fileName).toContain('League Akari CCB')
+    expect(releaseInfo?.artifact?.fileName).toContain('League.Akari.CCB')
   })
 
   it('keeps release details but withholds the artifact on unsupported platforms', () => {

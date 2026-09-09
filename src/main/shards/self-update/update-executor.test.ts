@@ -61,10 +61,10 @@ function createRelease(): SelfUpdateReleaseInfo {
     artifact: {
       platform: 'win32',
       arch: 'x64',
-      fileName: 'League Akari CCB-2.0.0-x64.7z',
+      fileName: 'League.Akari.CCB-2.0.0-x64.7z',
       size: 100,
       downloadUrl:
-        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v2.0.0/League%20Akari%20CCB-2.0.0-x64.7z',
+        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v2.0.0/League.Akari.CCB-2.0.0-x64.7z',
       contentType: 'application/x-7z-compressed',
       sha256: createHash('sha256').update(archive).digest('hex')
     }
