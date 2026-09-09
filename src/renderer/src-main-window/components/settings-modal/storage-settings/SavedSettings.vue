@@ -1,7 +1,8 @@
 <template>
   <NScrollbar class="h-full">
-    <SettingsSection :title="t('settings.savedSettings.title')">
+    <SettingsSection setting-id="storage.saved-settings" :title="t('settings.savedSettings.title')">
       <SettingsRow
+        setting-id="storage.saved-settings.export"
         :label="t('settings.savedSettings.export.label')"
         :label-description="t('settings.savedSettings.export.description')"
         :label-width="400"
@@ -11,6 +12,7 @@
         </NButton>
       </SettingsRow>
       <SettingsRow
+        setting-id="storage.saved-settings.import"
         :label="t('settings.savedSettings.import.label')"
         :label-description="t('settings.savedSettings.import.description')"
         :label-width="400"
@@ -24,8 +26,8 @@
 </template>
 
 <script setup lang="ts">
-import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
-import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
+import SettingsRow from '@main-window/settings-navigation/NavigableSettingsRow.vue'
+import SettingsSection from '@main-window/settings-navigation/NavigableSettingsSection.vue'
 import { useComponentName } from '@renderer-shared/composables/useComponentName'
 import { useInstance } from '@renderer-shared/shards'
 import { LoggerRenderer } from '@renderer-shared/shards/logger'

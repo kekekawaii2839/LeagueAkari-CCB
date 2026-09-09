@@ -5,6 +5,7 @@
     preset="card"
     v-model:show="show"
     :class="styles['settings-modal']"
+    @after-enter="handleAfterEnter"
   >
     <template #header>
       <span class="card-header-title">{{ t('settings.modal.title') }}</span>
@@ -13,7 +14,7 @@
       ref="tabs"
       class="settings-modal-tabs"
       type="line"
-      animated
+      :animated="tabsAnimated"
       size="medium"
       v-model:value="tabName"
       :theme-overrides="{ tabGapMediumLine: '18px' }"
@@ -61,7 +62,7 @@
             <span>{{ t('settings.storage.title') }}</span>
           </div>
         </template>
-        <StorageSettings />
+        <StorageSettings v-model:tab-name="storageTabName" />
       </NTabPane>
       <NTabPane name="misc" :tab="t('settings.misc.title')">
         <template #tab>
@@ -96,6 +97,7 @@
 
 <script setup lang="ts">
 import { useAppCommonStore } from '@renderer-shared/shards/app-common/store'
+import { useAkariNavigationStep } from '@renderer-shared/shards/akari-navigation'
 import { ToolFilled as ToolFilledIcon } from '@vicons/antd'
 import { Debug as DebugIcon, Layers as LayersIcon } from '@vicons/carbon'
 import {
@@ -107,7 +109,7 @@ import {
 import { InfoSharp as InfoSharpIcon } from '@vicons/material'
 import { useTranslation } from 'i18next-vue'
 import { NIcon, NModal, NTabPane, NTabs } from 'naive-ui'
-import { useCssModule, useTemplateRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, ref, useCssModule, useTemplateRef, watch } from 'vue'
 
 import AboutPane from './AboutPane.vue'
 import AppSettings from './AppSettings.vue'
@@ -116,18 +118,83 @@ import MatchHistorySettings from './MatchHistorySettings.vue'
 import MiscSettings from './MiscSettings.vue'
 import MultiWindowSettings from './MultiWindowSettings.vue'
 import OngoingGameSettings from './OngoingGameSettings.vue'
+import { SETTINGS_MODAL_NAVIGATION_STEP_KEY, type SettingsTabName } from './navigation'
 import StorageSettings from './storage-settings/StorageSettings.vue'
+import type { StorageSettingsTabName } from './storage-settings/navigation'
 
 const { t } = useTranslation()
 
 const styles = useCssModule()
 
 const show = defineModel<boolean>('show', { default: false })
-const tabName = defineModel<string>('tabName', { default: 'basic' })
+const tabName = defineModel<SettingsTabName>('tabName', { default: 'basic' })
+const storageTabName = defineModel<StorageSettingsTabName>('storageTabName', {
+  default: 'tagged-players'
+})
+const tabsEl = useTemplateRef('tabs')
+const tabsAnimated = ref(true)
+const modalEntered = ref(false)
+let enterWaiter: (() => void) | null = null
+let navigationActivationSequence = 0
+
+const handleAfterEnter = () => {
+  modalEntered.value = true
+  enterWaiter?.()
+}
+
+const waitUntilEntered = (signal: AbortSignal) => {
+  if ((show.value && modalEntered.value) || signal.aborted) {
+    return Promise.resolve()
+  }
+
+  return new Promise<void>((resolve) => {
+    const finish = () => {
+      enterWaiter = null
+      signal.removeEventListener('abort', finish)
+      resolve()
+    }
+
+    enterWaiter = finish
+    signal.addEventListener('abort', finish, { once: true })
+  })
+}
+
+useAkariNavigationStep<SettingsTabName>({
+  key: SETTINGS_MODAL_NAVIGATION_STEP_KEY,
+  activate: async (payload, { signal }) => {
+    if (tabName.value === payload) {
+      await nextTick()
+      return undefined
+    }
+
+    const sequence = ++navigationActivationSequence
+    tabsAnimated.value = false
+    tabName.value = payload
+    await nextTick()
+
+    if (sequence === navigationActivationSequence) {
+      tabsAnimated.value = true
+    }
+    if (!signal.aborted) {
+      await nextTick()
+    }
+    return undefined
+  }
+})
+
+defineExpose({ waitUntilEntered })
 
 const as = useAppCommonStore()
 
-const tabsEl = useTemplateRef('tabs')
+watch(
+  () => show.value,
+  (visible) => {
+    if (!visible) {
+      modalEntered.value = false
+    }
+  }
+)
+
 watch(
   () => as.settings.locale,
   () => {
@@ -136,6 +203,10 @@ watch(
     })
   }
 )
+
+onBeforeUnmount(() => {
+  enterWaiter?.()
+})
 </script>
 
 <style scoped>

@@ -66,3 +66,4 @@ jobs:
           files: .phase7-package/*.7z
           fail_on_unmatched_files: true
           generate_release_notes: true
+          prerelease: true

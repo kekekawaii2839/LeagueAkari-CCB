@@ -1,5 +1,6 @@
 import type { LcuOrSgpGameDetails, LcuOrSgpGameSummary } from '@shared/data-adapter/wrapper'
 import type { MatchHistoryQueryParams } from '@shared/http-api-axios-helper/sgp/match-history-query'
+import { ONGOING_GAME_DEOBFUSCATION_FEATURE_GATE } from '@shared/shards/feature-gating/keys'
 import type {
   AdditionalResult,
   DraftOptions,
@@ -16,10 +17,16 @@ import type { SavedInfo } from '@shared/shards/saved-player'
 import type { RankedStats } from '@shared/types/league-client/ranked'
 import type { SummonerInfo } from '@shared/types/league-client/summoner'
 import { removeSubsets } from '@shared/utils/team-up-calc'
-import { computed, makeAutoObservable, observable } from 'mobx'
+import {
+  computedStruct,
+  makeAutoObservable,
+  observableRef,
+  observableShallow,
+  observableStruct
+} from 'mobx'
 
-import type { AkariApiMain } from '../akari-api'
 import { AppCommonMain } from '../app-common'
+import type { FeatureGatingMain } from '../feature-gating'
 import { LeagueClientData } from '../league-client/lc-state'
 import { SgpMain } from '../sgp'
 import type { ChampSelectHandoffSnapshot } from './champ-select-handoff'
@@ -44,7 +51,7 @@ export class OngoingGameSettings implements OngoingGameSettingsData {
    */
   gameDetailsLoadCount: number = 20
 
-  concurrency: number = 4
+  concurrency: number = 2
 
   /**
    * 战绩查询时, 优先查询当前模式还是全部模式, 仅当 SGP API 启用时有效
@@ -129,7 +136,7 @@ export class OngoingGameSettings implements OngoingGameSettingsData {
 
   constructor() {
     makeAutoObservable(this, {
-      playerCardTags: observable.ref
+      playerCardTags: observableRef
     })
   }
 }
@@ -144,7 +151,7 @@ export class OngoingGameState {
       data: this._leagueClientData,
       queryStage: this.queryStage,
       additional: this.additional,
-      config: this._akariApi.state.ongoingGameConfig,
+      deobfuscationEnabled: this._deobfuscationEnabled,
       champSelectHandoffSnapshot: this.champSelectHandoffSnapshot
     })
   }
@@ -158,7 +165,7 @@ export class OngoingGameState {
       data: this._leagueClientData,
       queryStage: this.queryStage,
       additional: this.additional,
-      config: this._akariApi.state.ongoingGameConfig,
+      deobfuscationEnabled: this._deobfuscationEnabled,
       champSelectHandoffSnapshot: this.champSelectHandoffSnapshot
     })
   }
@@ -173,7 +180,7 @@ export class OngoingGameState {
       settings: this._settings,
       queryStage: this.queryStage,
       additional: this.additional,
-      config: this._akariApi.state.ongoingGameConfig,
+      deobfuscationEnabled: this._deobfuscationEnabled,
       champSelectHandoffSnapshot: this.champSelectHandoffSnapshot
     })
   }
@@ -336,6 +343,10 @@ export class OngoingGameState {
     return 'lcu'
   }
 
+  private get _deobfuscationEnabled() {
+    return this._featureGating.isEnabled(ONGOING_GAME_DEOBFUSCATION_FEATURE_GATE, true)
+  }
+
   additional: AdditionalResult = {
     teams: {},
     selections: {},
@@ -363,33 +374,33 @@ export class OngoingGameState {
     private readonly _appCommon: AppCommonMain,
     private readonly _sgpMain: SgpMain,
     private readonly _settings: OngoingGameSettings,
-    private readonly _akariApi: AkariApiMain
+    private readonly _featureGating: FeatureGatingMain
   ) {
     makeAutoObservable(this, {
-      matchHistory: observable.shallow,
-      summoner: observable.shallow,
-      rankedStats: observable.shallow,
-      savedInfo: observable.shallow,
-      championMastery: observable.shallow,
-      gameDetails: observable.shallow,
-      additionalGame: observable.shallow,
-      matchHistoryLoadingState: observable.ref,
-      summonerLoadingState: observable.ref,
-      rankedStatsLoadingState: observable.ref,
-      savedInfoLoadingState: observable.ref,
-      gameDetailsLoadingState: observable.ref,
-      championSelections: computed.struct,
-      positionAssignments: computed.struct,
-      teams: computed.struct,
-      analysis: observable.struct,
-      queryStage: computed.struct,
-      teamParticipantGroups: computed.struct,
-      draft: observable.struct,
-      matchHistoryTagParams: observable.struct,
-      additional: observable.struct,
-      inferredPremadeTeams: observable.struct,
-      champSelectHandoffSnapshot: observable.struct,
-      mergedPremadeTeamMap: computed.struct
+      matchHistory: observableShallow,
+      summoner: observableShallow,
+      rankedStats: observableShallow,
+      savedInfo: observableShallow,
+      championMastery: observableShallow,
+      gameDetails: observableShallow,
+      additionalGame: observableShallow,
+      matchHistoryLoadingState: observableRef,
+      summonerLoadingState: observableRef,
+      rankedStatsLoadingState: observableRef,
+      savedInfoLoadingState: observableRef,
+      gameDetailsLoadingState: observableRef,
+      championSelections: computedStruct,
+      positionAssignments: computedStruct,
+      teams: computedStruct,
+      analysis: observableStruct,
+      queryStage: computedStruct,
+      teamParticipantGroups: computedStruct,
+      draft: observableStruct,
+      matchHistoryTagParams: observableStruct,
+      additional: observableStruct,
+      inferredPremadeTeams: observableStruct,
+      champSelectHandoffSnapshot: observableStruct,
+      mergedPremadeTeamMap: computedStruct
     })
   }
 }

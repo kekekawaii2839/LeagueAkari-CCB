@@ -1,5 +1,9 @@
 import { IAkariShardInitDispose, Shard, SharedGlobalShard } from '@shared/akari-shard'
-import { normalizeInGameSendFixedTextPresetItems } from '@shared/shards/in-game-send'
+import {
+  normalizeInGameSendCustomTemplateItems,
+  normalizeInGameSendFixedTextPresetItems
+} from '@shared/shards/in-game-send'
+import { z } from 'zod'
 
 import { AppCommonMain } from '../app-common'
 import { GameClientMain } from '../game-client'
@@ -17,10 +21,19 @@ import {
   IN_GAME_SEND_MAIN_NAMESPACE,
   type InGameSendMainContext
 } from './context'
+import { InGameSendCustomTemplateController } from './custom-template-controller'
+import { InGameSendCustomTemplateExecutor } from './custom-template-executor'
 import { InGameSendIpcHandlers } from './ipc-handlers'
 import { InGameSendPresetController } from './preset-controller'
 import { InGameSendPresetSelectionController } from './preset-selection-controller'
 import { InGameSendExecutor } from './send-executor'
+import {
+  inGameSendCustomTemplateItemsSchema,
+  inGameSendFixedTextPresetItemsSchema,
+  inGameSendJunglePresetOptionsSchema,
+  inGameSendPremadePresetOptionsSchema,
+  inGameSendRatingPresetOptionsSchema
+} from './setting-schemas'
 import { InGameSendSettings, InGameSendState } from './state'
 
 /**
@@ -45,6 +58,8 @@ export class InGameSendMain implements IAkariShardInitDispose {
   private readonly _context: InGameSendMainContext
 
   private readonly _sendExecutor: InGameSendExecutor
+  private readonly _customTemplateExecutor: InGameSendCustomTemplateExecutor
+  private readonly _customTemplateController: InGameSendCustomTemplateController
   private readonly _presetController: InGameSendPresetController
   private readonly _presetSelectionController: InGameSendPresetSelectionController
   private readonly _ipcHandlers: InGameSendIpcHandlers
@@ -66,21 +81,38 @@ export class InGameSendMain implements IAkariShardInitDispose {
       {
         sendInterval: {
           default: this.settings.sendInterval,
+          schema: z.number(),
           transform: ({ value }) => Math.max(0, value)
         },
-        cancelShortcut: { default: this.settings.cancelShortcut },
+        cancelShortcut: {
+          default: this.settings.cancelShortcut,
+          schema: z.string().nullable()
+        },
         ratingPresetOptions: {
-          default: this.settings.ratingPresetOptions
+          default: this.settings.ratingPresetOptions,
+          schema: inGameSendRatingPresetOptionsSchema
         },
         junglePresetOptions: {
-          default: this.settings.junglePresetOptions
+          default: this.settings.junglePresetOptions,
+          schema: inGameSendJunglePresetOptionsSchema
         },
         premadePresetOptions: {
-          default: this.settings.premadePresetOptions
+          default: this.settings.premadePresetOptions,
+          schema: inGameSendPremadePresetOptionsSchema
         },
         fixedTextPresetItems: {
           default: this.settings.fixedTextPresetItems,
+          schema: inGameSendFixedTextPresetItemsSchema,
           transform: ({ value }) => normalizeInGameSendFixedTextPresetItems(value)
+        },
+        customTemplateRiskNoticeShown: {
+          default: this.settings.customTemplateRiskNoticeShown,
+          schema: z.boolean()
+        },
+        customTemplateItems: {
+          default: this.settings.customTemplateItems,
+          schema: inGameSendCustomTemplateItemsSchema,
+          transform: ({ value }) => normalizeInGameSendCustomTemplateItems(value)
         }
       },
       this.settings
@@ -106,11 +138,18 @@ export class InGameSendMain implements IAkariShardInitDispose {
     }
 
     this._sendExecutor = new InGameSendExecutor(this._context)
+    this._customTemplateExecutor = new InGameSendCustomTemplateExecutor(this._context)
+    this._customTemplateController = new InGameSendCustomTemplateController(
+      this._context,
+      this._customTemplateExecutor,
+      this._sendExecutor
+    )
     this._presetController = new InGameSendPresetController(this._context, this._sendExecutor)
     this._presetSelectionController = new InGameSendPresetSelectionController(this._context)
     this._ipcHandlers = new InGameSendIpcHandlers(
       this._context,
       this._sendExecutor,
+      this._customTemplateController,
       this._presetController,
       this._presetSelectionController
     )
@@ -125,13 +164,16 @@ export class InGameSendMain implements IAkariShardInitDispose {
       'ratingPresetOptions',
       'junglePresetOptions',
       'premadePresetOptions',
-      'fixedTextPresetItems'
+      'fixedTextPresetItems',
+      'customTemplateRiskNoticeShown',
+      'customTemplateItems'
     ])
 
     this._mobxUtils.propSync(InGameSendMain.id, 'state', this.state, [
       'ratingPuuids',
       'junglePuuids',
-      'premadeIndices'
+      'premadeIndices',
+      'customTemplateLastErrors'
     ])
   }
 
@@ -139,6 +181,7 @@ export class InGameSendMain implements IAkariShardInitDispose {
     await this._setupState()
 
     this._sendExecutor.watchCancelShortcut()
+    this._customTemplateController.start()
     this._presetController.start()
     this._presetSelectionController.start()
     this._ipcHandlers.register()

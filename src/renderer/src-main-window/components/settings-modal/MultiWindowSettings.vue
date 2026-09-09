@@ -1,8 +1,15 @@
 <template>
   <NScrollbar class="h-full">
     <div class="flex flex-col gap-6">
-      <SettingsSection :title="t('settings.multiWindow.auxWindow.title')">
-        <SettingsRow :label="t('settings.multiWindow.auxWindow.enabled.label')" :label-width="400">
+      <SettingsSection
+        setting-id="multi-window.aux"
+        :title="t('settings.multiWindow.auxWindow.title')"
+      >
+        <SettingsRow
+          setting-id="multi-window.aux.enabled"
+          :label="t('settings.multiWindow.auxWindow.enabled.label')"
+          :label-width="400"
+        >
           <template #labelDescription>
             <div>{{ t('settings.multiWindow.auxWindow.enabled.description') }}</div>
             <div>
@@ -24,6 +31,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.aux.auto-show"
           :label="t('settings.multiWindow.auxWindow.autoShow.label')"
           :label-description="t('settings.multiWindow.auxWindow.autoShow.description')"
           :label-width="400"
@@ -35,6 +43,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.aux.opacity"
           :label="t('settings.multiWindow.auxWindow.opacity.label')"
           :label-description="t('settings.multiWindow.auxWindow.opacity.description')"
           :label-width="400"
@@ -51,17 +60,7 @@
           ></NSlider>
         </SettingsRow>
         <SettingsRow
-          :label="t('settings.multiWindow.auxWindow.showSkinSelector.label')"
-          :label-description="t('settings.multiWindow.auxWindow.showSkinSelector.description')"
-          :label-width="400"
-        >
-          <NSwitch
-            size="small"
-            :value="aws.settings.showSkinSelector"
-            @update:value="(val) => wm.auxWindow.setShowSkinSelector(val)"
-          />
-        </SettingsRow>
-        <SettingsRow
+          setting-id="multi-window.aux.reset-position"
           :label="t('settings.multiWindow.auxWindow.resetWindowPosition.label')"
           :label-description="t('settings.multiWindow.auxWindow.resetWindowPosition.description')"
           :label-width="400"
@@ -75,8 +74,15 @@
           >
         </SettingsRow>
       </SettingsSection>
-      <SettingsSection :title="t('settings.multiWindow.opggWindow.title')">
-        <SettingsRow :label="t('settings.multiWindow.opggWindow.enabled.label')" :label-width="400">
+      <SettingsSection
+        setting-id="multi-window.opgg"
+        :title="t('settings.multiWindow.opggWindow.title')"
+      >
+        <SettingsRow
+          setting-id="multi-window.opgg.enabled"
+          :label="t('settings.multiWindow.opggWindow.enabled.label')"
+          :label-width="400"
+        >
           <template #labelDescription>
             <div>{{ t('settings.multiWindow.opggWindow.enabled.description') }}</div>
             <div>
@@ -96,6 +102,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.opgg.auto-show"
           :label="t('settings.multiWindow.opggWindow.autoShow.label')"
           :label-description="t('settings.multiWindow.opggWindow.autoShow.description')"
           :label-width="400"
@@ -107,6 +114,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.opgg.shortcut"
           :disabled="!as.nativeSupport.nativeInput.available"
           :label-width="400"
           :label="t('settings.multiWindow.opggWindow.showShortcut.label')"
@@ -119,6 +127,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.opgg.opacity"
           :label="t('settings.multiWindow.opggWindow.opacity.label')"
           :label-description="t('settings.multiWindow.opggWindow.opacity.description')"
           :label-width="400"
@@ -135,6 +144,19 @@
           ></NSlider>
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.opgg.skin-selector"
+          :label="t('settings.multiWindow.opggWindow.showSkinSelector.label')"
+          :label-description="t('settings.multiWindow.opggWindow.showSkinSelector.description')"
+          :label-width="400"
+        >
+          <NSwitch
+            size="small"
+            :value="ows.settings.showSkinSelector"
+            @update:value="(val) => wm.opggWindow.setShowSkinSelector(val)"
+          />
+        </SettingsRow>
+        <SettingsRow
+          setting-id="multi-window.opgg.reset-position"
           :label="t('settings.multiWindow.opggWindow.resetWindowPosition.label')"
           :label-description="t('settings.multiWindow.opggWindow.resetWindowPosition.description')"
           :label-width="400"
@@ -149,6 +171,7 @@
         </SettingsRow>
       </SettingsSection>
       <SettingsSection
+        setting-id="multi-window.ongoing-game"
         :title="
           as.isElevated
             ? t('settings.multiWindow.ongoingGameWindow.title')
@@ -156,6 +179,7 @@
         "
       >
         <SettingsRow
+          setting-id="multi-window.ongoing-game.enabled"
           :label="t('settings.multiWindow.ongoingGameWindow.enabled.label')"
           :label-description="t('settings.multiWindow.ongoingGameWindow.enabled.description')"
           :label-width="400"
@@ -167,6 +191,7 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.ongoing-game.shortcut"
           :disabled="!as.nativeSupport.nativeInput.available"
           :label-width="400"
           :label="t('settings.multiWindow.ongoingGameWindow.showShortcut.label')"
@@ -180,6 +205,7 @@
         </SettingsRow>
       </SettingsSection>
       <SettingsSection
+        setting-id="multi-window.cd-timer"
         :title="
           as.isElevated
             ? t('settings.multiWindow.cdTimerWindow.title')
@@ -187,17 +213,21 @@
         "
       >
         <SettingsRow
+          setting-id="multi-window.cd-timer.enabled"
+          :disabled="!as.nativeSupport.nativeInput.available"
           :label="t('settings.multiWindow.cdTimerWindow.enabled.label')"
           :label-description="t('settings.multiWindow.cdTimerWindow.enabled.description')"
           :label-width="400"
         >
           <NSwitch
             size="small"
+            :disabled="!as.nativeSupport.nativeInput.available"
             :value="ctws.settings.enabled"
             @update:value="(val) => wm.cdTimerWindow.setEnabled(val)"
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.cd-timer.shortcut"
           :disabled="!as.nativeSupport.nativeInput.available"
           :label-width="400"
           :label="t('settings.multiWindow.cdTimerWindow.showShortcut.label')"
@@ -210,6 +240,8 @@
           />
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.cd-timer.reset-position"
+          :disabled="!as.nativeSupport.nativeInput.available"
           :label="t('settings.multiWindow.cdTimerWindow.resetWindowPosition.label')"
           :label-description="
             t('settings.multiWindow.cdTimerWindow.resetWindowPosition.description')
@@ -220,17 +252,21 @@
             size="small"
             type="warning"
             secondary
+            :disabled="!as.nativeSupport.nativeInput.available"
             @click="() => wm.cdTimerWindow.resetPosition()"
             >{{ t('settings.multiWindow.cdTimerWindow.resetWindowPosition.button') }}</NButton
           >
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.cd-timer.type"
+          :disabled="!as.nativeSupport.nativeInput.available"
           :label="t('settings.multiWindow.cdTimerWindow.timerType.label')"
           :label-description="t('settings.multiWindow.cdTimerWindow.timerType.description')"
           :label-width="400"
         >
           <NRadioGroup
             size="small"
+            :disabled="!as.nativeSupport.nativeInput.available"
             :value="ctws.settings.timerType"
             @update:value="(val) => wm.cdTimerWindow.setTimerType(val)"
           >
@@ -245,6 +281,8 @@
           </NRadioGroup>
         </SettingsRow>
         <SettingsRow
+          setting-id="multi-window.cd-timer.reverse-adjustment"
+          :disabled="!as.nativeSupport.nativeInput.available"
           :label="t('settings.multiWindow.cdTimerWindow.reverseAdjustmentDirection.label')"
           :label-description="
             t('settings.multiWindow.cdTimerWindow.reverseAdjustmentDirection.description')
@@ -253,6 +291,7 @@
         >
           <NSwitch
             size="small"
+            :disabled="!as.nativeSupport.nativeInput.available"
             :value="ctws.settings.reverseAdjustmentDirection"
             @update:value="(val) => wm.cdTimerWindow.setReverseAdjustmentDirection(val)"
           />
@@ -285,8 +324,8 @@
 
 <script setup lang="ts">
 import OpggIcon from '@renderer-shared/assets/icon/OpggIcon.vue'
-import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
-import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
+import SettingsRow from '@main-window/settings-navigation/NavigableSettingsRow.vue'
+import SettingsSection from '@main-window/settings-navigation/NavigableSettingsSection.vue'
 import { useInstance } from '@renderer-shared/shards'
 import { useAppCommonStore } from '@renderer-shared/shards/app-common/store'
 import {

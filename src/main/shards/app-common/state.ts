@@ -1,7 +1,7 @@
 import { NATIVE_SUPPORT } from '@main/native'
 import { AppThemeSetting } from '@shared/types/app-theme'
 import { AkariSupportedPlatform, BaseConfig, NativeSupport } from '@shared/types/common'
-import { makeAutoObservable, observable } from 'mobx'
+import { makeAutoObservable, observableRef } from 'mobx'
 
 export class AppCommonState {
   isElevated: boolean = false
@@ -55,7 +55,7 @@ export class AppCommonState {
   }
 
   constructor() {
-    makeAutoObservable(this, { baseConfig: observable.ref })
+    makeAutoObservable(this, { baseConfig: observableRef })
   }
 }
 
@@ -74,19 +74,6 @@ export class AppCommonSettings {
    * 主题色
    */
   theme: AppThemeSetting = 'dark'
-
-  /**
-   * HTTP 代理
-   */
-  httpProxy: {
-    strategy: 'force' | 'auto' | 'disable'
-    port: number
-    host: string
-  } = {
-    strategy: 'disable',
-    port: 7890,
-    host: '127.0.0.1'
-  }
 
   streamerMode: boolean = false
 
@@ -114,10 +101,6 @@ export class AppCommonSettings {
     this.theme = s
   }
 
-  setHttpProxy(s: { strategy: 'force' | 'disable'; port: number; host: string }) {
-    this.httpProxy = s
-  }
-
   setStreamerMode(s: boolean) {
     this.streamerMode = s
   }
@@ -131,8 +114,6 @@ export class AppCommonSettings {
   }
 
   constructor() {
-    makeAutoObservable(this, {
-      httpProxy: observable.ref
-    })
+    makeAutoObservable(this)
   }
 }

@@ -1,11 +1,14 @@
 <template>
   <div class="flex h-full flex-col">
     <NInput
-      v-model:value="filterText"
+      :value="filterInput"
       :placeholder="t('opgg.championTable.searchPlaceholder')"
       size="small"
       class="mb-1 text-xs"
       clearable
+      @update:value="handleFilterUpdate"
+      @compositionstart="handleFilterCompositionStart"
+      @compositionend="handleFilterCompositionEnd"
     />
     <NDataTable
       class="flex-1"
@@ -18,6 +21,9 @@
       :loading="isLoading"
       size="small"
     >
+      <template v-if="emptyDescription" #empty>
+        <NEmpty :description="emptyDescription" />
+      </template>
       <template #loading>
         <div class="flex flex-col items-center gap-2">
           <NSpin size="small" />
@@ -32,9 +38,13 @@
 
 <script lang="tsx" setup>
 import LcuImage from '@renderer-shared/components/LcuImage.vue'
-import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
-import { championIconUri } from '@renderer-shared/shards/league-client/game-data-assets'
+import { useCompositionAwareInput } from '@renderer-shared/composables/useCompositionAwareInput'
+import { useAkariResourceProvider } from '@renderer-shared/providers/akari-resource'
 import { OpggChampionItem } from '@shared/types/opgg'
+import {
+  type ChampionDataMode,
+  supportsChampionDataFeature
+} from '@shared/data-adapter/champion-data'
 import { useMediaQuery } from '@vueuse/core'
 import { useTranslation } from 'i18next-vue'
 import {
@@ -43,10 +53,11 @@ import {
   DataTableCreateRowProps,
   NButton,
   NDataTable,
+  NEmpty,
   NInput,
   NSpin
 } from 'naive-ui'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
 
@@ -55,11 +66,27 @@ import { getTierTextColorClass } from './utils/theme'
 
 const { t } = useTranslation()
 
-const filterText = ref('')
+defineProps<{ emptyDescription?: string }>()
 
-const lcs = useLeagueClientStore()
+const {
+  inputValue: filterInput,
+  committedValue: filterText,
+  handleUpdateValue: handleFilterUpdate,
+  handleCompositionStart: handleFilterCompositionStart,
+  handleCompositionEnd: handleFilterCompositionEnd
+} = useCompositionAwareInput()
 
-const { mode, position, champions, isLoading, cancel, setTab } = useOpgg()
+const resources = useAkariResourceProvider()
+
+const { preferredSource, mode, position, champions, isLoading, cancel, setTab } = useOpgg()
+
+const canOpenChampionDetails = computed(() =>
+  supportsChampionDataFeature(
+    preferredSource.value,
+    mode.value as ChampionDataMode,
+    'champion-summary'
+  )
+)
 
 const columns: DataTableColumns<OpggChampionItem> = [
   {
@@ -85,21 +112,17 @@ const columns: DataTableColumns<OpggChampionItem> = [
     align: 'center',
     className: 'text-[13px] dark:text-white/80 text-black/80',
     sorter: (a, b) => {
-      const aName = lcs.gameData.champions[a.id]?.name
-      const bName = lcs.gameData.champions[b.id]?.name
-
-      if (aName && bName) {
-        return aName.localeCompare(bName)
-      }
-
-      return a.id - b.id
+      return resources.champions.name(a.id).localeCompare(resources.champions.name(b.id))
     },
     render: (row) => {
       return (
         <div class="flex items-center justify-center overflow-hidden">
-          <LcuImage class="size-8 shrink-0" src={championIconUri(row.id)} />
+          <LcuImage
+            class="size-8 shrink-0"
+            src={resources.champions.icon(row.id)?.iconPath ?? ''}
+          />
           <div class="ml-2 w-25 truncate text-left text-[13px] text-black/80 dark:text-white/80">
-            {lcs.gameData.champions[row.id]?.name || row.id}
+            {resources.champions.name(row.id)}
           </div>
         </div>
       )
@@ -185,7 +208,7 @@ const columns: DataTableColumns<OpggChampionItem> = [
           (p) => p.name.toUpperCase() === position.value?.toUpperCase()
         )
 
-        if (!positionData) {
+        if (!positionData || typeof positionData.stats?.win_rate !== 'number') {
           return '-'
         }
 
@@ -196,7 +219,7 @@ const columns: DataTableColumns<OpggChampionItem> = [
         return '-'
       }
 
-      if (row.average_stats.win_rate) {
+      if (typeof row.average_stats.win_rate === 'number') {
         return `${(row.average_stats.win_rate * 100).toFixed(2)}%`
       }
 
@@ -233,14 +256,14 @@ const columns: DataTableColumns<OpggChampionItem> = [
           (p) => p.name.toUpperCase() === position.value?.toUpperCase()
         )
 
-        if (!positionData) {
+        if (!positionData || typeof positionData.stats?.pick_rate !== 'number') {
           return '-'
         }
 
         return `${(positionData.stats?.pick_rate * 100 || 0).toFixed(2)}%`
       }
 
-      if (!row.average_stats) {
+      if (!row.average_stats || typeof row.average_stats.pick_rate !== 'number') {
         return '-'
       }
 
@@ -268,7 +291,10 @@ const countersColumn: DataTableColumn<OpggChampionItem> = {
       return (
         <div class="flex items-center justify-center gap-0.5">
           {positionData.counters.slice(0, 3).map((c) => (
-            <LcuImage class="size-[18px]" src={championIconUri(c.champion_id)} />
+            <LcuImage
+              class="size-[18px]"
+              src={resources.champions.icon(c.champion_id)?.iconPath ?? ''}
+            />
           ))}
         </div>
       )
@@ -379,7 +405,7 @@ const data = computed(() => {
           return true
         }
 
-        return match(filterText.value, lcs.gameData.champions[value.id]?.name, value.id)
+        return match(filterText.value, resources.champions.name(value.id), value.id)
       })
   }
 
@@ -392,11 +418,13 @@ const data = computed(() => {
         return true
       }
 
-      return match(filterText.value, lcs.gameData.champions[value.id]?.name, value.id)
+      return match(filterText.value, resources.champions.name(value.id), value.id)
     })
 })
 
 const rowProps: DataTableCreateRowProps<OpggChampionItem> = (row) => {
+  if (!canOpenChampionDetails.value) return {}
+
   return {
     onClick: () => {
       setTab('champion', row.id)

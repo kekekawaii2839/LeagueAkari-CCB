@@ -1,12 +1,14 @@
 import { IAkariShardInitDispose, Shard } from '@shared/akari-shard'
-import axios from 'axios'
+import type { AxiosInstance } from 'axios'
 import { app } from 'electron'
+import { z } from 'zod'
 
 import { AkariApiMain } from '../akari-api'
 import { AppCommonMain } from '../app-common'
 import { AkariIpcMain } from '../ipc'
 import { AkariLogger, LoggerFactoryMain } from '../logger-factory'
 import { MobxUtilsMain } from '../mobx-utils'
+import { NetworkMain } from '../network'
 import { SettingFactoryMain } from '../setting-factory'
 import { SetterSettingService } from '../setting-factory/setter-setting-service'
 import {
@@ -52,13 +54,10 @@ export class SelfUpdateMain implements IAkariShardInitDispose {
   private readonly _ipcHandlers: SelfUpdateIpcHandlers
   private readonly _lastUpdateChecker: LastUpdateChecker
 
-  private readonly _httpClient = axios.create({
-    headers: {
-      'User-Agent': `LeagueAkari/${app.getVersion()} `
-    }
-  })
+  private readonly _httpClient: AxiosInstance
 
   constructor(
+    private readonly _network: NetworkMain,
     private readonly _appCommon: AppCommonMain,
     private readonly _ipc: AkariIpcMain,
     private readonly _mobxUtils: MobxUtilsMain,
@@ -66,6 +65,11 @@ export class SelfUpdateMain implements IAkariShardInitDispose {
     _loggerFactory: LoggerFactoryMain,
     _settingFactory: SettingFactoryMain
   ) {
+    this._httpClient = this._network.createAxiosClient({
+      headers: {
+        'User-Agent': `LeagueAkari/${app.getVersion()} `
+      }
+    })
     this._logger = _loggerFactory.create(SelfUpdateMain.id)
     this.state = new SelfUpdateState(
       () =>
@@ -78,9 +82,12 @@ export class SelfUpdateMain implements IAkariShardInitDispose {
     this._settingService = _settingFactory.register(
       SelfUpdateMain.id,
       {
-        autoCheckUpdates: { default: this.settings.autoCheckUpdates },
-        autoDownloadUpdates: { default: this.settings.autoDownloadUpdates },
-        ignoreVersion: { default: this.settings.ignoreVersion }
+        autoCheckUpdates: { default: this.settings.autoCheckUpdates, schema: z.boolean() },
+        autoDownloadUpdates: {
+          default: this.settings.autoDownloadUpdates,
+          schema: z.boolean()
+        },
+        ignoreVersion: { default: this.settings.ignoreVersion, schema: z.string().nullable() }
       },
       this.settings
     )
@@ -140,7 +147,6 @@ export class SelfUpdateMain implements IAkariShardInitDispose {
     }
 
     await this._lastUpdateChecker.check()
-    this._controller.registerHttpProxy()
     this._controller.watchUpdateProcess()
     this._controller.watchLatestRelease()
   }

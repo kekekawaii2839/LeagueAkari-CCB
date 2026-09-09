@@ -1,4 +1,4 @@
-import { comparer } from 'mobx'
+import { compareShallow } from 'mobx'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AkariOngoingGameWindow } from './window'
@@ -39,7 +39,7 @@ vi.mock('@main/shards/game-client', () => ({
   }
 }))
 
-vi.mock('@resources/LA_ICON.ico?asset', () => ({
+vi.mock('@resources/LA_ICON.ico?asset&asarUnpack', () => ({
   default: 'akari-icon.ico'
 }))
 
@@ -142,6 +142,14 @@ describe('AkariOngoingGameWindow', () => {
     expect(close).toHaveBeenCalledWith(true)
   })
 
+  it('keeps background throttling enabled for the non-focusable overlay window', () => {
+    const ongoingGameWindow = new AkariOngoingGameWindow(createContext() as any)
+
+    expect(
+      (ongoingGameWindow as any)._config.browserWindowOptions.webPreferences.backgroundThrottling
+    ).toBe(true)
+  })
+
   it('delays tracked bounds writes at the storage layer', async () => {
     const context = createContext()
     const ongoingGameWindow = new AkariOngoingGameWindow(context as any)
@@ -149,7 +157,7 @@ describe('AkariOngoingGameWindow', () => {
     await ongoingGameWindow.onInit()
 
     const reactionCall = context.mobxUtils.reaction.mock.calls.find(([, , options]) => {
-      return options?.equals === comparer.shallow && !options.delay && !options.fireImmediately
+      return options?.equals === compareShallow && !options.delay && !options.fireImmediately
     })
     const settingService = context.settingFactory.register.mock.results[0].value
     const bounds = { x: 10, y: 20, width: 300, height: 240 }

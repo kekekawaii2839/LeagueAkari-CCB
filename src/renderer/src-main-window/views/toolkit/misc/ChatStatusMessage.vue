@@ -1,6 +1,10 @@
 <template>
-  <SettingsSection :title="t('toolkit.chatStatusMessage.title')">
+  <SettingsSection
+    setting-id="toolkit.misc.chat-status-message"
+    :title="t('toolkit.chatStatusMessage.title')"
+  >
     <SettingsRow
+      setting-id="toolkit.misc.chat-status-message.text"
       :label="t('toolkit.chatStatusMessage.text.label')"
       :label-description="t('toolkit.chatStatusMessage.text.description')"
       :label-width="260"
@@ -48,8 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
-import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
+import SettingsRow from '@main-window/settings-navigation/NavigableSettingsRow.vue'
+import SettingsSection from '@main-window/settings-navigation/NavigableSettingsSection.vue'
 import { useInstance } from '@renderer-shared/shards'
 import { AutoMiscRenderer } from '@renderer-shared/shards/auto-misc'
 import { useAutoMiscStore } from '@renderer-shared/shards/auto-misc/store'

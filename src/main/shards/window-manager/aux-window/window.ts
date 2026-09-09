@@ -1,7 +1,8 @@
 import { i18next } from '@main/i18n'
-import icon from '@resources/LA_ICON.ico?asset'
+import icon from '@resources/LA_ICON.ico?asset&asarUnpack'
 import { Notification } from 'electron'
-import { comparer, computed } from 'mobx'
+import { compareShallow, computed } from 'mobx'
+import { z } from 'zod'
 
 import { BaseAkariWindow } from '../base-akari-window'
 import type { WindowManagerMainContext } from '../context'
@@ -33,9 +34,8 @@ export class AkariAuxWindow extends BaseAkariWindow<AuxWindowState, AuxWindowSet
       rememberSize: true,
       repositionWindowIfInvisible: true,
       settingSchema: {
-        enabled: { default: settings.enabled },
-        autoShow: { default: settings.autoShow },
-        showSkinSelector: { default: settings.showSkinSelector }
+        enabled: { default: settings.enabled, schema: z.boolean() },
+        autoShow: { default: settings.autoShow, schema: z.boolean() }
       },
       browserWindowOptions: {
         title: AkariAuxWindow.TITLE,
@@ -65,6 +65,16 @@ export class AkariAuxWindow extends BaseAkariWindow<AuxWindowState, AuxWindowSet
           if (this._leagueClient.data.champSelect.session?.isSpectating) {
             return 'ignore'
           }
+
+          if (
+            this._windowManager.opggWindow.settings.enabled &&
+            (this._windowManager.opggWindow.settings.autoShow ||
+              this._windowManager.opggWindow.state.show)
+          ) {
+            return 'hide'
+          }
+
+          return 'show'
         case 'Lobby':
         case 'Matchmaking':
         case 'ReadyCheck':
@@ -104,7 +114,7 @@ export class AkariAuxWindow extends BaseAkariWindow<AuxWindowState, AuxWindowSet
           this.close(true)
         }
       },
-      { fireImmediately: true, delay: 500, equals: comparer.shallow }
+      { fireImmediately: true, delay: 500, equals: compareShallow }
     )
 
     this._mobxUtils.reaction(
@@ -169,6 +179,6 @@ export class AkariAuxWindow extends BaseAkariWindow<AuxWindowState, AuxWindowSet
   }
 
   protected override getSettingPropKeys() {
-    return ['enabled', 'autoShow', 'showSkinSelector'] as const
+    return ['enabled', 'autoShow'] as const
   }
 }

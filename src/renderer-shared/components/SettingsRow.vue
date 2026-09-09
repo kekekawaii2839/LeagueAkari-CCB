@@ -1,12 +1,14 @@
 <template>
   <div
+    ref="root"
     class="settings-row"
     :class="{
       'settings-row--center': align === 'center',
       'settings-row--start': align === 'start',
       'settings-row--disabled': disabled,
       'settings-row--control-full-line': controlFullLine,
-      'settings-row--no-x-padding': noXPadding
+      'settings-row--no-x-padding': noXPadding,
+      'settings-row--highlighted': highlighted
     }"
     :style="{
       '--settings-row-label-width': labelWidth ? `${labelWidth}px` : '220px',
@@ -35,6 +37,8 @@
 </template>
 
 <script setup lang="ts">
+import { useTemplateRef } from 'vue'
+
 const { align = 'center' } = defineProps<{
   label?: string
   labelDescription?: string
@@ -45,7 +49,14 @@ const { align = 'center' } = defineProps<{
   controlFullLine?: boolean
   align?: 'center' | 'start'
   disabled?: boolean
+  highlighted?: boolean
 }>()
+
+const root = useTemplateRef<HTMLElement>('root')
+
+defineExpose({
+  getElement: () => root.value
+})
 </script>
 
 <style>
@@ -53,11 +64,23 @@ const { align = 'center' } = defineProps<{
 
 @layer components {
   .settings-row {
+    position: relative;
+    isolation: isolate;
     padding-left: var(--settings-row-x-padding);
     padding-right: var(--settings-row-x-padding);
     column-gap: var(--settings-row-gap);
 
     @apply box-border flex min-h-13 w-full max-w-full border-b border-black/5 py-3 dark:border-white/10;
+  }
+
+  .settings-row--highlighted::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    content: '';
+    pointer-events: none;
+    background-color: color-mix(in srgb, var(--color-akari-400) 36%, transparent);
+    animation: settings-row-navigation-highlight-fade 3400ms linear 1 forwards;
   }
 
   .settings-row.settings-row--no-x-padding {
@@ -121,6 +144,16 @@ const { align = 'center' } = defineProps<{
 
   .settings-row-control > * {
     @apply max-w-full;
+  }
+}
+
+@keyframes settings-row-navigation-highlight-fade {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
   }
 }
 </style>

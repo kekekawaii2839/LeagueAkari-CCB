@@ -1,14 +1,17 @@
 import {
+  type InGameSendCustomTemplateItem,
+  type InGameSendCustomTemplateLastError,
   type InGameSendFixedTextPresetItem,
   type InGameSendJunglePresetOptions,
   type InGameSendPremadePresetOptions,
   type InGameSendRatingPresetOptions,
+  createDefaultInGameSendCustomTemplateItems,
   createDefaultInGameSendFixedTextPresetItems,
   createDefaultInGameSendJunglePresetOptions,
   createDefaultInGameSendPremadePresetOptions,
   createDefaultInGameSendRatingPresetOptions
 } from '@shared/shards/in-game-send'
-import { makeAutoObservable, observable } from 'mobx'
+import { makeAutoObservable, observableRef } from 'mobx'
 
 export class InGameSendSettings {
   cancelShortcut: string | null = null
@@ -19,6 +22,8 @@ export class InGameSendSettings {
     createDefaultInGameSendPremadePresetOptions()
   fixedTextPresetItems: InGameSendFixedTextPresetItem[] =
     createDefaultInGameSendFixedTextPresetItems()
+  customTemplateRiskNoticeShown = false
+  customTemplateItems: InGameSendCustomTemplateItem[] = createDefaultInGameSendCustomTemplateItems()
 
   setCancelShortcut(shortcut: string | null) {
     this.cancelShortcut = shortcut
@@ -30,15 +35,18 @@ export class InGameSendSettings {
 
   constructor() {
     makeAutoObservable(this, {
-      ratingPresetOptions: observable.ref,
-      junglePresetOptions: observable.ref,
-      premadePresetOptions: observable.ref,
-      fixedTextPresetItems: observable.ref
+      ratingPresetOptions: observableRef,
+      junglePresetOptions: observableRef,
+      premadePresetOptions: observableRef,
+      fixedTextPresetItems: observableRef,
+      customTemplateItems: observableRef
     })
   }
 }
 
 export class InGameSendState {
+  customTemplateLastErrors: Record<string, InGameSendCustomTemplateLastError> = {}
+
   /** 表现评分预设：选中的 puuid 列表 */
   ratingPuuids: string[] = []
 
@@ -69,11 +77,29 @@ export class InGameSendState {
     this.premadeIndices = []
   }
 
+  setCustomTemplateLastError(id: string, error: InGameSendCustomTemplateLastError) {
+    this.customTemplateLastErrors = {
+      ...this.customTemplateLastErrors,
+      [id]: error
+    }
+  }
+
+  clearCustomTemplateLastError(id: string) {
+    if (!(id in this.customTemplateLastErrors)) {
+      return
+    }
+
+    const nextErrors = { ...this.customTemplateLastErrors }
+    delete nextErrors[id]
+    this.customTemplateLastErrors = nextErrors
+  }
+
   constructor() {
     makeAutoObservable(this, {
-      ratingPuuids: observable.ref,
-      junglePuuids: observable.ref,
-      premadeIndices: observable.ref
+      ratingPuuids: observableRef,
+      junglePuuids: observableRef,
+      premadeIndices: observableRef,
+      customTemplateLastErrors: observableRef
     })
   }
 }

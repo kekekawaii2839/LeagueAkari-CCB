@@ -33,6 +33,19 @@ playerTags:
     save: Save
     cancel: Cancel
     placeholder: Enter the tag for player {{name}}
+    phrases:
+      title: Quick phrases
+      count: '{{count}} / {{max}}'
+      clearTag: Clear tag
+      clearTagConfirm: Clear the currently entered tag?
+      confirmClearTag: Clear
+      addPlaceholder: Add a quick phrase
+      add: Add phrase
+      cancelAdd: Cancel adding phrase
+      delete: Delete “{{phrase}}”
+      empty: No quick phrases yet. Add one to insert it into player tags with one click.
+      duplicate: This phrase already exists.
+      updateFailed: Failed to save quick phrases.
 akariScore:
   title: Akari Score
   na: N/A
@@ -69,13 +82,11 @@ playerTabs:
     chromaSkins: Chroma Skins
   titlebar:
     loading: Loading...
-    search: Search
     refresh: Refresh
     close: Close
     closeOthers: Close Others
     closeToTheRight: Close to the Right
     screenshot: Screenshot Tab
-    searchButtonStreamerModeWarning: Searching for players will expose sensitive information, continue?
   shell:
     disconnected: Not connected to the client
     queueing: Logging in...
@@ -131,6 +142,9 @@ playerTabs:
     failedToLaunchReplay: 'Failed to launch replay: {{reason}}'
     failedToDownloadReplay: 'Failed to download replay: {{reason}}'
   matchHistory:
+    pagination: Pagination
+    sidebar:
+      open: Open match history sidebar
     filters:
       title: Filters
       pageFilter: Page Filter
