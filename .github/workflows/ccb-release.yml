@@ -60,6 +60,7 @@ jobs:
           name: League-Akari-CCB-Windows-x64
           path: .phase7-package/*.7z
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 14
 
       - name: Publish tagged release
