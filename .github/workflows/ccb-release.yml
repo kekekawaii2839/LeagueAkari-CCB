@@ -2,6 +2,7 @@ name: Build CCB Release
 
 on:
   push:
+    branches: [dev]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -11,6 +12,7 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name != 'push' || github.ref_type == 'tag'
     name: Build Windows x64 portable package
     runs-on: windows-2022
     steps:
