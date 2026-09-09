@@ -35,6 +35,7 @@ export class AkariMainWindow extends BaseAkariWindow<MainWindowState, MainWindow
       htmlEntry: AkariMainWindow.HTML_ENTRY,
       rememberPosition: true,
       rememberSize: true,
+      rememberMaximized: true,
       repositionWindowIfInvisible: true,
       settingSchema: {
         closeAction: {
