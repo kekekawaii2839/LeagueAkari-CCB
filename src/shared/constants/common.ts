@@ -1,4 +1,4 @@
-export const LEAGUE_AKARI_GITHUB = 'https://github.com/LHLKEVIN0713/LeagueAkari-CCB'
+export const LEAGUE_AKARI_GITHUB = 'https://github.com/kekekawaii2839/LeagueAkari-CCB'
 
 export const EMPTY_PUUID = '00000000-0000-0000-0000-000000000000'
 
