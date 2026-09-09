@@ -47,7 +47,7 @@ Skill 位于 `.agents/skills/`，负责具体执行方法，不重复维护一�
 
 - 用户明确接受无 PFX 的首个公开稳定版及其 SmartScreen 风险。版本改为 `0.2.0`；发布 workflow 生成稳定 GitHub Release，并随 CCB Windows x64 7z 上传 SHA-256 sidecar。
 - 本版记录的官方 `dev` baseline 为 `5109b2f7fcce6e02312e534cd1729ed0f2142b51`。
-- 首次稳定 workflow 已完成测试、构建、打包和发布；发布后 API 核对发现 electron-builder 将产物名中的空格规范化成点。workflow 随即增加发布前 canonical rename，现有 `v0.2.0` 仅修正远端资产名与 checksum 文本，不改变已通过门禁的 archive bytes。
+- 首次稳定 workflow 已完成测试、构建、打包和发布；发布后 API 核对发现 GitHub 会强制将资产名中的空格规范化成点，API 重命名同样无法保留空格。点分隔名称因此确立为 canonical 格式，客户端、workflow 与 checksum 同步修正；不可更新的首次 Release 在公开确认前删除，并从修正后的同版本 tag 重新执行完整门禁。
 - 更新检查不再读取官方 Akari release API，只接受 `kekekawaii2839/LeagueAkari-CCB` 的最新稳定 GitHub Release、精确 tag/文件名/下载路径及 checksum 文件。下载内容在退出替换前流式校验 SHA-256，失败即删除；更新后启动 `LeagueAkariCCB.exe`。便携版不调用可能影响官方协议注册的卸载路径。
 - 该通道仍未签名，SHA-256 sidecar 与包同源，不能声称独立真实性、原子切换或失败回滚。签名与 rollback-safe 状态仍按发布规则作为后续加固项。
 

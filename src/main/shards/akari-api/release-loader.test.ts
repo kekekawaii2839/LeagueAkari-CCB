@@ -5,10 +5,10 @@ import { AkariApiReleaseLoader, CCB_LATEST_RELEASE_API_URL } from './release-loa
 import { AkariApiState } from './state'
 
 const version = '0.2.0'
-const fileName = `League Akari CCB-${version}-x64.7z`
+const fileName = `League.Akari.CCB-${version}-x64.7z`
 const checksum = 'a'.repeat(64)
 const archiveUrl =
-  'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v0.2.0/League%20Akari%20CCB-0.2.0-x64.7z'
+  'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v0.2.0/League.Akari.CCB-0.2.0-x64.7z'
 const checksumUrl = `${archiveUrl}.sha256`
 
 function createGitHubRelease(overrides: Record<string, unknown> = {}) {
