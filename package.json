@@ -8,12 +8,12 @@
   "description": "League Akari CCB fork",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB.git"
+    "url": "https://github.com/kekekawaii2839/LeagueAkari-CCB.git"
   },
   "bugs": {
-    "url": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB/issues"
+    "url": "https://github.com/kekekawaii2839/LeagueAkari-CCB/issues"
   },
-  "homepage": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB",
+  "homepage": "https://github.com/kekekawaii2839/LeagueAkari-CCB",
   "main": "./out/main/main.js",
   "scripts": {
     "format": "prettier --write .",

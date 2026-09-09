@@ -31,7 +31,7 @@ The CCB identity must remain separate from official League Akari. CCB does not a
 - Do not publicly distribute an unsigned build.
 - Automatic update remains compile-time disabled.
 - The only CCB source and manual release page is
-  `https://github.com/LHLKEVIN0713/LeagueAkari-CCB`; never download a CCB update from the official
+  `https://github.com/kekekawaii2839/LeagueAkari-CCB`; never download a CCB update from the official
   League Akari repository or API.
 - Official League Akari packages remain rejected at download, apply, quit and uninstall boundaries.
 - Upgrade only by closing CCB, backing up CCB userData and replacing the complete portable application directory.
@@ -57,7 +57,7 @@ Until every item passes, the only supported update mechanism is manual replaceme
 
 - First release baseline is fixed at official SHA `ba522009f0d85b0ee0979e76e3b92724555d4c53` from `dev`.
 - Remote model: official `Hanxven/LeagueAkari` as `upstream`; CCB repository
-  `LHLKEVIN0713/LeagueAkari-CCB` as `origin`.
+  `kekekawaii2839/LeagueAkari-CCB` as `origin`.
 - `.github/workflows/upstream-sync.yml` checks official `upstream/dev` daily and on manual dispatch.
   It merges on a temporary automation branch, advances the recorded upstream baseline, runs the
   patch guard, full tests, production build, CCB Windows package, and artifact scan, and pushes the
