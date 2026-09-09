@@ -1,2 +1,3 @@
 resources/rebuild_WMI.bat text eol=crlf
 yarn.lock whitespace=cr-at-eol
+resources/member-analysis/worker/** -text
