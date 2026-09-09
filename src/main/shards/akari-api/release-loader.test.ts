@@ -1,108 +1,102 @@
-import type { AkariRelease } from '@shared/shards/akari-api'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { AkariApiMainContext } from './context'
-import { AkariApiReleaseLoader } from './release-loader'
+import { AkariApiReleaseLoader, CCB_LATEST_RELEASE_API_URL } from './release-loader'
 import { AkariApiState } from './state'
 
-const latestRelease: AkariRelease = {
-  version: '1.5.0',
-  publishedAt: '2026-07-16T06:00:00.000Z',
-  description: '更新内容',
-  artifacts: [
-    {
-      platform: 'win32',
-      arch: 'x64',
-      fileName: 'League Akari-1.5.0-win.7z',
-      size: 2048,
-      contentType: 'application/x-7z-compressed',
-      sha256: null,
-      downloadUrl: 'https://akari-static.yuru-yuri.com/League%20Akari-1.5.0-win.7z'
-    }
-  ]
-}
+const version = '0.2.0'
+const fileName = `League Akari CCB-${version}-x64.7z`
+const checksum = 'a'.repeat(64)
+const archiveUrl =
+  'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v0.2.0/League%20Akari%20CCB-0.2.0-x64.7z'
+const checksumUrl = `${archiveUrl}.sha256`
 
-function createContext(getLatestRelease = vi.fn().mockResolvedValue({ data: latestRelease })) {
+function createGitHubRelease(overrides: Record<string, unknown> = {}) {
   return {
-    api: { getLatestRelease },
-    appCommon: { settings: { locale: 'zh-CN' } },
-    logger: { info: vi.fn(), warn: vi.fn() },
-    state: new AkariApiState()
-  } as unknown as AkariApiMainContext
+    tag_name: `v${version}`,
+    draft: false,
+    prerelease: false,
+    published_at: '2026-09-09T00:00:00.000Z',
+    body: 'Release notes',
+    assets: [
+      {
+        name: fileName,
+        size: 2048,
+        content_type: 'application/x-7z-compressed',
+        browser_download_url: archiveUrl
+      },
+      {
+        name: `${fileName}.sha256`,
+        size: 100,
+        content_type: 'application/octet-stream',
+        browser_download_url: checksumUrl
+      }
+    ],
+    ...overrides
+  }
 }
 
-afterEach(() => {
-  vi.restoreAllMocks()
-})
+function createHarness(
+  release = createGitHubRelease(),
+  checksumBody = `${checksum}  ${fileName}\n`
+) {
+  const state = new AkariApiState()
+  const http = {
+    get: vi.fn(async (url: string) =>
+      url === CCB_LATEST_RELEASE_API_URL ? { data: release } : { data: checksumBody }
+    )
+  }
+  const context = {
+    state,
+    logger: { info: vi.fn(), warn: vi.fn() }
+  } as unknown as AkariApiMainContext
 
-describe('Akari API release loader', () => {
-  it('keeps the native release document unchanged', async () => {
-    const context = createContext()
-    const loader = new AkariApiReleaseLoader(context)
+  return { context, http, loader: new AkariApiReleaseLoader(context, http as never) }
+}
 
-    const release = await loader.updateLatestRelease('zh-CN')
+describe('CCB GitHub release loader', () => {
+  it('maps the stable fork release and its checksum to the native release contract', async () => {
+    const { context, http, loader } = createHarness()
 
-    expect(release).toEqual(latestRelease)
-    expect(context.state.latestRelease).toEqual(latestRelease)
-  })
-
-  it('does not filter artifacts at the Akari API boundary', async () => {
-    const unsupportedRelease: AkariRelease = {
-      ...latestRelease,
+    await expect(loader.updateLatestRelease('zh-CN')).resolves.toEqual({
+      version,
+      publishedAt: '2026-09-09T00:00:00.000Z',
+      description: 'Release notes',
       artifacts: [
         {
-          ...latestRelease.artifacts[0],
-          contentType: 'application/octet-stream',
-          fileName: 'League Akari-1.5.0-win.zip'
+          platform: 'win32',
+          arch: 'x64',
+          fileName,
+          size: 2048,
+          contentType: 'application/x-7z-compressed',
+          sha256: checksum,
+          downloadUrl: archiveUrl
         }
       ]
-    }
-    const context = createContext(vi.fn().mockResolvedValue({ data: unsupportedRelease }))
-    const loader = new AkariApiReleaseLoader(context)
-
-    await loader.updateLatestRelease('zh-CN')
-
-    expect(context.state.latestRelease).toEqual(unsupportedRelease)
+    })
+    expect(context.state.latestRelease?.version).toBe(version)
+    expect(http.get).toHaveBeenCalledTimes(2)
   })
 
-  it('shares an in-flight request without changing its data', async () => {
-    const getLatestRelease = vi.fn().mockResolvedValue({ data: latestRelease })
-    const context = createContext(getLatestRelease)
-    const loader = new AkariApiReleaseLoader(context)
-
-    const firstUpdate = loader.updateLatestRelease('zh-CN')
-    const secondUpdate = loader.updateLatestRelease('zh-CN')
-
-    await expect(firstUpdate).resolves.toEqual(latestRelease)
-    await expect(secondUpdate).resolves.toEqual(latestRelease)
-    expect(getLatestRelease).toHaveBeenCalledTimes(1)
-  })
-
-  it('tracks whether the latest release is being updated', async () => {
-    let resolveRequest!: (value: { data: AkariRelease }) => void
-    const getLatestRelease = vi.fn().mockReturnValue(
-      new Promise<{ data: AkariRelease }>((resolve) => {
-        resolveRequest = resolve
-      })
-    )
-    const context = createContext(getLatestRelease)
-    const loader = new AkariApiReleaseLoader(context)
-
-    const update = loader.updateLatestRelease('zh-CN')
-
-    expect(context.state.isUpdatingLatestRelease).toBe(true)
-    resolveRequest({ data: latestRelease })
-    await update
-    expect(context.state.isUpdatingLatestRelease).toBe(false)
-  })
-
-  it('does not fall back to the legacy endpoint when the request fails', async () => {
-    const context = createContext(vi.fn().mockRejectedValue(new Error('request failed')))
-    const loader = new AkariApiReleaseLoader(context)
-
-    await expect(loader.updateLatestRelease('zh-CN')).rejects.toThrow('request failed')
-
-    expect(context.state.latestRelease).toBeNull()
-    expect(context.logger.warn).toHaveBeenCalled()
+  it.each([
+    ['a prerelease', createGitHubRelease({ prerelease: true }), `${checksum}  ${fileName}\n`],
+    [
+      'an official asset URL',
+      createGitHubRelease({
+        assets: [
+          {
+            ...createGitHubRelease().assets[0],
+            browser_download_url:
+              'https://github.com/Hanxven/LeagueAkari/releases/download/v0.2.0/official.7z'
+          },
+          createGitHubRelease().assets[1]
+        ]
+      }),
+      `${checksum}  ${fileName}\n`
+    ],
+    ['a mismatched checksum filename', createGitHubRelease(), `${checksum}  official.7z\n`]
+  ])('rejects %s', async (_name, release, checksumBody) => {
+    const { loader } = createHarness(release, checksumBody)
+    await expect(loader.updateLatestRelease('en')).rejects.toThrow()
   })
 })

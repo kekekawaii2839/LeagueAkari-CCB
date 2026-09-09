@@ -11,11 +11,12 @@ const release: AkariRelease = {
     {
       platform: 'win32',
       arch: 'x64',
-      fileName: 'LeagueAkari-1.6.0-win.7z',
+      fileName: 'League Akari CCB-1.6.0-x64.7z',
       size: 1024,
       contentType: 'application/x-7z-compressed',
-      sha256: null,
-      downloadUrl: 'https://example.com/LeagueAkari-1.6.0-win.7z'
+      sha256: 'a'.repeat(64),
+      downloadUrl:
+        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v1.6.0/League%20Akari%20CCB-1.6.0-x64.7z'
     }
   ]
 }
@@ -30,12 +31,12 @@ describe('self-update release info', () => {
         ...artifact,
         fileName: 'release.bin'
       })
-    ).toBe(true)
+    ).toBe(false)
     expect(
       isSupportedWin32X64Artifact({
         ...artifact,
         contentType: 'application/octet-stream',
-        fileName: 'LeagueAkari-1.6.0-win.7Z'
+        fileName: 'League Akari CCB-1.6.0-x64.7Z'
       })
     ).toBe(true)
   })
@@ -52,12 +53,14 @@ describe('self-update release info', () => {
     },
     { ...release.artifacts[0], platform: 'windows' },
     { ...release.artifacts[0], platform: 'darwin' },
-    { ...release.artifacts[0], arch: 'arm64' }
+    { ...release.artifacts[0], arch: 'arm64' },
+    { ...release.artifacts[0], sha256: null },
+    { ...release.artifacts[0], sha256: 'not-a-hash' }
   ])('rejects unsupported artifact %#', (artifact) => {
     expect(isSupportedWin32X64Artifact(artifact)).toBe(false)
   })
 
-  it('withholds official artifacts on Windows x64 in the fork', () => {
+  it('selects the hash-verified CCB artifact on Windows x64', () => {
     const releaseInfo = resolveSelfUpdateReleaseInfo(release, '1.5.0', {
       platform: 'win32',
       arch: 'x64'
@@ -69,10 +72,10 @@ describe('self-update release info', () => {
       publishedAt: '2026-07-19T00:00:00.000Z',
       description: 'Release notes',
       isNew: true,
-      isUpdateSupported: false,
-      artifact: null
+      isUpdateSupported: true,
+      artifact: release.artifacts[0]
     })
-    expect(releaseInfo?.artifact).toBeNull()
+    expect(releaseInfo?.artifact?.fileName).toContain('League Akari CCB')
   })
 
   it('keeps release details but withholds the artifact on unsupported platforms', () => {

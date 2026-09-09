@@ -14,14 +14,10 @@ export function isSupportedWin32X64Artifact(artifact: AkariReleaseArtifact) {
     return false
   }
 
-  if (artifact.contentType === 'application/x-7z-compressed') {
-    return true
-  }
+  if (!/^League Akari CCB-.+-x64\.7z$/i.test(artifact.fileName)) return false
+  if (!/^[a-f\d]{64}$/i.test(artifact.sha256 ?? '')) return false
 
-  return (
-    artifact.contentType === 'application/octet-stream' &&
-    artifact.fileName.toLowerCase().endsWith('.7z')
-  )
+  return ['application/x-7z-compressed', 'application/octet-stream'].includes(artifact.contentType)
 }
 
 export function resolveSelfUpdateReleaseInfo(
@@ -33,8 +29,12 @@ export function resolveSelfUpdateReleaseInfo(
     return null
   }
 
+  const expectedFileName = `League Akari CCB-${release.version}-x64.7z`
   const artifact = shouldRunSelfUpdateLifecycle(target.platform, target.arch)
-    ? (release.artifacts.find(isSupportedWin32X64Artifact) ?? null)
+    ? (release.artifacts.find(
+        (candidate) =>
+          candidate.fileName === expectedFileName && isSupportedWin32X64Artifact(candidate)
+      ) ?? null)
     : null
 
   return {

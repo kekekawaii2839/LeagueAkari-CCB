@@ -43,6 +43,13 @@ Skill 位于 `.agents/skills/`，负责具体执行方法，不重复维护一�
 
 ## 5. 维护记录
 
+### 2026-09-09 — `v0.2.0` 稳定版与 CCB 应用内更新
+
+- 用户明确接受无 PFX 的首个公开稳定版及其 SmartScreen 风险。版本改为 `0.2.0`；发布 workflow 生成稳定 GitHub Release，并随 CCB Windows x64 7z 上传 SHA-256 sidecar。
+- 本版记录的官方 `dev` baseline 为 `5109b2f7fcce6e02312e534cd1729ed0f2142b51`。
+- 更新检查不再读取官方 Akari release API，只接受 `kekekawaii2839/LeagueAkari-CCB` 的最新稳定 GitHub Release、精确 tag/文件名/下载路径及 checksum 文件。下载内容在退出替换前流式校验 SHA-256，失败即删除；更新后启动 `LeagueAkariCCB.exe`。便携版不调用可能影响官方协议注册的卸载路径。
+- 该通道仍未签名，SHA-256 sidecar 与包同源，不能声称独立真实性、原子切换或失败回滚。签名与 rollback-safe 状态仍按发布规则作为后续加固项。
+
 ### 2026-09-09 — 高级筛选日期占位与版本排序
 
 - 五排分析的开始、结束日期输入显式关闭 Naive UI 文本占位，避免“请输入”覆盖浏览器的“年/月/日”日期提示；保留原生日期输入与现有无障碍名称。

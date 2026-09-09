@@ -53,12 +53,16 @@ jobs:
         run: |
           corepack yarn build:ccb:win
           node packaging/scan-packaged-artifact.mjs .phase7-package/win-unpacked
+          $archive = Get-ChildItem .phase7-package -Filter *.7z -File
+          if ($archive.Count -ne 1) { throw "Expected exactly one CCB archive" }
+          $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($archive.Name)" | Set-Content -LiteralPath "$($archive.FullName).sha256" -Encoding utf8
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
         with:
           name: League-Akari-CCB-Windows-x64
-          path: .phase7-package/*.7z
+          path: .phase7-package/*.7z*
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 14
@@ -67,7 +71,7 @@ jobs:
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
-          files: .phase7-package/*.7z
+          files: .phase7-package/*.7z*
           fail_on_unmatched_files: true
           generate_release_notes: true
-          prerelease: true
+          prerelease: false

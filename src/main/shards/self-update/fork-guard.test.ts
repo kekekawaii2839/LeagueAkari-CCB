@@ -39,27 +39,23 @@ function createGuardHarness() {
   return { context, controller, executor, handlers }
 }
 
-describe('fork official updater hard guard', () => {
-  test('rejects renderer update IPC even when legacy auto-update settings are true', async () => {
+describe('CCB updater IPC boundary', () => {
+  test('enables update checks but does not start without a verified CCB artifact', async () => {
     const { controller, handlers } = createGuardHarness()
     await expect(handlers.get('checkUpdates')!({})).resolves.toEqual({
-      result: 'failed',
-      reason: 'platform-unsupported'
+      result: 'no-updates'
     })
-    await expect(handlers.get('startUpdate')!({})).resolves.toEqual({
-      result: 'failed',
-      reason: 'platform-unsupported'
-    })
-    expect(controller.checkLatestRelease).not.toHaveBeenCalled()
+    await expect(handlers.get('startUpdate')!({})).resolves.toEqual({ result: 'no-op' })
+    expect(controller.checkLatestRelease).toHaveBeenCalledTimes(1)
   })
 
-  test('does not execute a prepared official update task on quit', async () => {
+  test('executes a prepared CCB update task on quit in a packaged Windows build', async () => {
     const { executor } = createGuardHarness()
     const preparedUpdate = vi.fn(async () => {})
     ;(executor as any)._updateOnQuitFn = preparedUpdate
 
     await executor.runUpdateOnQuit()
 
-    expect(preparedUpdate).not.toHaveBeenCalled()
+    expect(preparedUpdate).toHaveBeenCalledTimes(1)
   })
 })

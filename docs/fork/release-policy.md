@@ -20,42 +20,44 @@ The CCB identity must remain separate from official League Akari. CCB does not a
 ## Versioning
 
 - Internal iterations: `0.1.0-ccb.1`, `0.1.0-ccb.2`, and so on.
-- First relatively stable version: `0.1.0`.
+- First public stable version: `0.2.0`.
 - CCB feature releases increment the SemVer minor component.
 - Fix/security releases increment the patch component.
 - Every release entry in `docs/fork/README.md` records the exact official upstream SHA separately; the official product version is never reused as the CCB version. Do not create a separate Markdown release report.
 
 ## Current distribution and update policy
 
-- Current builds are unsigned and for local/internal use only.
-- Do not publicly distribute an unsigned build.
-- Automatic update remains compile-time disabled.
+- Version `0.2.0` is an explicitly user-approved unsigned public release. Windows SmartScreen may
+  warn users; the package and release notes must not claim a code signature.
+- Automatic update is enabled for packaged Windows x64 CCB builds beginning with `0.2.0`.
 - The only CCB source and manual release page is
   `https://github.com/kekekawaii2839/LeagueAkari-CCB`; never download a CCB update from the official
   League Akari repository or API.
-- Official League Akari packages remain rejected at download, apply, quit and uninstall boundaries.
-- Upgrade only by closing CCB, backing up CCB userData and replacing the complete portable application directory.
+- The update loader accepts only stable releases from that repository whose tag and exact CCB
+  archive name agree. Every release includes a SHA-256 sidecar; the downloaded archive is rejected
+  and deleted before execution when verification fails.
+- Official League Akari packages remain rejected. The portable CCB build does not invoke the
+  updater's uninstall path because it does not own official Akari protocol registrations.
+- Updates replace the complete portable application directory after CCB exits; CCB userData remains
+  outside that directory.
 - Replacing the application directory must not remove CCB userData.
 - Upstream Akari currently places general Windows logs beside the executable. CCB must sanitize every logger payload before transport; player identifiers and credential values are forbidden even in local/internal logs.
 
-## Future fork self-update gate
+## Remaining signed-update hardening
 
-Fork self-update is an intended future capability, but it must not be enabled until all of the following exist and pass rollback testing:
+The user explicitly accepted an unsigned first public channel. SHA-256 detects corruption but the
+sidecar is hosted with the archive and is not an independent authenticity signature. The following
+remain required before describing the channel as signed or rollback-safe:
 
-1. A release repository/feed owned by the CCB fork, never the official League Akari feed.
-2. A stable CCB product identity and versioned update manifest.
-3. SHA-256 for every downloadable artifact and manifest verification before execution.
-4. A real Windows code-signing certificate and protected signing workflow.
-5. Signed manifest or equivalent authenticity verification independent of transport TLS.
-6. Previous complete version retention, atomic switch and verified rollback after download, hash, signature, startup or migration failure.
-7. Explicit refusal of product/appId/feed mismatch and every official League Akari artifact.
-8. Clean Windows upgrade, downgrade-readonly and rollback tests.
-
-Until every item passes, the only supported update mechanism is manual replacement of the complete CCB package.
+1. A real Windows code-signing certificate and protected signing workflow.
+2. Signed manifest or equivalent authenticity verification independent of transport TLS.
+3. Previous complete version retention, atomic switch and verified rollback after download, hash,
+   signature, startup or migration failure.
+4. Clean Windows upgrade, downgrade-readonly and rollback tests.
 
 ## Upstream maintenance policy
 
-- First release baseline is fixed at official SHA `ba522009f0d85b0ee0979e76e3b92724555d4c53` from `dev`.
+- The current exact official baseline is maintained in `patch-manifest.json`.
 - Remote model: official `Hanxven/LeagueAkari` as `upstream`; CCB repository
   `kekekawaii2839/LeagueAkari-CCB` as `origin`.
 - `.github/workflows/upstream-sync.yml` checks official `upstream/dev` daily and on manual dispatch.
