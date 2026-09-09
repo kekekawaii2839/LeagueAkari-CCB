@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "upstreamBaseline": "f31c1cd27f8eb131abe4f74e5b89d7adaf1949ed",
   "budget": {
-    "targetFiles": 8,
-    "hardMaxFiles": 11,
+    "targetFiles": 9,
+    "hardMaxFiles": 12,
     "targetChangedLines": 220,
     "hardMaxChangedLines": 350
   },
@@ -66,6 +66,12 @@
       "upstreamFile": ".gitignore",
       "purpose": "Block local analysis data, logs and caches from tracking",
       "replacementIfUpstreamChanges": "Retain equivalent repository and CI exclusions"
+    },
+    {
+      "id": "member-analysis-worker-byte-integrity",
+      "upstreamFile": ".gitattributes",
+      "purpose": "Prevent platform line-ending conversion from invalidating packaged worker hashes",
+      "replacementIfUpstreamChanges": "Keep the packaged worker subtree byte-exact across checkouts"
     },
     {
       "id": "vendored-yarn-alignment",
