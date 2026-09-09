@@ -60,4 +60,4 @@ caches/
 *.db-wal
 *.db-shm
 __pycache__/
-*.py[cod]
+*.py[co]
