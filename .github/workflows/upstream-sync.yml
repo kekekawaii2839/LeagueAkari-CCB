@@ -16,6 +16,9 @@ concurrency:
   group: upstream-sync-dev
   cancel-in-progress: false
 
+env:
+  NODE_OPTIONS: --max-old-space-size=4096
+
 jobs:
   sync:
     name: Merge verified upstream/dev
