@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "upstreamBaseline": "5109b2f7fcce6e02312e534cd1729ed0f2142b51",
   "budget": {
-    "targetFiles": 9,
-    "hardMaxFiles": 12,
-    "targetChangedLines": 220,
-    "hardMaxChangedLines": 350
+    "targetFiles": 20,
+    "hardMaxFiles": 22,
+    "targetChangedLines": 500,
+    "hardMaxChangedLines": 650
   },
   "excludedPaths": [
     ".agents/skills/league-akari-mcp-debug/SKILL.md",
@@ -90,6 +90,54 @@
       "upstreamFile": "src/shared/constants/common.ts",
       "purpose": "Route project and manual release links to the CCB-owned repository",
       "replacementIfUpstreamChanges": "Keep the fork repository as the only CCB download source"
+    },
+    {
+      "id": "fork-release-client",
+      "upstreamFile": "src/main/shards/akari-api/index.ts",
+      "purpose": "Create an isolated network client for the CCB GitHub release channel",
+      "replacementIfUpstreamChanges": "Inject a fork-owned release provider through an upstream extension point"
+    },
+    {
+      "id": "fork-release-loader",
+      "upstreamFile": "src/main/shards/akari-api/release-loader.ts",
+      "purpose": "Translate only stable CCB GitHub releases with checksums into update metadata",
+      "replacementIfUpstreamChanges": "Use a configurable signed release provider"
+    },
+    {
+      "id": "fork-release-loader-tests",
+      "upstreamFile": "src/main/shards/akari-api/release-loader.test.ts",
+      "purpose": "Reject prereleases, official asset URLs and invalid checksum manifests",
+      "replacementIfUpstreamChanges": "Test the configurable fork release provider"
+    },
+    {
+      "id": "fork-updater-identity",
+      "upstreamFile": "src/main/shards/self-update/context.ts",
+      "purpose": "Launch the CCB executable after applying an update",
+      "replacementIfUpstreamChanges": "Derive the executable name from immutable package identity"
+    },
+    {
+      "id": "fork-artifact-selection",
+      "upstreamFile": "src/main/shards/self-update/release-info.ts",
+      "purpose": "Accept only version-matched hash-bearing CCB archives",
+      "replacementIfUpstreamChanges": "Select artifacts by signed product manifest"
+    },
+    {
+      "id": "fork-update-integrity",
+      "upstreamFile": "src/main/shards/self-update/update-executor.ts",
+      "purpose": "Verify the downloaded archive SHA-256 before scheduling replacement",
+      "replacementIfUpstreamChanges": "Verify a signed manifest and archive before apply"
+    },
+    {
+      "id": "fork-update-integrity-tests",
+      "upstreamFile": "src/main/shards/self-update/update-executor.test.ts",
+      "purpose": "Prove tampered update archives are rejected",
+      "replacementIfUpstreamChanges": "Retain corruption and cancellation coverage"
+    },
+    {
+      "id": "fork-updater-command-tests",
+      "upstreamFile": "src/main/shards/self-update/updater-command.test.ts",
+      "purpose": "Prove the updater launches the CCB executable",
+      "replacementIfUpstreamChanges": "Test immutable product identity in updater arguments"
     }
   ]
 }

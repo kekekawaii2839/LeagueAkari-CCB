@@ -1,5 +1,6 @@
 import { IAkariShardInitDispose, Shard } from '@shared/akari-shard'
 import type { AkariApiLanguage } from '@shared/shards/akari-api'
+import { app } from 'electron'
 
 import { AkariProtocolMain } from '../akari-protocol'
 import { AppCommonMain } from '../app-common'
@@ -70,7 +71,16 @@ export class AkariApiMain implements IAkariShardInitDispose {
     }
     this._configLoader = new AkariApiConfigLoader(this._context)
     this._noticeLoader = new AkariApiNoticeLoader(this._context)
-    this._releaseLoader = new AkariApiReleaseLoader(this._context)
+    this._releaseLoader = new AkariApiReleaseLoader(
+      this._context,
+      _network.createAxiosClient({
+        timeout: 10_000,
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'User-Agent': `LeagueAkariCCB/${app.getVersion()}`
+        }
+      })
+    )
   }
 
   async onInit() {

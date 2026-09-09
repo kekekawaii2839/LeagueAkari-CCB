@@ -6,6 +6,7 @@ import { formatError } from '@shared/utils/errors'
 import { AxiosResponse } from 'axios'
 import { Notification, app } from 'electron'
 import cp from 'node:child_process'
+import { createHash } from 'node:crypto'
 import ofs from 'node:original-fs'
 import path from 'node:path'
 import { Readable, pipeline } from 'node:stream'
@@ -61,7 +62,7 @@ export class SelfUpdateExecutor {
     }
 
     const artifact = release.artifact
-    if (!artifact) {
+    if (!artifact || !/^[a-f\d]{64}$/i.test(artifact.sha256 ?? '')) {
       this._context.logger.warn('Release has no supported Windows x64 7z artifact', {
         version: release.version
       })
@@ -80,7 +81,12 @@ export class SelfUpdateExecutor {
     const job = this._createJob()
 
     try {
-      const downloadPath = await this._downloadUpdate(artifact.downloadUrl, artifact.fileName, job)
+      const downloadPath = await this._downloadUpdate(
+        artifact.downloadUrl,
+        artifact.fileName,
+        artifact.sha256!,
+        job
+      )
       await this._spawnUpdaterOnQuit(downloadPath, release.version, job)
 
       return { result: 'ok' }
@@ -192,13 +198,21 @@ export class SelfUpdateExecutor {
     })
   }
 
-  private async _downloadUpdate(downloadUrl: string, filename: string, job: UpdateJob) {
+  private async _downloadUpdate(
+    downloadUrl: string,
+    filename: string,
+    expectedSha256: string,
+    job: UpdateJob
+  ) {
     if (!shouldDownloadUpdateArchive()) {
       this._context.logger.info('Skip update archive download on unsupported platform', {
         platform: process.platform
       })
       this._context.state.setUpdateProgressInfo(null)
       throw new Error(PLATFORM_UNSUPPORTED_REASON)
+    }
+    if (path.basename(filename) !== filename) {
+      throw new Error('Invalid update artifact filename')
     }
 
     const { state, logger, ipc, httpClient, namespace } = this._context
@@ -252,6 +266,7 @@ export class SelfUpdateExecutor {
     let totalDownloaded = 0
     let downloadStartTime = now
     let lastUpdateProgressTime = now
+    const sha256 = createHash('sha256')
 
     const asyncTask = new Promise<string>((resolve, reject) => {
       const writer = ofs.createWriteStream(downloadPath)
@@ -289,6 +304,7 @@ export class SelfUpdateExecutor {
       }
 
       resp.data.on('data', (chunk) => {
+        sha256.update(chunk)
         totalDownloaded += chunk.length
 
         const now = Date.now()
@@ -303,10 +319,16 @@ export class SelfUpdateExecutor {
       })
 
       pipeline(resp.data, writer, (error) => {
-        if (error || this._isJobCanceled(job)) {
+        const integrityError =
+          !error &&
+          !this._isJobCanceled(job) &&
+          sha256.digest('hex') !== expectedSha256.toLowerCase()
+            ? new Error('Downloaded update failed SHA-256 verification')
+            : null
+        if (error || integrityError || this._isJobCanceled(job)) {
           const finalError = this._isJobCanceled(job)
             ? createUpdateCanceledError()
-            : error || createUpdateCanceledError()
+            : error || integrityError || createUpdateCanceledError()
 
           if (isUpdateCanceledError(finalError)) {
             state.setUpdateProgressInfo(null)

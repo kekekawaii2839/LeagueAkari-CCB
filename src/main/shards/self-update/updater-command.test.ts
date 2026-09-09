@@ -14,7 +14,7 @@ describe('updater command arguments', () => {
       '--lang',
       'zh-CN',
       '--executable',
-      'LeagueAkari.exe',
+      'LeagueAkariCCB.exe',
       'apply',
       '--archive',
       String.raw`C:\Users\Administrator\AppData\Roaming\league-akari\NewUpdates\league-akari-win-x64.7z`,

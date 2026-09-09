@@ -1,5 +1,6 @@
 import type { SelfUpdateReleaseInfo } from '@shared/shards/self-update'
 import cp from 'node:child_process'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import { Readable } from 'node:stream'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
@@ -49,6 +50,7 @@ vi.mock('node:original-fs', async () => {
 })
 
 function createRelease(): SelfUpdateReleaseInfo {
+  const archive = 'update archive'
   return {
     version: '2.0.0',
     currentVersion: '1.0.0',
@@ -59,11 +61,12 @@ function createRelease(): SelfUpdateReleaseInfo {
     artifact: {
       platform: 'win32',
       arch: 'x64',
-      fileName: 'LeagueAkari-2.0.0-win.7z',
+      fileName: 'League Akari CCB-2.0.0-x64.7z',
       size: 100,
-      downloadUrl: 'https://example.com/LeagueAkari-2.0.0-win.7z',
+      downloadUrl:
+        'https://github.com/kekekawaii2839/LeagueAkari-CCB/releases/download/v2.0.0/League%20Akari%20CCB-2.0.0-x64.7z',
       contentType: 'application/x-7z-compressed',
-      sha256: null
+      sha256: createHash('sha256').update(archive).digest('hex')
     }
   }
 }
@@ -192,6 +195,25 @@ describe('SelfUpdateExecutor', () => {
 
     await expect(executor.start(createRelease())).resolves.toMatchObject({
       result: 'failed'
+    })
+    expect(context.state.updateProgressInfo?.phase).toBe('download-failed')
+  })
+
+  test('deletes and rejects an archive whose SHA-256 does not match the release manifest', async () => {
+    const httpClient = {
+      get: vi.fn(async () => ({
+        data: Readable.from(['tampered archive']),
+        headers: { 'content-length': '16' }
+      })),
+      defaults: {}
+    } as unknown as SelfUpdateMainContext['httpClient']
+
+    const context = createContext(httpClient)
+    const executor = new SelfUpdateExecutor(context)
+
+    await expect(executor.start(createRelease())).resolves.toMatchObject({
+      result: 'failed',
+      reason: expect.stringContaining('SHA-256')
     })
     expect(context.state.updateProgressInfo?.phase).toBe('download-failed')
   })

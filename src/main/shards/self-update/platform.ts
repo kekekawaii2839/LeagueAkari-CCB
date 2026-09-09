@@ -1,15 +1,11 @@
-/**
- * This checkout is a fork and must never consume official League Akari artifacts.
- * Keep this compile-time guard closed until a separately identified, signed and
- * hash-verified fork update channel exists.
- */
-export const OFFICIAL_SELF_UPDATE_ALLOWED_IN_FORK = false
+/** CCB updates are accepted only from the fork-owned, hash-verified release loader. */
+export const CCB_SELF_UPDATE_ENABLED = true
 
 export function shouldRunSelfUpdateLifecycle(
   platform: NodeJS.Platform = process.platform,
   arch: string = process.arch
 ) {
-  return OFFICIAL_SELF_UPDATE_ALLOWED_IN_FORK && platform === 'win32' && arch === 'x64'
+  return CCB_SELF_UPDATE_ENABLED && platform === 'win32' && arch === 'x64'
 }
 
 export function shouldDownloadUpdateArchive(
@@ -35,8 +31,9 @@ export function shouldLaunchUpdaterOnQuit(
 }
 
 export function shouldUninstallWithUpdater(
-  platform: NodeJS.Platform = process.platform,
-  arch: string = process.arch
+  _platform: NodeJS.Platform = process.platform,
+  _arch: string = process.arch
 ) {
-  return shouldRunSelfUpdateLifecycle(platform, arch)
+  // The portable CCB build does not own the official Akari protocol registrations.
+  return false
 }
