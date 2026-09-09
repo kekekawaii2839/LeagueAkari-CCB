@@ -1,3 +1,7 @@
+> Scope: upstream PR submission guidance, only when the current user explicitly requests a PR.
+> Follow repository permissions and preserve the working tree; these recommendations do not authorize
+> unsolicited rebases, pushes, model overrides or agent delegation. Local tasks finish without a PR.
+
 # PR Requirements
 
 We welcome and encourage the use of AI tools to improve development speed and quality. When doing

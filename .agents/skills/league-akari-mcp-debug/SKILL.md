@@ -1,6 +1,6 @@
 ---
 name: league-akari-mcp-debug
-description: Use the configured Playwright MCP CDP connection to debug League Akari dev windows directly, and troubleshoot only when the MCP target is unavailable.
+description: Debug and visually audit League Akari Electron dev windows through the configured Playwright MCP CDP connection. Use for renderer state, console/network diagnosis, multi-window behavior, eight-theme and viewport screenshots, chart/UI review evidence, and MCP target troubleshooting.
 ---
 
 # League Akari MCP Debugging
@@ -26,6 +26,25 @@ Expected MCP behavior in this project:
 4. If no League Akari target appears, use the troubleshooting section.
 
 Do not restate generic MCP browser usage in this skill. The MCP server already exposes those tools; this skill exists to describe League Akari's own debug surface after the connection works.
+
+## Visual Audit Workflow
+
+Read [design-spec section 9](../../../docs/fork/design-spec.md) for theme, size, state and human-review
+requirements. This skill owns connection and runtime inspection, not a separate visual standard.
+
+1. Identify the window, route and state before acting. Prefer read-only inspection; do not mutate
+   League Client state just to create a screenshot.
+2. Establish deterministic synthetic/anonymized inputs. Redact real identities before exposing or saving
+   screenshots; raw player data remains under userData, never in repository evidence.
+3. Exercise the affected controls, scroll/focus behavior and lifecycle. Review renderer exceptions and
+   failed requests separately from expected League-service failures. Do not expose credentials/URLs.
+4. Capture required states and themes, inspect the images, fix objective defects and recapture.
+   A screenshot of old/missing data cannot verify populated charts. Present anonymized evidence to the
+   human reviewer; code inspection and agent judgment do not grant final visual acceptance.
+
+Use original upstream outside `member-analysis` as style reference. Existing CDP is dev-only debugging,
+not permission to add a product loopback data API. If required tools are unavailable, report the gap;
+never invent a successful Electron inspection.
 
 ## Renderer Console Entry Points
 

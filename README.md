@@ -1,3 +1,5 @@
+> **本工作区说明**：以下保留上游项目介绍，下载链接、平台支持与发布说明不代表 CCB fork。当前原生功能、设计、开发及本地验证请从[项目文档入口](docs/fork/README.md)开始；不要用官方包覆盖本 fork。
+
 <div align="center">
   <div>
     <img

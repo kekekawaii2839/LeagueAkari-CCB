@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "upstreamBaseline": "ba522009f0d85b0ee0979e76e3b92724555d4c53",
+  "budget": {
+    "targetFiles": 7,
+    "hardMaxFiles": 10,
+    "targetChangedLines": 220,
+    "hardMaxChangedLines": 350
+  },
+  "excludedPaths": [
+    ".agents/skills/league-akari-mcp-debug/SKILL.md",
+    ".agents/skills/league-akari-sgp-data-source/SKILL.md",
+    ".agents/skills/league-akari-shard-development/SKILL.md",
+    ".agents/skills/league-akari-ui-components/SKILL.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "PR_REQUIREMENTS.md",
+    "README.md",
+    "src/shared/test-fixtures/api/README.md"
+  ],
+  "patches": [
+    {
+      "id": "member-analysis-main-registration",
+      "upstreamFile": "src/main/bootstrap/index.ts",
+      "purpose": "Register the isolated, degradable main shard",
+      "replacementIfUpstreamChanges": "Use an upstream shard contribution API"
+    },
+    {
+      "id": "member-analysis-renderer-registration",
+      "upstreamFile": "src/renderer/src-main-window/shards/index.ts",
+      "purpose": "Register the main-window renderer shard",
+      "replacementIfUpstreamChanges": "Use an upstream renderer contribution API"
+    },
+    {
+      "id": "member-analysis-route",
+      "upstreamFile": "src/renderer/src-main-window/routes/index.ts",
+      "purpose": "Add the native member-analysis route",
+      "replacementIfUpstreamChanges": "Use an upstream route contribution API"
+    },
+    {
+      "id": "member-analysis-navigation",
+      "upstreamFile": "src/renderer/src-main-window/components/sidebar/Sidebar.vue",
+      "purpose": "Add the member-analysis sidebar entry",
+      "replacementIfUpstreamChanges": "Use an upstream navigation contribution API"
+    },
+    {
+      "id": "fork-official-updater-guard",
+      "upstreamFile": "src/main/shards/self-update/platform.ts",
+      "purpose": "Compile-time rejection of all official updater lifecycle paths",
+      "replacementIfUpstreamChanges": "Keep updater disabled until a signed fork channel exists"
+    },
+    {
+      "id": "fork-official-updater-guard-tests",
+      "upstreamFile": "src/main/shards/self-update/platform.test.ts",
+      "purpose": "Prove manual, automatic and quit-time paths stay disabled",
+      "replacementIfUpstreamChanges": "Test the replacement guard at every side-effect boundary"
+    },
+    {
+      "id": "fork-official-artifact-projection-test",
+      "upstreamFile": "src/main/shards/self-update/release-info.test.ts",
+      "purpose": "Prove official artifacts are withheld even on Windows x64",
+      "replacementIfUpstreamChanges": "Keep release metadata non-executable and artifact-free"
+    },
+    {
+      "id": "member-analysis-data-ignore",
+      "upstreamFile": ".gitignore",
+      "purpose": "Block local analysis data, logs and caches from tracking",
+      "replacementIfUpstreamChanges": "Retain equivalent repository and CI exclusions"
+    },
+    {
+      "id": "vendored-yarn-alignment",
+      "upstreamFile": "package.json",
+      "purpose": "Align packageManager with the checked-in Yarn 4.9.1 executable",
+      "replacementIfUpstreamChanges": "Update both packageManager and yarnPath together"
+    },
+    {
+      "id": "fork-repository-link",
+      "upstreamFile": "src/shared/constants/common.ts",
+      "purpose": "Route project and manual release links to the CCB-owned repository",
+      "replacementIfUpstreamChanges": "Keep the fork repository as the only CCB download source"
+    }
+  ]
+}

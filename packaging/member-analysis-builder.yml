@@ -1,0 +1,17 @@
+# Feature-owned overlay. Keep electron-builder.yml untouched to preserve the 9/9 upstream budget.
+extends: electron-builder.yml
+appId: com.ccb.leagueakari
+productName: League Akari CCB
+artifactName: ${productName}-${version}-${arch}.${ext}
+directories:
+  output: .phase7-package
+files:
+  - '!resources/member-analysis{,/**}'
+  - '!packaging{,/**}'
+extraResources:
+  - from: resources/member-analysis
+    to: member-analysis
+    filter:
+      - '**/*'
+win:
+  executableName: LeagueAkariCCB

@@ -1,6 +1,6 @@
 ---
 name: league-akari-shard-development
-description: Use when creating, extending, refactoring, splitting, or reviewing League Akari main or renderer shards, including shard file organization, controller/loader/executor/handler boundaries, naming conventions, renderer TSX usage, platform guards, and public contract compatibility.
+description: Create, extend, refactor, split, or review League Akari main and renderer shards. Use for shard organization, controller/loader/executor/handler boundaries, analytics pipelines, typed IPC, cancellation, renderer state, TSX, platform guards, lifecycle, and public contract compatibility.
 ---
 
 # League Akari Shard Development
@@ -16,9 +16,8 @@ These rules are hard requirements for any newly created shard and for any featur
 - Existing shards do not need retroactive cleanup just because they predate this skill.
 - When creating a new shard, moving a feature into another shard, or consolidating several features under one shard, follow Create Mode / Refactor Mode structure from the start.
 - Do not dump migrated feature logic directly into `index.ts`, even if the old shard was small. `index.ts` should stay an entrypoint for DI, settings registration, state sync, controller construction, lifecycle orchestration, and thin compatibility methods.
-- For a local change inside an old shard that is not already organized this way, ask the user whether to:
-  - make a narrow in-place change; or
-  - first reorganize the touched area according to this skill, then apply the change.
+- For a local change inside an old shard, default to a narrow in-place edit. Ask only when the
+  required fix needs a materially broader architecture change; do not require a routine design choice.
 - If the user explicitly requests a fast or narrow fix, keep the edit local but do not make the old structure worse. Add a controller/context split only when the requested change itself creates or migrates a functional module boundary.
 
 ## Core Rules
@@ -32,7 +31,7 @@ These rules are hard requirements for any newly created shard and for any featur
   - propSync keys
   - renderer store data shape
   - persisted data shape
-- For refactors, do not split files under 500 lines unless the user explicitly asks or there is a correctness reason.
+- Split by real ownership, state or lifecycle boundaries, not a fixed line count. Do not fragment small coherent modules or block a needed split merely because a file is under 500 lines.
 - For new shards, do not start with a giant `index.ts`. Add structure only where it has a real boundary.
 - Do not split a coherent flow just because it is long. A clear state-sync pipeline can stay together. If a shared abstraction accumulates many feature-specific flags, hooks, or exceptions, prefer feature-owned paths that make the business behavior explicit.
 - Do not create tiny `*-controller.ts`, `*-executor.ts`, or helper files merely because two branches
@@ -41,7 +40,7 @@ These rules are hard requirements for any newly created shard and for any featur
   new file only when it owns enough behavior, lifecycle, state, platform guarding, or tests to be
   worth the extra navigation.
 - Prefer mechanical extraction before behavior changes.
-- For persisted state or settings that are still changing during active development, manually inspect and align local DB/state instead of adding config migrations immediately. Add migrations when the shape is stable enough for production compatibility.
+- Persisted user state needs explicit compatibility/migration and recovery even during development. Never manually align a user database to bypass migration. Recreating an explicitly disposable synthetic test database is different from migrating user data.
 - Before adding defensive checks, inspect the authoritative type, schema, or data adapter. Handle documented nullability and failure states, but avoid guards for states the contract does not allow.
 - Use full descriptive names:
   - `remoteConfig`, not `rc`
@@ -85,7 +84,7 @@ node -e "const fs=require('node:fs');const path=require('node:path');const roots
 
 4. Decide whether the task touches a new/migrated feature or an old shard local edit:
    - New shard or feature migration: follow the hard structure rules without asking.
-   - Old shard local edit: if the user did not specify architecture scope, ask whether to change in place or reorganize the touched area first.
+   - Old shard local edit: keep scope narrow unless correctness requires a broader boundary change.
 
 5. Choose one of two modes:
    - **Create mode**: design the minimal shard shape before coding.
@@ -104,7 +103,7 @@ When creating a new main shard:
 7. If renderer-facing, create the renderer shard/store under `src/renderer-shared/shards/<name>/`.
 8. Use `SettingFactoryMain` for persisted settings and `MobxUtilsMain.propSync(...)` for synced state.
 9. Keep side effects behind clearly named methods or controller/executor modules.
-10. Add focused tests for pure helpers, platform guards, config migration, or race-prone executors.
+10. Add focused tests where platform behavior, migrations, races or domain results need protection; do not test trivial helpers by default.
 
 Minimal new shard shape:
 
@@ -332,6 +331,40 @@ For Vue model/update events in TSX, preserve exact event props with object sprea
 />
 ```
 
+## Analytics And Visualization Shards
+
+Keep the analytical pipeline layered so source semantics cannot drift inside renderer components.
+
+- Main-process adapters/loaders own source access and preserve provenance, fetch time, target server,
+  patch/time range, units, documented nullability, and raw-versus-derived distinctions.
+- Pure analyzers/aggregators own filters, eligible populations, denominators, normalization, and
+  uncertainty calculations. Return typed numbers and states, not formatted display strings.
+- Controllers own orchestration, cancellation, concurrency limits, stale-result suppression, atomic
+  publication, and mapping source errors into stable domain results.
+- IPC handlers expose a narrow allowlist. Do not add loopback HTTP, generic filesystem/process
+  bridges, arbitrary endpoint proxies, or token-bearing payloads for renderer convenience.
+- Renderer stores own view state and the minimum serializable data needed for presentation. Vue/chart
+  components format values and encode them visually; they do not refetch, reaggregate, or guess
+  missing-data semantics.
+
+Treat these as different domain states end to end: zero, missing, unavailable, not applicable, stale,
+not loaded, partial, cancelled, and failed. A successful transport with incomplete data is not the
+same as a complete analytical result.
+
+For long-running analysis:
+
+- give each run a stable id or generation and ignore superseded results;
+- check cancellation at expensive source, worker, transform, and publish boundaries;
+- publish generated data atomically under Electron `userData` only;
+- avoid sending high-frequency full-dataset updates to every window;
+- release timers, listeners, workers, object URLs, and chart instances on dispose/unmount;
+- keep tokens, raw private responses, real player fixtures, and filesystem paths out of renderer
+  state and logs.
+
+When a domain contract changes, update producer, shared schema/types, IPC, renderer store, consumers,
+and representative fixtures together. Preserve backward compatibility deliberately; do not let an
+optional field silently acquire a different meaning.
+
 ## Platform Guards
 
 When behavior is platform-specific, add pure guard helpers and use them at every side-effect boundary.
@@ -393,27 +426,14 @@ Use `LoggerFactoryMain` / `LoggerRenderer`.
 
 ## Testing And Verification
 
-Add focused tests for:
+Follow [the maintenance matrix](../../../docs/fork/member-analysis-maintenance-runbook.md).
+Add tests for actual behavior and contracts (platform guards, cancellation/races, migration,
+normalization, denominator/missingness, atomic publication), not trivial helpers or source structure.
+Use focused tests and affected type checks first; broad/shared changes require full verification.
+Use portable paths such as `os.tmpdir()`; report actual commands and unrun checks.
 
-- pure mapping/extraction helpers
-- platform guards
-- cancellation/race-prone executors
-- config migrations
-- data normalization edge cases
-
-Prefer cross-platform commands. Avoid examples that depend on GNU tools, Bash-only syntax, or macOS-only paths unless the task itself is platform-specific.
-
-Normal verification:
-
-```bash
-yarn prettier --write <changed-files>
-yarn typecheck:node
-yarn typecheck:web
-yarn test
-git diff --check
-```
-
-If the repo supports a single aggregate command, `yarn typecheck` is also acceptable. Report exact commands that were actually run.
+For analytical renderer changes, use [design-spec](../../../docs/fork/design-spec.md) and the UI/data
+skills for runtime and human visual review. Mocks do not prove Electron or packaging behavior.
 
 ## Examples
 
@@ -437,6 +457,9 @@ If the repo supports a single aggregate command, `yarn typecheck` is also accept
 - Long coherent state sync: do not split `league-client/lc-state/index.ts` just because it is long.
   Preserve initial fetch, websocket event updates, disconnect cleanup, and MobX reaction coupling
   unless the user explicitly asks for a split or the endpoint domains become hard to maintain.
+- Analytics feature: keep source adapters and cached publication in main, aggregation in pure typed
+  modules, narrow IPC at the boundary, renderer view state in the renderer shard, and chart/table
+  encoding in components. Do not collapse the layers into a renderer-side data fetch.
 
 ## Final Checklist
 
@@ -447,6 +470,8 @@ If the repo supports a single aggregate command, `yarn typecheck` is also accept
 - Public ids, IPC names, settings keys, propSync keys, and store shapes are unchanged unless requested.
 - Platform-specific side effects are guarded.
 - Renderer JSX lives in `.tsx`.
+- Analytics preserves provenance, units, denominators, missingness, freshness, and cancellation.
+- Renderer access is typed and allowlisted; tokens and raw private payloads never cross into UI state.
 - Commands and tests do not assume macOS-only paths.
 - No unrelated dirty files were reverted or reformatted.
 - Verification commands were run and reported.

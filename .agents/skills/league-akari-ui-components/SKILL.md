@@ -1,143 +1,58 @@
 ---
 name: league-akari-ui-components
-description: Use when implementing or reviewing League Akari renderer UI components, especially consistency across related components, i18n component interpolation, multiple independent pluralized counts, Tailwind utility usage in templates or SFC style blocks, or native semantic HTML elements in the Naive UI renderer.
+description: Design, implement, or review League Akari renderer UI. Use for Vue/Naive UI components, page composition, desktop game-companion interaction, theme fidelity, i18n, Tailwind-in-SFC styling, accessibility, and rendered visual review. Calibrate against original upstream Akari outside member-analysis; use the data-visualization skill for analytical metrics and encodings.
 ---
 
 # League Akari UI Components
 
-Use this skill for the UI component details listed here.
+Use for Vue/Naive UI renderer implementation or review. Read
+[design-spec.md](../../../docs/fork/design-spec.md) first for visual defaults, layout, copy, interaction,
+all-theme acceptance and privacy. This skill supplies implementation mechanics, not a second style guide.
+Use `league-akari-data-visualization` as well when metrics or analytical encodings change.
 
-## Component Family Consistency
+## Workflow
 
-Treat consistency across related components as a product requirement, not optional polish.
+1. Inspect the affected route, production siblings and original upstream outside `member-analysis`.
+   Use local `origin/dev` when fork edits obscure the original. Do not use the retired prototype or
+   a Storybook-only demo as the sole style reference.
+2. Establish the primary task, window/game phase, reading order, data context and reachable states.
+   Keep design reasons in the existing progress record, not product-visible microcopy.
+3. Reuse the closest existing page/control family. If a convention must change, cover affected siblings
+   in the agreed scope rather than leaving equivalent controls inconsistent. Do not expand into an
+   unrelated app-wide rewrite.
+4. Use explicit props/domain models; keep aggregation and IO outside display components. Implement
+   loading, partial/stale, missing, empty, error and populated states, not only a clean fixture.
+5. Run relevant tests/type checks and the design specification's runtime checklist. Source inspection
+   is not visual evidence; present deterministic anonymized screenshots for human approval.
 
-Before implementing or changing a component, inspect nearby production components and other members of the same UI family. Establish the existing pattern across layout, visual tokens, iconography, interaction states, semantic primitives, and public imports, then apply that pattern consistently throughout the affected family. Do not introduce a one-off convention for a single component.
+## Vue, Naive UI and themes
 
-When existing examples disagree, compare several recently authored or modernized production components and follow the coherent current pattern that satisfies the requirement. Do not use an isolated legacy or Storybook-only example as the standard.
+- Preserve Vue 3 + Naive UI + Tailwind; do not add a UI/chart dependency just to avoid reading existing code.
+- Reuse Naive controls for equivalent interactions. Native semantic elements are allowed but must specify
+  typography, spacing, border/background, disabled, cursor and focus states: Tailwind preflight is absent.
+- Root `data-theme` and `data-theme-id` select themes; manual CSS uses `[data-theme='dark']`, not `.dark`.
+  Tailwind `dark:*` already maps to the data attribute.
+- Use `theme-system.css` variables and `theme/naive-ui-overrides`; avoid literal page-specific palettes.
+- In SFC styles using `@apply`, add `@reference '@renderer-shared/assets/css/tailwind.css';`.
+- Use Tailwind v4 opacity syntax (`bg-black/50`), not deprecated `bg-opacity-*`. Prefer flex/grid `gap-*`;
+  use `space-*` only when sibling-selector behavior is intended.
+- Keep sizes and component styling local unless the change explicitly targets a shared component family.
 
-If the established family pattern cannot support the new requirement, refactor all affected siblings to the replacement pattern in the same change. Do not leave a partially migrated component family with old and new conventions mixed together. Review the relevant siblings as part of validating any component change.
+## Translation and semantic controls
 
-## Component Interpolation
+- Word order, punctuation and pluralization belong in locale YAML. When translated sentences contain Vue
+  fragments, use `TranslationComponent` from `i18next-vue`, not the global `<i18next>` alias.
+- Translate independent counts independently before composing a sentence; one plural key must not govern
+  several unrelated counts. Preserve existing translation APIs and supported locales.
+- Prefer native control semantics. Icon-only controls need names; fold buttons expose expanded state and
+  their controlled region. Popovers/dialogs restore focus; dismissible layers support Escape or close.
+- Use appropriate live regions for meaningful status changes, not every progress tick. Keyboard selection
+  must expose the same essential evidence as pointer selection; canvas needs readable alternatives.
+- Respect reduced motion and dispose observers, chart instances, timers and listeners on unmount or route
+  changes. Check repeated refresh/theme/resize/tab changes for duplicate work and lost focus.
 
-Use `TranslationComponent` from `i18next-vue` when a translated sentence needs Vue-rendered fragments inside it, such as highlighted text or other inline component content.
+## Verification scope
 
-Do not use the global `<i18next>` alias in Vue templates. Use the explicit `TranslationComponent` name so Vue tooling can provide component type hints.
-
-Keep word order and punctuation in the locale file. In YAML, place named component slots with `{slotName}`. In the Vue component, provide matching named slots.
-
-```vue
-<TranslationComponent :translation="t('playerTabs.matchHistory.collectMode.collectedPageDescription')">
-  <template #scanned>
-    <TranslationComponent
-      :translation="t('playerTabs.matchHistory.collectMode.scannedMatches', { count: scannedCount })"
-    >
-      <template #count>
-        <span class="count-highlight">{{ scannedCount }}</span>
-      </template>
-    </TranslationComponent>
-  </template>
-  <template #collected>
-    <TranslationComponent
-      :translation="t('playerTabs.matchHistory.collectMode.collectedMatches', { count: collectedCount })"
-    >
-      <template #count>
-        <span class="count-highlight">{{ collectedCount }}</span>
-      </template>
-    </TranslationComponent>
-  </template>
-</TranslationComponent>
-```
-
-```yaml
-collectedPageDescription: This page is a collection-mode result with {collected} from {scanned}.
-scannedMatches_one: '{count} scanned match'
-scannedMatches_other: '{count} scanned matches'
-collectedMatches_one: '{count} collected match'
-collectedMatches_other: '{count} collected matches'
-```
-
-Project references:
-
-- `src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/match-history-filters/presets/FilterPresetExamples.vue`
-- `src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/MatchHistoryPagination.vue`
-
-## Pluralization
-
-Use i18next plural suffixes for count-dependent text:
-
-```yaml
-someKey_one: '{{count}} game'
-someKey_other: '{{count}} games'
-```
-
-Pass the controlling number as `count`.
-
-When one UI sentence contains more than one independent count, do not put all count-dependent nouns in one translation key. Split the sentence into smaller translated phrases so each pluralized key has one `count` controller, then compose those phrases through `TranslationComponent`.
-
-This avoids incorrect English such as treating both counts as plural when one of them is `1`.
-
-Project references:
-
-- `src/renderer-shared/components/ongoing-game-panel/widgets/player-info-card/jungle-pathing-info/FirstClearAndGankSummary.vue`
-- `src/shared/i18n/en/renderer/ongoing-game.yaml` keys under `ongoingGame.junglePathing.campPopover*`
-
-## Tailwind Utilities
-
-Use Tailwind CSS v4 syntax in templates and SFC styles.
-
-When a Vue SFC uses Tailwind utilities inside a `<style>` block, add a Tailwind reference directive before `@apply` or other Tailwind-only CSS usage:
-
-```vue
-<style scoped>
-@reference '@renderer-shared/assets/css/tailwind.css';
-
-.count-highlight {
-  @apply text-akari-700 font-bold;
-}
-</style>
-```
-
-Without this reference, `@tailwindcss/vite` can fail during dev with an error such as `Cannot apply unknown utility class`.
-
-Prefer semantic scale utilities over arbitrary values whenever a matching token exists. Use arbitrary values only when the design truly needs a non-token value, a complex expression, or an authored CSS feature such as `[font-variant-numeric:tabular-nums]`.
-
-Tailwind v4 syntax rules:
-
-| Prefer                                                                        | Avoid                                                                                                   |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `h-6`, `w-52`, `gap-1.5`, `rounded`, `text-xs`, `leading-7`                   | `h-[24px]`, `w-[208px]`, `gap-[6px]`, `rounded-[4px]`, `text-[12px]`, `leading-[28px]`                  |
-| `text-black/82`, `bg-white/10`, `border-black/10`                             | `text-black/[0.82]`, `bg-white/[0.1]`, `border-black/[0.1]`                                             |
-| `opacity-75`                                                                  | `opacity-[0.75]`                                                                                        |
-| `flex!`, `hover:bg-red-600/50!`                                               | `!flex`, `hover:!bg-red-600/50`                                                                         |
-| `text-(--color-akari)`, `fill-(--icon-color)`                                 | `text-[var(--color-akari)]`, `fill-[var(--icon-color)]`                                                 |
-| `text-(color:--title-color)`, `text-(length:--title-size)`                    | ambiguous `text-(--title-token)`                                                                        |
-| `bg-black/50`, `text-black/50`, `border-black/50`                             | `bg-opacity-50`, `text-opacity-50`, `border-opacity-50`                                                 |
-| `shadow-xs`, `shadow-sm`, `blur-xs`, `rounded-xs`, `outline-hidden`, `ring-3` | v3-era assumptions about `shadow-sm`, `shadow`, `blur-sm`, `rounded-sm`, `outline-none`, or bare `ring` |
-
-Also:
-
-- Write arbitrary values with v4 underscore spacing rules, such as `grid-cols-[1fr_500px_2fr]`; escape underscores only when they are literal text.
-- Explicitly specify border/divide/ring colors instead of relying on v3 defaults, such as `border border-black/10 dark:border-white/10`.
-- Prefer `gap-*` for flex/grid spacing. Use `space-*` only when its selector behavior is intentional.
-- Explicitly set cursor utilities on native buttons when needed, such as `cursor-pointer` or `cursor-text`.
-- When touching existing Tailwind code, modernize nearby outdated v3 syntax if it is in the edited class list.
-
-Project references:
-
-- `src/renderer-shared/components/widgets/ItemDisplay.vue`
-- `src/renderer-shared/components/LcuImage.vue`
-- `src/renderer/src-main-window/components/titlebar/CommonButtons.vue`
-
-## Native Semantic Elements
-
-League Akari uses Naive UI for component primitives and does not include Tailwind's base/preflight layer as the foundation for renderer styling.
-
-When using native semantic elements such as `button`, `input`, `select`, `ul`, `ol`, or heading tags, do not assume browser defaults or Tailwind base normalization will match the surrounding UI. Either:
-
-- Use the matching Naive UI component when it is available.
-- Fully specify the native element's spacing, typography, border, background, focus, disabled, and interaction states.
-- If the native element is only needed for semantics and its default rendering is undesirable, use a neutral element with the appropriate `role` and accessibility attributes instead.
-
-Use the same semantic primitive for equivalent controls in a component family. Do not mix native elements, role-based neutral elements, and Naive UI controls merely because sibling components were implemented at different times; choose the appropriate convention and align the affected siblings.
-
-The intent is to avoid accidental browser-default controls or text styles appearing inside an otherwise Naive UI-rendered surface.
+Use the [maintenance matrix](../../../docs/fork/member-analysis-maintenance-runbook.md) for checks by
+impact and design-spec section 9 for screenshot coverage. Do not repeat the checklist or redefine sizes
+here. Report actual checks and pending human approval; do not call the design accepted from code alone.

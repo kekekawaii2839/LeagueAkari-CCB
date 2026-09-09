@@ -1,0 +1,90 @@
+name: Sync Official Upstream
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: upstream-sync-dev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge verified upstream/dev
+    runs-on: windows-2022
+    steps:
+      - name: Check out the CCB development branch
+        uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Fetch official upstream
+        shell: bash
+        run: |
+          git remote add upstream https://github.com/Hanxven/LeagueAkari.git
+          git fetch --no-tags upstream dev
+
+      - name: Stop when already current
+        id: freshness
+        shell: bash
+        run: |
+          if git merge-base --is-ancestor upstream/dev HEAD; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "CCB dev already contains upstream/dev"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Merge on an isolated verification branch
+        if: steps.freshness.outputs.changed == 'true'
+        shell: bash
+        run: |
+          upstream_sha="$(git rev-parse upstream/dev)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "automation/upstream-${upstream_sha:0:12}"
+          git merge --no-ff --no-commit upstream/dev
+          node -e "const fs=require('node:fs');const p='docs/fork/patch-manifest.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.upstreamBaseline=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n')" "$upstream_sha"
+
+      - name: Set up Node
+        if: steps.freshness.outputs.changed == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        if: steps.freshness.outputs.changed == 'true'
+        run: corepack yarn install --immutable
+
+      - name: Verify fork patch surface
+        if: steps.freshness.outputs.changed == 'true'
+        run: node scripts/check-patch-surface.mjs --manifest docs/fork/patch-manifest.json
+
+      - name: Run tests and production build
+        if: steps.freshness.outputs.changed == 'true'
+        run: |
+          corepack yarn test --maxWorkers=2
+          corepack yarn build
+
+      - name: Build and scan the CCB Windows package
+        if: steps.freshness.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          corepack yarn build:ccb:win
+          node packaging/scan-packaged-artifact.mjs .phase7-package/win-unpacked
+
+      - name: Integrate verified upstream into dev
+        if: steps.freshness.outputs.changed == 'true'
+        shell: bash
+        run: |
+          upstream_sha="$(git rev-parse upstream/dev)"
+          git add docs/fork/patch-manifest.json
+          git commit -m "chore(sync): merge official upstream ${upstream_sha:0:12}"
+          git push origin HEAD:dev
