@@ -83,11 +83,13 @@
         v-model:value="store.filters.dateFrom"
         class="member-analysis-filters__date"
         :input-props="{ type: 'date', 'aria-label': '开始日期' }"
+        placeholder=""
       />
       <NInput
         v-model:value="store.filters.dateTo"
         class="member-analysis-filters__date"
         :input-props="{ type: 'date', 'aria-label': '结束日期' }"
+        placeholder=""
       />
       <NInputNumber
         v-model:value="store.filters.durationMax"
@@ -113,6 +115,10 @@ import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/stor
 
 const store = useMemberAnalysisStore()
 const advanced = ref(false)
+const patchVersionCollator = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: 'base'
+})
 const activeAdvanced = computed(
   () =>
     [
@@ -162,7 +168,7 @@ const roleOptions = [
 const patchOptions = computed(() => [
   { label: '全部版本', value: 'all' },
   ...Array.from(new Set(store.overview?.games.map((game) => game.patch) ?? []))
-    .sort((a, b) => b.localeCompare(a))
+    .sort((a, b) => patchVersionCollator.compare(b, a))
     .map((patch) => ({ label: patch, value: patch }))
 ])
 const participantOptions = computed(() => [
