@@ -30,6 +30,7 @@ import { WindowManagerRenderer } from '@renderer-shared/shards/window-manager'
 
 import { LeagueClientPeekRenderer } from './league-client-peek'
 import { MainWindowUiRenderer } from './main-window-ui'
+import { MemberAnalysisRenderer } from './member-analysis'
 import { PlayerTabsRenderer } from './player-tabs'
 import { SelfHostedLcuDataRenderer } from './self-hosted-lcu-data'
 import { SimpleNotificationsRenderer } from './simple-notifications'
@@ -54,6 +55,7 @@ manager.use(LeagueClientRenderer)
 manager.use(LeagueClientUxRenderer)
 manager.use(LoggerRenderer)
 manager.use(MainWindowUiRenderer)
+manager.use(MemberAnalysisRenderer)
 manager.use(PlayerTabsRenderer)
 manager.use(OngoingGameRenderer)
 manager.use(PiniaMobxUtilsRenderer)

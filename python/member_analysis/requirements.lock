@@ -1,0 +1,2 @@
+# Phase 5 worker intentionally uses only the Python 3.12 standard library.
+# Production one-dir packaging is pinned separately at the Phase 7 release gate.

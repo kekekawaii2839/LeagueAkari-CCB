@@ -1,0 +1,66 @@
+name: Build CCB Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows x64 portable package
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate the release version
+        shell: bash
+        run: |
+          node <<'NODE'
+          const packageJson = require('./package.json')
+          const tag = process.env.GITHUB_REF_TYPE === 'tag' ? process.env.GITHUB_REF_NAME : null
+          if (tag && tag !== `v${packageJson.version}`) {
+            throw new Error(`Tag ${tag} does not match package version ${packageJson.version}`)
+          }
+          NODE
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies
+        run: corepack yarn install --immutable
+
+      - name: Test and build
+        run: |
+          corepack yarn test --maxWorkers=2
+          corepack yarn build
+
+      - name: Package CCB
+        shell: pwsh
+        run: |
+          corepack yarn build:ccb:win
+          node packaging/scan-packaged-artifact.mjs .phase7-package/win-unpacked
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: League-Akari-CCB-Windows-x64
+          path: .phase7-package/*.7z
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish tagged release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: .phase7-package/*.7z
+          fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -46,3 +46,18 @@ Temporary Items
 
 # others
 .playwright-mcp
+.phase7-package/
+
+# Fork-local member analysis data must never enter source control or packages.
+raw_data/
+analysis_output/
+outputs/
+exports/
+cache/
+caches/
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+__pycache__/
+*.py[cod]

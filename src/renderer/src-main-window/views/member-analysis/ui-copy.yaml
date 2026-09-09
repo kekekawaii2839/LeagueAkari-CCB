@@ -1,0 +1,46 @@
+zh-CN:
+  cleanupPreviewFailed: 无法生成清理预览，请稍后重试。
+  cleanupFailed: 清理未完成，请重新预览后重试。
+  closeHelp: 关闭说明
+  rate: 胜率
+  noRate: 无有效样本
+  rateDescription: '{{label}} {{value}}，{{wins}}/{{games}}；95% 区间 {{low}} 至 {{high}}'
+  rateLegend: 圆点表示胜率，短线表示 95% 区间；越宽越不确定。
+  sameRoster: 成员出场范围相同，无法比较同队差异。
+  sameRosterDetail: 当前每场都是同一组成员，各组合与个人使用相同的胜负数据。这不是配合好坏的评分。
+  noData: 当前范围没有可比较的数据。
+  overlap: '{{count}} 人重叠'
+  pointDescription: '{{count}} 个成员分路位于此处；点击或按回车查看精确值。'
+  clearSelection: 取消选择
+  selectedPoints: 选中位置的成员
+  allValues: 全部精确值
+  saveFailed: 保存失败，输入已保留。请检查设置；若正在刷新，请先取消刷新。
+  oldData: 当前显示上次结果，采集范围信息不完整；请刷新。
+  discard: 放弃未保存的修改？
+  discardConfirm: 放弃修改
+  keepEditing: 继续编辑
+  membersRequired: 启用后至少需要五名成员，并填写每名成员的服务器、名称和 Tag。
+  percentagePoints: '{{value}} 个百分点'
+en:
+  cleanupPreviewFailed: Could not prepare a cleanup preview. Please try again later.
+  cleanupFailed: Cleanup did not finish. Generate a new preview and try again.
+  closeHelp: Close explanation
+  rate: Win rate
+  noRate: No eligible samples
+  rateDescription: '{{label}} {{value}}, {{wins}}/{{games}}; 95% interval {{low}} to {{high}}'
+  rateLegend: The dot shows win rate; the line shows its 95% interval. Wider means more uncertainty.
+  sameRoster: Identical participation prevents a meaningful same-team comparison.
+  sameRosterDetail: Every match contains the same members, so pairs and individuals share the same results. This is not a teamwork rating.
+  noData: No comparable data in this scope.
+  overlap: '{{count}} members overlap'
+  pointDescription: '{{count}} member-role entries at this position. Click or press Enter for exact values.'
+  clearSelection: Clear selection
+  selectedPoints: Members at selected position
+  allValues: All exact values
+  saveFailed: Settings could not be saved. Your input is kept. Check the settings or cancel the active refresh first.
+  oldData: Showing the previous result with incomplete collection coverage. Refresh to update.
+  discard: Discard unsaved changes?
+  discardConfirm: Discard changes
+  keepEditing: Keep editing
+  membersRequired: When enabled, add at least five members with server, name and Tag.
+  percentagePoints: '{{value}} percentage points'

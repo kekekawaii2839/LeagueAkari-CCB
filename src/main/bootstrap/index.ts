@@ -19,6 +19,8 @@ import { KeyboardShortcutsMain } from '@main/shards/keyboard-shortcuts'
 import { LeagueClientMain } from '@main/shards/league-client'
 import { LeagueClientUxMain } from '@main/shards/league-client-ux'
 import { LoggerFactoryMain } from '@main/shards/logger-factory'
+import { MemberAnalysisMain } from '@main/shards/member-analysis'
+import { installForkLogRedaction } from '@main/shards/member-analysis/fork-log-redaction'
 import { MobxUtilsMain } from '@main/shards/mobx-utils'
 import { OngoingGameMain } from '@main/shards/ongoing-game'
 import { RendererDebugMain } from '@main/shards/renderer-debug'
@@ -219,6 +221,7 @@ export function bootstrap() {
   // 创建全局唯一的日志器
   const logLevel = baseConfig && baseConfig.logLevel ? baseConfig.logLevel : 'info'
   const { logger, filename: logFilename, setLevel, getLevel } = initAppLogger(logLevel)
+  installForkLogRedaction(logger)
 
   // 应用级别的事件总线
   const events = new EventEmitter<AkariAppEventMap>()
@@ -325,6 +328,7 @@ export function bootstrap() {
     manager.use(AutoMiscMain)
     manager.use(AutoSelectMain)
     manager.use(InGameSendMain)
+    manager.use(MemberAnalysisMain)
     manager.use(OngoingGameMain)
     manager.use(RespawnTimerMain)
     manager.use(SavedPlayerMain)

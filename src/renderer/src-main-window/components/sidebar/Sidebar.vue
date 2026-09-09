@@ -75,6 +75,7 @@ import {
 import { useRoute, useRouter } from 'vue-router'
 
 import { useMainWindowUiStore } from '@main-window/shards/main-window-ui/store'
+import { MEMBER_ANALYSIS_NAVIGATION } from '@main-window/shards/member-analysis/navigation'
 
 import SidebarFixed from './SidebarFixed.vue'
 import SidebarMenu from './SidebarMenu.vue'
@@ -175,6 +176,11 @@ const menu = computed(() => {
       key: 'player-tabs',
       icon: renderIcon(AnalyticsRoundIcon),
       name: t('navigation.sidebar.menu.match-history')
+    },
+    {
+      key: MEMBER_ANALYSIS_NAVIGATION.key,
+      icon: renderIcon(AnalyticsRoundIcon),
+      name: MEMBER_ANALYSIS_NAVIGATION.label
     },
     {
       key: 'ongoing-game',

@@ -1,11 +1,19 @@
 {
   "name": "league-akari",
-  "version": "1.5.0",
+  "version": "0.1.0-ccb.1",
   "author": {
     "name": "hanxven",
     "email": "hanxven@gmail.com"
   },
-  "description": "League Akari",
+  "description": "League Akari CCB fork",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB.git"
+  },
+  "bugs": {
+    "url": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB/issues"
+  },
+  "homepage": "https://github.com/LHLKEVIN0713/LeagueAkari-CCB",
   "main": "./out/main/main.js",
   "scripts": {
     "format": "prettier --write .",
@@ -17,6 +25,8 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev --watch -- --inspect",
     "dev:no-watch": "electron-vite dev -- --inspect",
+    "dev:member-analysis": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-member-analysis-dev.ps1",
+    "audit:member-analysis-ui": "node scripts/member-analysis-ui-audit.mjs",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "build:native:win": "node native/win32-x64/scripts/build.js",
@@ -24,6 +34,7 @@
     "benchmark:radix": "node scripts/run-radix-benchmark.mjs",
     "postinstall": "node scripts/clear-electron-rebuild-metadata.cjs",
     "build:win": "npm run build && electron-builder --win --config",
+    "build:ccb:win": "npm run build && electron-builder --win --config packaging/member-analysis-builder.yml",
     "build:win:native": "npm run build:native:win && npm run build:win",
     "gen-types": "tsc --declaration --emitDeclarationOnly --outDir ./out/types -p tsconfig.node.json",
     "build:mac": "npm run build && electron-builder --mac --config"
@@ -112,7 +123,7 @@
     "vue-router": "^5.1.0",
     "vue-tsc": "^3.3.6"
   },
-  "packageManager": "yarn@4.14.1+sha512.64df448055b2d37ba269d7db535a469b8da93f8ef1140c25fd7a83c00a8fbaacb214ca0e02553b92a2c54cef78bb67d0b4817fab02001df0e24fac0faccc3b42",
+  "packageManager": "yarn@4.9.1",
   "workspaces": [
     "native/win32-x64"
   ]
