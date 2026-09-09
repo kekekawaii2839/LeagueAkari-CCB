@@ -48,8 +48,8 @@ Skill 位于 `.agents/skills/`，负责具体执行方法，不重复维护一�
 - CCB 仓库身份固定为 `kekekawaii2839/LeagueAkari-CCB`；应用项目链接、包元数据与手动下载来源均指向该仓库，不再把官方仓库作为 CCB 下载源。自动安装仍按发布规则保持编译期禁用，不能用未签名包绕过哈希、签名与回滚门槛。
 - 新增每日及手动触发的 upstream sync：在临时分支合并官方 `Hanxven/LeagueAkari:dev`，更新精确 upstream baseline，依次通过 patch guard、全量测试、production build、Windows CCB 打包与 artifact scan 后才推入 fork `dev`；冲突或任一 gate 失败都不改动 `dev`。
 - 移除继承自官方仓库、会在每次 `dev` push 发布官方命名包的 workflow；CCB 发布 workflow 只在显式 tag 或手动触发时构建 Windows x64 portable 包，tag 才创建 GitHub Release。`.phase7-package` 加入忽略，避免本机构建产物进入仓库。
-- 首次发布准备已提交并推送到私有仓库 `dev`（`1f66c5f`）。数据泄漏守卫、patch guard（10/10、85 行）、YAML 解析、差异空白、13 项 self-update 定向测试以及 node/web typecheck 通过。全量 Vitest 在本机无结果输出后中止；production build 因正在运行的 Electron 占用 `out/preload/index.js` 而失败，不把这两项记为通过。
-- 首次真实 upstream rehearsal 发现官方 `dev` 已前进到 `f31c1cd27f8eb131abe4f74e5b89d7adaf1949ed`，自动合并准确地停在 `AGENTS.md`、`package.json`、main bootstrap 和 renderer shard registry 四处冲突，没有改动 fork `dev`。临时分支已解析冲突并通过更新后 patch guard（10/10、83 行）及数据泄漏守卫；新依赖的本机 link 阶段长时间未完成，因此尚未把该上游版本集成到发布分支。
+- 首次发布准备已提交并推送到私有仓库 `dev`（首个远端功能提交 `1f66c5f`）。GitHub API 已确认默认分支为 `dev`，`Sync Official Upstream` 与 `Build CCB Release` 两个 workflow 均为 active；普通 `dev` push 只登记而不发布 CCB 包。数据泄漏守卫、patch guard（10/10、85 行）、YAML 解析、差异空白、13 项 self-update 定向测试以及 node/web typecheck 通过。全量 Vitest 在本机无结果输出后中止；production build 因正在运行的 Electron 占用 `out/preload/index.js` 而失败，不把这两项记为通过。
+- 首次真实 upstream rehearsal 发现官方 `dev` 已前进到 `f31c1cd27f8eb131abe4f74e5b89d7adaf1949ed`；远端 workflow 的首次真实运行以 failure 停在合并 gate，准确保护了 fork `dev`。冲突位于 `AGENTS.md`、`package.json`、main bootstrap 和 renderer shard registry。临时分支手动解析后通过更新后 patch guard（10/10、83 行）、数据泄漏守卫、node/web typecheck，以及 21 文件/119 项 member-analysis 与 self-update 定向测试（1 文件/1 项跳过）。PnP 方式的全量测试为 111 文件/609 项通过、1 文件/1 项跳过，另 8 个 suite 因 PnP 严格依赖/Electron 安装环境失败；production build 也因 PnP peer 解析失败。因此尚未把该上游版本集成到发布分支，不能把首次冲突同步记为通过。
 
 ### 2026-09-08 — 英雄池真实数据自适应排版
 
