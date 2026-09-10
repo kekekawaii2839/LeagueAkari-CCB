@@ -18,6 +18,7 @@ import type { HttpApiRequestOptions } from '../request-options'
 interface OpggChampionOptions extends HttpApiRequestOptions {
   tier?: TierType
   version?: string
+  targetChampionId?: number
 }
 
 export class OpggHttpApiAxiosHelper {
@@ -56,7 +57,11 @@ export class OpggHttpApiAxiosHelper {
     }
 
     return this._http.get<OpggChampionBuildResponse>(url, {
-      params: { tier: options.tier, version: options.version },
+      params: {
+        tier: options.tier,
+        version: options.version,
+        target_champion: options.targetChampionId
+      },
       signal: options.signal
     })
   }

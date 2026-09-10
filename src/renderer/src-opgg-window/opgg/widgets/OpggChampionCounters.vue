@@ -1,7 +1,7 @@
 <template>
   <div
     class="mb-1 rounded border border-black/10 p-2 last:mb-0 dark:border-[#37373c]"
-    v-if="champion && thatPosition && thatPosition.counters.length"
+    v-if="matchupChampionId === null && champion && thatPosition && thatPosition.counters.length"
   >
     <!-- title line (title + expand) -->
     <div class="mb-2 flex items-center justify-between text-[13px] font-bold">
@@ -107,7 +107,7 @@ import { computed, ref, watchEffect } from 'vue'
 
 import { useOpgg } from '../context'
 
-const { champion, position, setTab } = useOpgg()
+const { champion, matchupChampionId, position, setTab } = useOpgg()
 const { t } = useTranslation()
 
 const thatPosition = computed(() => {

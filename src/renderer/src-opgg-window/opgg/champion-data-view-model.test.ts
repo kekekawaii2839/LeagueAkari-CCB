@@ -86,10 +86,21 @@ describe('champion data legacy view model', () => {
         championId: 101,
         position: 'middle',
         performance,
-        counterChampionIds: []
+        counterChampionIds: [55]
       },
       sections: {
-        matchups: [{ championId: 55, relationship: 'unfavorable', performance: recommendation }],
+        matchups: [
+          {
+            championId: 55,
+            relationship: 'unfavorable',
+            performance: { ...recommendation, wins: 8, winRate: 0.4 }
+          },
+          {
+            championId: 157,
+            relationship: 'favorable',
+            performance: { ...recommendation, games: 10, wins: 7, winRate: 0.7 }
+          }
+        ],
         synergies: [{ championIds: [101, 99], performance: recommendation }],
         summonerSpells: [{ spellIds: [4, 12], performance: recommendation }],
         abilityBuilds: [
@@ -121,7 +132,11 @@ describe('champion data legacy view model', () => {
     expect(result.data.last_items[0]).toMatchObject({ ids: [3089], play: 20, win: 12 })
     expect(result.data.runes?.[0]).toMatchObject({ primary_rune_ids: [8229], play: 20 })
     expect(result.data.skill_masteries[0]).toMatchObject({ ids: ['Q', 'W', 'E'] })
-    expect(result.data.counters?.[0]).toMatchObject({ champion_id: 55, play: 20, win: 12 })
+    expect(result.data.counters).toHaveLength(2)
+    expect(result.data.counters?.[0]).toMatchObject({ champion_id: 55, play: 20, win: 8 })
+    expect(result.data.summary.positions?.[0].counters).toEqual([
+      expect.objectContaining({ champion_id: 55, play: 20, win: 8 })
+    ])
     expect(result.data.synergies?.[0]).toMatchObject({ champion_id: 99, play: 20, win: 12 })
   })
 

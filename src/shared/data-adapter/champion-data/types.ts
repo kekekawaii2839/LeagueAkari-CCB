@@ -34,6 +34,7 @@ export interface ChampionDataQuery {
   patch?: string
   tier?: string | number
   position?: ChampionDataPosition
+  targetChampionId?: number
 }
 
 export type ChampionDataFallbackReason = 'source-disabled' | 'mode-unsupported' | 'request-failed'
@@ -80,6 +81,7 @@ export interface ChampionDataMetadata {
   patch: string | null
   dataDate: string | null
   updatedAt: string | null
+  targetChampionId?: number
 }
 
 export interface ChampionPerformance {

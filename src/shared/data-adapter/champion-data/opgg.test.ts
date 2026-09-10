@@ -38,6 +38,36 @@ describe('OP.GG champion data adapter', () => {
               counters: [{ champion_id: 99, play: 10, win: 4 }]
             }
           ]
+        },
+        {
+          id: 222,
+          is_rotation: false,
+          is_rip: false,
+          average_stats: {
+            play: 200,
+            win_rate: 0.51,
+            pick_rate: 0.2,
+            ban_rate: 0.03,
+            tier_data: { ...tierData, rank: 1 }
+          },
+          positions: [
+            {
+              name: 'ADC',
+              stats: {
+                play: 190,
+                win_rate: 0.51,
+                pick_rate: 0.19,
+                role_rate: 0.95,
+                ban_rate: 0.03,
+                kda: 2.8,
+                tier_data: { ...tierData, rank: 1 },
+                total_place: undefined as never,
+                first_place: undefined as never
+              },
+              roles: [],
+              counters: []
+            }
+          ]
         }
       ],
       meta: { version: '16.16', cached_at: new Date('2026-08-20T00:00:00Z') }
@@ -72,6 +102,34 @@ describe('OP.GG champion data adapter', () => {
             counterChampionIds: [99]
           }
         ]
+      }
+    })
+  })
+
+  it('keeps off-role champions for an unfiltered overview', () => {
+    const response = {
+      data: [
+        {
+          id: 222,
+          is_rotation: false,
+          is_rip: false,
+          average_stats: {
+            play: 200,
+            win_rate: 0.51,
+            pick_rate: 0.2,
+            ban_rate: 0.03,
+            tier_data: tierData
+          },
+          positions: null,
+          roles: []
+        }
+      ],
+      meta: { version: '16.16', cached_at: new Date('2026-08-20T00:00:00Z') }
+    } as OpggChampionsResponse
+
+    expect(adaptOpggChampionOverview(response, { mode: 'ranked', position: 'all' })).toMatchObject({
+      sections: {
+        champions: [{ championId: 222, position: 'all', performance: { games: 200 } }]
       }
     })
   })
@@ -133,7 +191,11 @@ describe('OP.GG champion data adapter', () => {
       meta: { version: '16.16', cached_at: new Date('2026-08-20T00:00:00Z') }
     } as OpggChampionBuildResponse
 
-    const result = adaptOpggChampionDetails(response, { mode: 'ranked' })
+    const result = adaptOpggChampionDetails(response, {
+      mode: 'ranked',
+      targetChampionId: 99
+    })
+    expect(result.metadata.targetChampionId).toBe(99)
     expect(result.sections.matchups).toEqual([])
     expect(result.sections.itemBuilds?.find((slot) => slot.slot === 'core')).toMatchObject({
       options: [{ itemIds: [6655, 3020], performance: { winRate: 0.6 } }]

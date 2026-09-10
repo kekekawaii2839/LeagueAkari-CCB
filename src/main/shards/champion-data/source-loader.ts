@@ -148,14 +148,17 @@ export class ChampionDataMainSourceLoader implements ChampionDataSourceLoader {
     const region = (query.region ?? 'global') as RegionType
     const version = await this._resolveOpggVersion(query, options)
     const position = UNIFIED_TO_OPGG_POSITION[query.position ?? 'none']
+    const targetChampionId = query.mode === 'ranked' ? query.targetChampionId : undefined
     const response = await this._opggApi.getChampion(region, query.mode, championId, position, {
       tier: query.tier as TierType | undefined,
       version,
+      targetChampionId,
       signal: options.signal
     })
     return adaptOpggChampionDetails(response.data, {
       mode: query.mode,
-      position: query.position
+      position: query.position,
+      targetChampionId
     })
   }
 

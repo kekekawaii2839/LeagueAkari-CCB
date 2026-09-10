@@ -50,6 +50,7 @@ import {
   toOpggMayhemAugmentsViewModel
 } from './champion-data-view-model'
 import { hasItemsSets, useLoadout } from './utils/loadout'
+import { getVisibleEnemyChampionIds } from './utils/matchup-selection'
 
 // 对齐 auto champ config (暂定)
 const AUTO_CHAMP_CONFIG_GAME_MODE_MAP: Record<string, string> = {
@@ -124,6 +125,8 @@ export type OpggContext = {
   tier: Ref<TierType>
   version: Ref<string | null>
   queueKeeper: Readonly<QueueKeeper>
+  enemyChampionIds: Readonly<Ref<number[]>>
+  matchupChampionId: Readonly<Ref<number | null>>
 
   versions: Ref<string[]>
   champions: Ref<OpggChampionsResponse | null>
@@ -147,6 +150,7 @@ export type OpggContext = {
   changeTier: (tier: TierType) => Promise<void>
   changeVersion: (version: string) => Promise<void>
   changeChampion: (championId: number) => Promise<void>
+  changeMatchupChampion: (championId: number | null) => Promise<boolean>
 
   refresh: () => Promise<void>
 
@@ -250,6 +254,8 @@ export function provideOpgg() {
   const version = ref<string | null>(null)
 
   const championId = ref<number | null>(null)
+  const matchupChampionId = ref<number | null>(null)
+  const enemyChampionIds = computed(() => getVisibleEnemyChampionIds(lcs.champSelect.session))
   const versions = shallowRef<string[]>([])
   const champions = shallowRef<OpggChampionsResponse | null>(null)
   const overview = shallowRef<ChampionDataOverview | null>(null)
@@ -267,20 +273,30 @@ export function provideOpgg() {
   let loadedPatchContext: string | null = null
   let sourceChangeInProgress = false
 
-  const unwrapResult = <T>(result: ChampionDataLoadResult<T>, generation: number) => {
-    if (generation === updateGeneration) {
-      effectiveSource.value = result.effectiveSource
-      fallbackReason.value = result.fallbackReason
-    }
+  const unwrapResult = <T>(
+    result: ChampionDataLoadResult<T>,
+    generation: number,
+    preserveCurrentData = false
+  ) => {
     if (result.status === 'unavailable') {
-      isDataUnavailable.value = true
-      champions.value = null
-      overview.value = null
-      champion.value = null
-      kiwiAugments.value = null
+      if (!preserveCurrentData) {
+        if (generation === updateGeneration) {
+          effectiveSource.value = result.effectiveSource
+          fallbackReason.value = result.fallbackReason
+        }
+        isDataUnavailable.value = true
+        champions.value = null
+        overview.value = null
+        champion.value = null
+        kiwiAugments.value = null
+      }
       throw new ChampionDataUnavailableError(
         result.attempts.some((attempt) => attempt.outcome === 'failed')
       )
+    }
+    if (generation === updateGeneration) {
+      effectiveSource.value = result.effectiveSource
+      fallbackReason.value = result.fallbackReason
     }
     isDataUnavailable.value = false
     return result.data
@@ -350,6 +366,8 @@ export function provideOpgg() {
     version?: string
     championId?: number
     position?: PositionType
+    matchupChampionId?: number | null
+    preserveCurrentDataOnFailure?: boolean
     force?: boolean
   }) => {
     const generation = ++updateGeneration
@@ -364,7 +382,13 @@ export function provideOpgg() {
       const targetTier = opts.tier ?? tier.value
       let targetChampionId = opts.championId ?? championId.value
       let targetPosition = opts.position ?? position.value
+      let targetMatchupChampionId =
+        opts.matchupChampionId !== undefined ? opts.matchupChampionId : matchupChampionId.value
       const capability = getChampionDataCapability(targetSource, toChampionDataMode(targetMode))
+
+      if (targetSource !== 'opgg' || targetMode !== 'ranked') {
+        targetMatchupChampionId = null
+      }
 
       if (!capability) {
         effectiveSource.value = null
@@ -413,7 +437,8 @@ export function provideOpgg() {
           ? { position: toChampionDataPosition(targetPosition) }
           : {}),
         ...(capability.filters.includes('tier') ? { tier: targetTier } : {}),
-        ...(capability.filters.includes('patch') && nextVersion ? { patch: nextVersion } : {})
+        ...(capability.filters.includes('patch') && nextVersion ? { patch: nextVersion } : {}),
+        ...(targetMatchupChampionId ? { targetChampionId: targetMatchupChampionId } : {})
       }
 
       let updatedChampionsData: OpggChampionsResponse | null = null
@@ -467,7 +492,7 @@ export function provideOpgg() {
           ({ signal }) => championData.loadDetails(query, targetChampionId, { signal }),
           { tags: ['opgg-group'] }
         )
-        const details = unwrapResult(result, generation)
+        const details = unwrapResult(result, generation, opts.preserveCurrentDataOnFailure ?? false)
         updatedChampionData = toOpggChampionDetailsViewModel(details)
         updatedKiwiAugmentsData = toOpggMayhemAugmentsViewModel(
           details,
@@ -484,6 +509,7 @@ export function provideOpgg() {
       tier.value = targetTier
       position.value = targetPosition
       championId.value = targetChampionId
+      matchupChampionId.value = targetMatchupChampionId
       if (shouldShowChampionList) currentTab.value = 'champions'
 
       if (updatedChampionsData) {
@@ -572,6 +598,26 @@ export function provideOpgg() {
 
   const changeChampion = async (championId0: number) => {
     await update({ championId: championId0 })
+  }
+
+  const changeMatchupChampion = async (championId0: number | null) => {
+    if (championId0 !== null && !enemyChampionIds.value.includes(championId0)) {
+      return false
+    }
+    if (matchupChampionId.value === championId0) {
+      return true
+    }
+
+    const previousChampionId = matchupChampionId.value
+    matchupChampionId.value = championId0
+    const updated = await update({
+      matchupChampionId: championId0,
+      preserveCurrentDataOnFailure: true
+    })
+    if (!updated && matchupChampionId.value === championId0) {
+      matchupChampionId.value = previousChampionId
+    }
+    return updated
   }
 
   const cancel = () => {
@@ -788,7 +834,8 @@ export function provideOpgg() {
           !active.hasAutoSpellsConfig &&
           summonerSpells &&
           summonerSpells[0] &&
-          ogs.frontendSettings.autoApplySpells
+          ogs.frontendSettings.autoApplySpells &&
+          matchupChampionId.value === null
         ) {
           setSummonerSpells(summonerSpells[0].ids, flashPosition.value)
         }
@@ -798,12 +845,18 @@ export function provideOpgg() {
           !active.hasAutoRunesConfig &&
           runes &&
           runes[0] &&
-          ogs.frontendSettings.autoApplyRunes
+          ogs.frontendSettings.autoApplyRunes &&
+          matchupChampionId.value === null
         ) {
           setRunes(runes[0], { championId: active.championId, position: position0 })
         }
 
-        if (champion.value && hasItemsSets(champion.value) && ogs.frontendSettings.autoApplyItems) {
+        if (
+          champion.value &&
+          hasItemsSets(champion.value) &&
+          ogs.frontendSettings.autoApplyItems &&
+          matchupChampionId.value === null
+        ) {
           writeItemSets(champion.value, {
             position: position0,
             mode: mode0,
@@ -815,6 +868,18 @@ export function provideOpgg() {
     },
     { immediate: true, debounce: 500 }
   )
+
+  watch(enemyChampionIds, (ids) => {
+    if (matchupChampionId.value === null || ids.includes(matchupChampionId.value)) {
+      return
+    }
+
+    if (lcs.gameflow.phase === 'ChampSelect' && championId.value) {
+      void changeMatchupChampion(null)
+    } else {
+      matchupChampionId.value = null
+    }
+  })
 
   provide(OpggContextKey, {
     currentTab,
@@ -832,6 +897,8 @@ export function provideOpgg() {
     tier,
     version,
     queueKeeper,
+    enemyChampionIds,
+    matchupChampionId,
 
     versions,
     champions,
@@ -853,6 +920,7 @@ export function provideOpgg() {
     changeTier,
     changeVersion,
     changeChampion,
+    changeMatchupChampion,
     refresh,
 
     cancel

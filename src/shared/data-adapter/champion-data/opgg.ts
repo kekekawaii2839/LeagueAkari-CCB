@@ -29,6 +29,7 @@ export interface OpggAdapterOptions {
   mode: ChampionDataMode
   position?: ChampionDataPosition
   dataDate?: string | null
+  targetChampionId?: number
 }
 
 const OPGG_POSITION_TO_UNIFIED: Readonly<Record<OpggChampionPositionName, ChampionDataPosition>> = {
@@ -127,6 +128,10 @@ function findPosition(
   return positions?.find((item) => OPGG_POSITION_TO_UNIFIED[item.name] === position) ?? null
 }
 
+function requiresMatchingPosition(position: ChampionDataPosition | undefined) {
+  return position !== undefined && position !== 'all' && position !== 'none'
+}
+
 function overviewItem(
   item: OpggChampionItem,
   requestedPosition?: ChampionDataPosition
@@ -154,7 +159,10 @@ function metadata(
     mode: options.mode,
     patch: version ?? null,
     dataDate: options.dataDate ?? null,
-    updatedAt: isoString(cachedAt)
+    updatedAt: isoString(cachedAt),
+    ...(options.targetChampionId === undefined
+      ? {}
+      : { targetChampionId: options.targetChampionId })
   }
 }
 
@@ -180,7 +188,20 @@ export function adaptOpggChampionOverview(
   return {
     metadata: metadata(response.meta.version, response.meta.cached_at, options),
     sections: {
-      champions: response.data.map((item) => overviewItem(item, options.position))
+      champions: response.data.flatMap((item) => {
+        // The ranked overview endpoint returns every champion and embeds each
+        // champion's supported lanes in `positions`. A requested lane is not a
+        // server-side filter, so falling back to `average_stats` here fabricates
+        // a lane entry and makes off-role champions appear in the lane table.
+        if (
+          requiresMatchingPosition(options.position) &&
+          !findPosition(item.positions, options.position)
+        ) {
+          return []
+        }
+
+        return [overviewItem(item, options.position)]
+      })
     }
   }
 }

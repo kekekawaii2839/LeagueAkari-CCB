@@ -177,11 +177,17 @@ export function toOpggChampionDetailsViewModel(
   const matchupCounters = (details.sections.matchups ?? []).map((item) =>
     counter(item.championId, item.performance)
   )
+  const matchupCountersByChampionId = new Map(
+    matchupCounters.map((item) => [item.champion_id, item])
+  )
+  const unfavorableCounters = details.summary.counterChampionIds.map(
+    (championId) => matchupCountersByChampionId.get(championId) ?? counter(championId)
+  )
   const positions = (details.sections.positions ?? []).flatMap((item) => {
     const position = positionItem(
       item.position,
       item.performance,
-      item.position === details.summary.position ? matchupCounters : [],
+      item.position === details.summary.position ? unfavorableCounters : [],
       item.share
     )
     return position ? [position] : []
@@ -190,7 +196,7 @@ export function toOpggChampionDetailsViewModel(
     const position = positionItem(
       details.summary.position,
       details.summary.performance,
-      matchupCounters
+      unfavorableCounters
     )
     if (position) positions.push(position)
   }

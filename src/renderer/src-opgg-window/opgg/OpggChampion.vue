@@ -12,6 +12,13 @@
     </NSpin>
 
     <NScrollbar v-if="champion">
+      <OpggMatchupSelector
+        v-if="isMatchupAvailable"
+        :enemy-champion-ids="enemyChampionIds"
+        :matchup-champion-id="matchupChampionId"
+        :is-loading="isLoading"
+        @select="changeMatchupChampion"
+      />
       <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
         <!-- summary -->
         <div class="flex h-20 items-center gap-3 px-2 pt-1 pb-3" v-if="summary && stats">
@@ -137,6 +144,7 @@ import OpggChampionCounters from './widgets/OpggChampionCounters.vue'
 import OpggChampionImportItemSet from './widgets/OpggChampionImportItemSet.vue'
 import OpggChampionKiwiAugments from './widgets/OpggChampionKiwiAugments.vue'
 import OpggChampionLastItems from './widgets/OpggChampionLastItems.vue'
+import OpggMatchupSelector from './widgets/OpggMatchupSelector.vue'
 import OpggChampionPrismItems from './widgets/OpggChampionPrismItems.vue'
 import OpggChampionRunes from './widgets/OpggChampionRunes.vue'
 import OpggChampionSkills from './widgets/OpggChampionSkills.vue'
@@ -144,11 +152,27 @@ import OpggChampionSpells from './widgets/OpggChampionSpells.vue'
 import OpggChampionStarterItems from './widgets/OpggChampionStarterItems.vue'
 import OpggChampionSynergies from './widgets/OpggChampionSynergies.vue'
 
-const { champion, position, kiwiAugments, cancel, isLoading } = useOpgg()
+const {
+  preferredSource,
+  champion,
+  position,
+  mode,
+  kiwiAugments,
+  enemyChampionIds,
+  matchupChampionId,
+  cancel,
+  isLoading,
+  changeMatchupChampion
+} = useOpgg()
 
 const { t } = useTranslation()
 
 const resources = useAkariResourceProvider()
+
+const isMatchupAvailable = computed(
+  () =>
+    preferredSource.value === 'opgg' && mode.value === 'ranked' && enemyChampionIds.value.length > 0
+)
 
 const summary = computed(() => {
   if (!champion.value) {
