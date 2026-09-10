@@ -47,7 +47,8 @@ Skill 位于 `.agents/skills/`，负责具体执行方法，不重复维护一�
 
 - 版本提升为 `0.2.1`，作为 `v0.2.0` 后的补丁版本；发布内容为实验性选人阶段对位英雄筛选、OP.GG 分路榜单过滤修复、详情页劣势对位子集修复，以及筛选生效时隐藏普通“所有／劣势对位”栏。仍是未签名 Windows x64 便携包，不新增签名或回滚保证。
 - 本版记录的官方 `dev` baseline 仍为 `5109b2f7fcce6e02312e534cd1729ed0f2142b51`。为记录本轮有意维护的原生 OP.GG 接入面，patch manifest 扩展到 35 个目标文件／38 个硬上限、800 行目标／900 行硬上限；没有把这些上游文件伪装成 feature-owned 排除项。
-- 发布前本地验证：用户完成真实选人人工验收；OP.GG 北美翡翠+、16.17 运行态榜单和 Camille 上路劣势对位与接口逐项一致；全量 122 个测试文件／702 项通过，1 个文件／1 项跳过；production build、node/web typecheck、3353 文件数据泄漏守卫、格式和 `git diff --check` 通过。Tag workflow 的 Windows 打包、artifact scan 与公开 Release 结果在发布完成后补记。
+- 发布前本地验证：用户完成真实选人人工验收；OP.GG 北美翡翠+、16.17 运行态榜单和 Camille 上路劣势对位与接口逐项一致；全量 122 个测试文件／702 项通过，1 个文件／1 项跳过；production build、node/web typecheck、3353 文件数据泄漏守卫、更新后的 patch guard（33 个上游文件／765 行）、格式和 `git diff --check` 通过。
+- `v0.2.1` tag 与发布提交均指向 `7d4cd975e84dddbcaf9c2a76ecec12248e953d7b`；GitHub Actions run `34420994932` 完成且 conclusion 为 success，Windows 打包、artifact scan 和公开稳定 Release 均已完成。Release 包含 `League.Akari.CCB-0.2.1-x64.7z` 与 `.sha256` 两项资产；sidecar 和 GitHub archive digest 均为 `29dc256ffffba4166692d59dafcd9911b9203e9956d66d809fc3fa09f1d07e6b`。
 
 ### 2026-09-09 — OP.GG 选人阶段对位筛选（实验）
 
