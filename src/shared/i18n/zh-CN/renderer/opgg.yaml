@@ -91,6 +91,12 @@ opgg:
     status: 选人状态与操作
     active: 进行中
     waitingForChampion: 等待选择英雄
+  matchup:
+    title: 对位筛选（实验）
+    prompt: 请选择本局的对位英雄
+    selected: 当前按对位 {{champion}} 筛选
+    selectChampion: 按对位 {{champion}} 筛选
+    clear: 恢复普通统计
   championTable:
     searchPlaceholder: 查找英雄
     columns:

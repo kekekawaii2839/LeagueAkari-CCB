@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "upstreamBaseline": "5109b2f7fcce6e02312e534cd1729ed0f2142b51",
   "budget": {
-    "targetFiles": 20,
-    "hardMaxFiles": 22,
-    "targetChangedLines": 500,
-    "hardMaxChangedLines": 650
+    "targetFiles": 35,
+    "hardMaxFiles": 38,
+    "targetChangedLines": 800,
+    "hardMaxChangedLines": 900
   },
   "excludedPaths": [
     ".agents/skills/league-akari-mcp-debug/SKILL.md",
@@ -138,6 +138,84 @@
       "upstreamFile": "src/main/shards/self-update/updater-command.test.ts",
       "purpose": "Prove the updater launches the CCB executable",
       "replacementIfUpstreamChanges": "Test immutable product identity in updater arguments"
+    },
+    {
+      "id": "opgg-matchup-main-loader",
+      "upstreamFile": "src/main/shards/champion-data/source-loader.ts",
+      "purpose": "Forward an explicitly selected enemy champion through the allowlisted champion-data loader",
+      "replacementIfUpstreamChanges": "Use a typed upstream matchup filter in the champion-data query contract"
+    },
+    {
+      "id": "opgg-matchup-detail-ui",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/OpggChampion.vue",
+      "purpose": "Place the experimental enemy matchup selector in the native OP.GG champion detail page",
+      "replacementIfUpstreamChanges": "Mount the selector through an upstream champion-detail extension slot"
+    },
+    {
+      "id": "opgg-legacy-view-model",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/champion-data-view-model.ts",
+      "purpose": "Preserve OP.GG's exact disadvantage subset while projecting unified champion data",
+      "replacementIfUpstreamChanges": "Render the unified model directly and remove the legacy projection"
+    },
+    {
+      "id": "opgg-legacy-view-model-tests",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/champion-data-view-model.test.ts",
+      "purpose": "Prove the complete matchup list and exact disadvantage subset remain distinct",
+      "replacementIfUpstreamChanges": "Test the equivalent native unified-data renderer boundary"
+    },
+    {
+      "id": "opgg-matchup-context",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/context.ts",
+      "purpose": "Track visible enemy champions, selected matchup state and failure-safe detail reloads",
+      "replacementIfUpstreamChanges": "Use an upstream typed champion-detail filter controller"
+    },
+    {
+      "id": "opgg-counter-visibility",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/widgets/OpggChampionCounters.vue",
+      "purpose": "Hide ordinary matchup summaries while an explicit matchup filter is active",
+      "replacementIfUpstreamChanges": "Drive counter visibility from upstream detail-filter state"
+    },
+    {
+      "id": "opgg-adapter",
+      "upstreamFile": "src/shared/data-adapter/champion-data/opgg.ts",
+      "purpose": "Filter lane overviews correctly and retain selected matchup metadata",
+      "replacementIfUpstreamChanges": "Adopt upstream lane and matchup semantics without fork-side adaptation"
+    },
+    {
+      "id": "opgg-adapter-tests",
+      "upstreamFile": "src/shared/data-adapter/champion-data/opgg.test.ts",
+      "purpose": "Cover lane filtering, unfiltered modes and matchup metadata",
+      "replacementIfUpstreamChanges": "Retain equivalent adapter contract coverage"
+    },
+    {
+      "id": "opgg-champion-data-contract",
+      "upstreamFile": "src/shared/data-adapter/champion-data/types.ts",
+      "purpose": "Represent an optional selected matchup in typed champion-data queries and metadata",
+      "replacementIfUpstreamChanges": "Use the upstream typed matchup query field"
+    },
+    {
+      "id": "opgg-http-matchup-filter",
+      "upstreamFile": "src/shared/http-api-axios-helper/opgg/index.ts",
+      "purpose": "Send OP.GG's target_champion parameter only for explicit matchup requests",
+      "replacementIfUpstreamChanges": "Use the upstream OP.GG matchup request option"
+    },
+    {
+      "id": "opgg-http-matchup-filter-tests",
+      "upstreamFile": "src/shared/http-api-axios-helper/opgg/index.test.ts",
+      "purpose": "Prove target_champion query serialization and ordinary-request compatibility",
+      "replacementIfUpstreamChanges": "Retain equivalent HTTP contract coverage"
+    },
+    {
+      "id": "opgg-matchup-copy-en",
+      "upstreamFile": "src/shared/i18n/en/renderer/opgg.yaml",
+      "purpose": "Provide English copy for the experimental matchup selector",
+      "replacementIfUpstreamChanges": "Move copy into an upstream-supported feature locale namespace"
+    },
+    {
+      "id": "opgg-matchup-copy-zh-cn",
+      "upstreamFile": "src/shared/i18n/zh-CN/renderer/opgg.yaml",
+      "purpose": "Provide Simplified Chinese copy for the experimental matchup selector",
+      "replacementIfUpstreamChanges": "Move copy into an upstream-supported feature locale namespace"
     }
   ]
 }

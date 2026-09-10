@@ -91,6 +91,12 @@ opgg:
     status: Champion select assistant
     active: Active
     waitingForChampion: Waiting for champion
+  matchup:
+    title: Matchup filter (Experimental)
+    prompt: Select your lane opponent
+    selected: Filtering for the matchup against {{champion}}
+    selectChampion: Filter for the matchup against {{champion}}
+    clear: Show general statistics
   championTable:
     searchPlaceholder: Search for name
     columns:
