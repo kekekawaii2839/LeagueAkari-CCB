@@ -14,16 +14,12 @@
       <NSelect v-model:value="xMetric" :options="options" filterable aria-label="横轴指标" /><span
         >对比</span
       ><NSelect v-model:value="yMetric" :options="options" filterable aria-label="纵轴指标" />
-      <span class="ma-view-meta"
-        >{{ points.length }} {{ matchMode ? '条有效记录' : '个成员分路'
-        }}<template v-if="matchMode"> / {{ matchCount }} 场</template
-        ><template v-if="omittedCount"> · 缺失 {{ omittedCount }} 条</template></span
-      >
-      <div class="legend">
-        <span v-for="role in roleLegend" :key="role.key" :class="`role-${role.key}`"
-          >{{ role.symbol }} {{ role.label }}</span
-        >
-      </div>
+      <span v-if="matchMode || omittedCount" class="ma-view-meta">
+        <template v-if="matchMode">{{ points.length }} 条有效记录 / {{ matchCount }} 场</template>
+        <template v-if="omittedCount">
+          <template v-if="matchMode"> · </template>缺失 {{ omittedCount }} 条
+        </template>
+      </span>
     </div>
     <div v-if="matchMode" class="member-controls">
       <NCheckbox v-model:checked="perMember">每位成员单独拟合</NCheckbox>
@@ -526,15 +522,6 @@ const roleName = {
   UTILITY: '辅助'
 } as const
 const roleSymbol = { TOP: '上', JUNGLE: '野', MIDDLE: '中', BOTTOM: '下', UTILITY: '辅' } as const
-const roleLegend = computed(() =>
-  (Object.keys(roleName) as Array<keyof typeof roleName>)
-    .map((key) => ({
-      key,
-      label: roleName[key],
-      symbol: roleSymbol[key]
-    }))
-    .filter((role) => comparableRoles.value.some((row) => row.role === role.key))
-)
 const tableRows = computed(() =>
   observations.value.map((row) => ({
     roleKey: row.role,
@@ -709,12 +696,6 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
 .controls :deep(.role-filter) {
   width: 130px;
 }
-.legend {
-  display: flex;
-  gap: 9px;
-  margin-left: auto;
-  font-size: 12px;
-}
 .scatter-wrap {
   overflow-x: auto;
 }
@@ -761,28 +742,21 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
 .point:focus {
   outline: none;
 }
-.point circle.role-JUNGLE,
-.legend .role-JUNGLE {
+.point circle.role-JUNGLE {
   stroke: var(--ma-series-1);
   color: var(--ma-series-1);
 }
-.point circle.role-MIDDLE,
-.legend .role-MIDDLE {
+.point circle.role-MIDDLE {
   stroke: var(--ma-series-3);
   color: var(--ma-series-3);
 }
-.point circle.role-BOTTOM,
-.legend .role-BOTTOM {
+.point circle.role-BOTTOM {
   stroke: var(--ma-series-4);
   color: var(--ma-series-4);
 }
-.point circle.role-UTILITY,
-.legend .role-UTILITY {
+.point circle.role-UTILITY {
   stroke: var(--ma-series-6);
   color: var(--ma-series-6);
-}
-.legend .role-TOP {
-  color: var(--ma-series-2);
 }
 .point:focus circle,
 .point:hover circle {
@@ -803,9 +777,6 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
   }
   .role-filter {
     grid-column: 1 / -1;
-  }
-  .legend {
-    display: flex;
   }
   .scatter-wrap svg {
     min-width: 620px;
@@ -828,9 +799,6 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
   }
   .controls .role-filter {
     flex: 0 1 130px;
-  }
-  .legend {
-    flex-basis: 100%;
   }
 }
 .axes text,

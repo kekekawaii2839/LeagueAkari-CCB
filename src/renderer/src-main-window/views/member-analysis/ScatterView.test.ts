@@ -59,6 +59,31 @@ beforeEach(() => {
   data.table = null
 })
 
+test('aggregate mode omits the redundant point count while retaining missing and exact values', async () => {
+  const html = await render()
+  expect(html).not.toContain('个成员分路')
+  expect(html).toContain('缺失 1 条')
+  expect(html).toContain('查看全部精确值（3 条）')
+  data.roles.value = [row('成员甲', 0), row('成员乙', 1)]
+  const complete = await render()
+  expect(complete).not.toContain('个成员分路')
+  expect(complete).not.toContain('缺失 ')
+  expect(complete).toContain('查看全部精确值（2 条）')
+})
+
+test('match mode retains effective records, distinct matches and missing notices', async () => {
+  useMemberAnalysisStore().scatterViewState.matchMode = true
+  data.matches = [
+    { ...row('成员甲', 0), gameId: 101 },
+    { ...row('成员乙', 1), gameId: 102 },
+    { ...row('缺失成员', null), gameId: 103 }
+  ]
+  const html = await render()
+  expect(html).toContain('2 条有效记录 / 2 场')
+  expect(html).toContain('缺失 1 条')
+  expect(html).toContain('查看全部精确值（3 条）')
+})
+
 test('default disclosure is collapsed and retains exact rows, original columns and missing values', async () => {
   const html = await render()
   expect(html).toMatch(/<details[^>]*>/)
