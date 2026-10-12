@@ -114,6 +114,11 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
                   ? Number(value)
                   : defaultValue
             },
+            experimentalPredictionEnabled: {
+              default: false,
+              restore: ({ value, defaultValue }) =>
+                typeof value === 'boolean' ? value : defaultValue
+            },
             opggEnabled: {
               default: false,
               restore: ({ value, defaultValue }) =>

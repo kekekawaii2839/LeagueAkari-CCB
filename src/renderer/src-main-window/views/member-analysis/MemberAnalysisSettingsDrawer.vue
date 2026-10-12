@@ -78,6 +78,24 @@
           <NSwitch v-model:value="draft.opggEnabled" />
         </div>
 
+        <h3 class="settings-group-heading">{{ uiText('experimentalPredictionGroup') }}</h3>
+        <div class="member-analysis-settings__row">
+          <div>
+            <div id="experimental-prediction-label" class="member-analysis-settings__label">
+              {{ uiText('experimentalPredictionLabel') }}
+            </div>
+            <div id="experimental-prediction-help" class="member-analysis-settings__description">
+              {{ uiText('experimentalPredictionHelp') }}
+            </div>
+          </div>
+          <NSwitch
+            v-model:value="draft.experimentalPredictionEnabled"
+            aria-labelledby="experimental-prediction-label"
+            aria-describedby="experimental-prediction-help"
+            :disabled="saving"
+          />
+        </div>
+
         <section ref="memberList">
           <div class="member-analysis-settings__section-title">
             <span>固定成员列表</span>
@@ -203,7 +221,8 @@ function cloneSettings(settings: MemberAnalysisSettings): MemberAnalysisSettings
     scanLimitPerMember: settings.scanLimitPerMember,
     historyTag: settings.historyTag,
     storageLimitGiB: settings.storageLimitGiB,
-    opggEnabled: settings.opggEnabled
+    opggEnabled: settings.opggEnabled,
+    experimentalPredictionEnabled: settings.experimentalPredictionEnabled ?? false
   }
 }
 

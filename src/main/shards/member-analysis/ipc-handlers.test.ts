@@ -60,6 +60,34 @@ function createHarness() {
 }
 
 describe('member analysis IPC boundary', () => {
+  test('keeps the prediction experiment off by default and saves it via validated settings', async () => {
+    const { handlers, event, context } = createHarness()
+    const get = handlers.get('getSettings')!
+    const update = handlers.get('updateSettings')!
+    expect(await get(event)).toMatchObject({
+      ok: true,
+      value: { experimentalPredictionEnabled: false }
+    })
+    expect(await update(event, { experimentalPredictionEnabled: 'true' })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+    expect(await update(event, { experimentalPredictionEnabled: true })).toMatchObject({
+      ok: true,
+      value: { experimentalPredictionEnabled: true }
+    })
+    expect(context.settingService.set).toHaveBeenCalledWith('experimentalPredictionEnabled', true)
+    await update(event, { opggEnabled: true })
+    expect(await get(event)).toMatchObject({
+      ok: true,
+      value: { experimentalPredictionEnabled: true }
+    })
+    await update(event, { experimentalPredictionEnabled: false })
+    expect(await get(event)).toMatchObject({
+      ok: true,
+      value: { experimentalPredictionEnabled: false }
+    })
+  })
   test('prediction registration accepts only five declared aliases and rejects forged forecasts, paths and non-main senders', () => {
     const { handlers, event } = createHarness()
     const invoke = handlers.get('startPredictionOpportunity')!
@@ -189,7 +217,8 @@ describe('member analysis IPC boundary', () => {
         scanLimitPerMember: 2000,
         historyTag: 'ranked',
         storageLimitGiB: 10,
-        opggEnabled: false
+        opggEnabled: false,
+        experimentalPredictionEnabled: false
       }
     })
     expect(await handlers.get('startRefresh')!(event, undefined)).toMatchObject({

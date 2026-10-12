@@ -1,4 +1,7 @@
 zh-CN:
+  experimentalPredictionGroup: '实验性功能'
+  experimentalPredictionLabel: '阵容胜率预测（实验性）'
+  experimentalPredictionHelp: '功能尚不完善，默认关闭。开启并保存后显示预测页，不保证下一场结果。'
   eventWindowNote: 比例按事件窗口统计，不等于对局胜率，也不代表因果。
   eventGameNote: 按对局展示相关汇总，不代表逐事件关联
   noEventSelection: 选择指标数值查看对应对局。
@@ -87,6 +90,9 @@ zh-CN:
   membersRequired: 启用后至少需要五名成员，并填写每名成员的服务器、名称和 Tag。
   percentagePoints: '{{value}} 个百分点'
 en:
+  experimentalPredictionGroup: 'Experimental features'
+  experimentalPredictionLabel: 'Lineup win prediction (experimental)'
+  experimentalPredictionHelp: 'This feature is incomplete and off by default. Enable and save to show the prediction page; it does not guarantee the next result.'
   eventWindowNote: Rates use event windows, not independent matches, and do not imply causation.
   eventGameNote: Match-level summaries, not individual event links
   noEventSelection: Select a metric value to see matching games.

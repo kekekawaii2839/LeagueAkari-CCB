@@ -90,6 +90,11 @@ export class MemberAnalysisController {
       await this._context.settingService.set('storageLimitGiB', settings.storageLimitGiB)
     if (settings.opggEnabled !== undefined)
       await this._context.settingService.set('opggEnabled', settings.opggEnabled)
+    if (settings.experimentalPredictionEnabled !== undefined)
+      await this._context.settingService.set(
+        'experimentalPredictionEnabled',
+        settings.experimentalPredictionEnabled
+      )
     return this._success(this._settings())
   }
 
@@ -221,7 +226,8 @@ export class MemberAnalysisController {
       scanLimitPerMember: this._context.settings.scanLimitPerMember,
       historyTag: this._context.settings.historyTag,
       storageLimitGiB: this._context.settings.storageLimitGiB,
-      opggEnabled: this._context.settings.opggEnabled
+      opggEnabled: this._context.settings.opggEnabled,
+      experimentalPredictionEnabled: this._context.settings.experimentalPredictionEnabled
     }
   }
 

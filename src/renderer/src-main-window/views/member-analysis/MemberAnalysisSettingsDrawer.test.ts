@@ -45,7 +45,12 @@ vi.mock('naive-ui', () => {
     NInput: Stub,
     NInputNumber: Stub,
     NSelect: (props: Record<string, unknown>) => h('div', JSON.stringify(props.options ?? [])),
-    NSwitch: Stub
+    NSwitch: (props: Record<string, unknown>) =>
+      h('input', {
+        type: 'checkbox',
+        checked: props.value,
+        'aria-labelledby': props['aria-labelledby']
+      })
   }
 })
 
@@ -95,6 +100,12 @@ describe('member analysis settings drawer', () => {
     expect(html).toContain('采集范围')
     expect(html).toContain('存储与参考')
     expect(html).toContain('启用成员分析')
+    expect(html).toContain('阵容胜率预测（实验性）')
+    const experiment = html.match(
+      /<input[^>]*aria-labelledby="experimental-prediction-label"[^>]*>/
+    )?.[0]
+    expect(experiment).toBeDefined()
+    expect(experiment).not.toContain('checked')
     expect(html).toContain('排位相关模式')
     expect(html).toContain('5人排位赛')
     expect(html).not.toContain('所有模式')

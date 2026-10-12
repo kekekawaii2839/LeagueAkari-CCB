@@ -150,7 +150,7 @@ import SynergyView from './SynergyView.vue'
 import './member-analysis-visuals.css'
 import { uiText } from './ui-text'
 
-const sections = [
+const allSections = [
   { key: 'roles', label: '成员分路', description: '', component: MemberRoleView },
   { key: 'champions', label: '英雄', description: '', component: ChampionView },
   { key: 'pairs', label: '组合', description: '', component: PairView },
@@ -164,13 +164,19 @@ const sections = [
 ] as const
 
 const store = useMemberAnalysisStore()
+const sections = computed(() =>
+  allSections.filter(
+    (section) =>
+      section.key !== 'prediction' || store.settings?.experimentalPredictionEnabled === true
+  )
+)
 const memberAnalysis = useInstance(MemberAnalysisRenderer)
 const route = useRoute()
 const router = useRouter()
 const requestedSection =
   route.params.section === 'opponent-ranks' ? 'matches' : String(route.params.section ?? '')
 const activeSection = ref(
-  sections.some((section) => section.key === requestedSection) ? requestedSection : 'roles'
+  sections.value.some((section) => section.key === requestedSection) ? requestedSection : 'roles'
 )
 const savingSettings = ref(false)
 const settingsError = ref('')
@@ -264,14 +270,25 @@ if (route.params.section === 'opponent-ranks') {
 }
 
 watch(
-  () => route.params.section,
-  (section) => {
+  [
+    () => route.params.section,
+    () => store.settings?.experimentalPredictionEnabled,
+    () => store.loading
+  ],
+  ([section]) => {
+    // Wait for persisted settings before rejecting an opted-in prediction deep link.
+    if (store.loading) return
     const next = section === 'opponent-ranks' ? 'matches' : String(section ?? '')
     if (section === 'opponent-ranks') {
       void router.replace({ name: 'member-analysis', params: { section: 'matches' } })
     }
-    if (sections.some((candidate) => candidate.key === next)) activeSection.value = next
-  }
+    if (next === 'prediction' && store.settings?.experimentalPredictionEnabled !== true) {
+      activeSection.value = 'roles'
+      void router.replace({ name: 'member-analysis', params: { section: 'roles' } })
+    } else if (sections.value.some((candidate) => candidate.key === next))
+      activeSection.value = next
+  },
+  { immediate: true }
 )
 
 async function saveSettings(settings: Parameters<MemberAnalysisRenderer['updateSettings']>[0]) {

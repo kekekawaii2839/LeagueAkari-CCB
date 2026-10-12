@@ -9,6 +9,7 @@ export class MemberAnalysisSettingsState {
   historyTag = MEMBER_ANALYSIS_DEFAULT_HISTORY_TAG
   storageLimitGiB = 10
   opggEnabled = false
+  experimentalPredictionEnabled = false
 
   constructor() {
     makeAutoObservable(this)

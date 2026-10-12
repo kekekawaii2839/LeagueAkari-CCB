@@ -364,7 +364,9 @@ export const MemberAnalysisSettingsSchema = z
     scanLimitPerMember: z.number().int().min(100).max(5000),
     historyTag: MemberAnalysisHistoryTagSchema,
     storageLimitGiB: z.number().int().min(1).max(1000),
-    opggEnabled: z.boolean()
+    opggEnabled: z.boolean(),
+    // Older settings omit this UI experiment; absence is treated as disabled.
+    experimentalPredictionEnabled: z.boolean().optional()
   })
   .strict()
 

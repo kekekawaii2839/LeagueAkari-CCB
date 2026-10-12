@@ -15,7 +15,8 @@ const renderer = vi.hoisted(() => ({
   reload: vi.fn(),
   updateSettings: vi.fn(),
   route: { params: { section: 'roles' } },
-  replace: vi.fn()
+  replace: vi.fn(),
+  activeTab: ''
 }))
 
 vi.mock('@renderer-shared/shards', () => ({
@@ -66,7 +67,10 @@ vi.mock('naive-ui', () => {
     NStatistic: Stub,
     NSwitch: Stub,
     NTabPane: Stub,
-    NTabs: Stub
+    NTabs: (props: Record<string, unknown>, context: { slots: Record<string, Function> }) => {
+      renderer.activeTab = String(props.value)
+      return Stub(props, context)
+    }
   }
 })
 
@@ -85,7 +89,8 @@ const emptyOverview = {
 
 async function renderState(
   state: 'feature-disabled' | 'first-run' | 'loading' | 'empty' | 'error' | 'ready',
-  theme: { mode: 'light' | 'dark'; id: string } = { mode: 'light', id: 'light' }
+  theme: { mode: 'light' | 'dark'; id: string } = { mode: 'light', id: 'light' },
+  experimentalPredictionEnabled?: boolean
 ) {
   const pinia = createPinia()
   setActivePinia(pinia)
@@ -98,7 +103,8 @@ async function renderState(
     scanLimitPerMember: 2000,
     historyTag: 'ranked',
     storageLimitGiB: 10,
-    opggEnabled: false
+    opggEnabled: false,
+    experimentalPredictionEnabled
   }
   store.capabilities = {
     contractVersion: 1,
@@ -160,9 +166,8 @@ describe('member analysis native page', () => {
     expect(html).toContain('完整指标与事件明细')
     expect(html).toContain('蓝红方拆分')
     expect(html).toContain('被抓统计')
-    expect(html).toContain('阵容胜率预测')
-    expect(html.match(/aria-label="五排阵容胜率预测"/g)).toHaveLength(1)
-    expect(html).toContain('预测方位')
+    expect(html).not.toContain('aria-label="五排阵容胜率预测"')
+    expect(html).not.toContain('预测方位')
     expect(html).toContain('对局列表')
     expect(html).not.toContain('逐场对手快照')
     expect(html).not.toContain('对局明细')
@@ -173,6 +178,29 @@ describe('member analysis native page', () => {
     expect(html).not.toContain('INTERNAL_ERROR')
     expect(html).not.toContain('synthetic degraded state')
     expect(html).toContain('重试')
+  })
+
+  test.each([undefined, false])(
+    'rejects a prediction deep link while the experiment is %s',
+    async (enabled) => {
+      renderer.route.params.section = 'prediction'
+      const html = await renderState('ready', undefined, enabled)
+      expect(renderer.activeTab).toBe('roles')
+      expect(html).not.toContain('aria-label="五排阵容胜率预测"')
+      expect(renderer.replace).toHaveBeenCalledWith({
+        name: 'member-analysis',
+        params: { section: 'roles' }
+      })
+    }
+  )
+
+  test('shows the prediction page only after opting in', async () => {
+    renderer.route.params.section = 'prediction'
+    const html = await renderState('ready', undefined, true)
+    expect(renderer.activeTab).toBe('prediction')
+    expect(html.match(/aria-label="五排阵容胜率预测"/g)).toHaveLength(1)
+    expect(html).toContain('预测方位')
+    expect(renderer.replace).not.toHaveBeenCalled()
   })
 
   test('maps the retired rank-list address to the single match list', async () => {
@@ -188,13 +216,14 @@ describe('member analysis native page', () => {
     'preserves the toolbar and range on %s',
     async (section) => {
       renderer.route.params.section = section
-      const html = await renderState('ready')
+      const html = await renderState('ready', undefined, section === 'prediction')
       const filter = html.match(/<input[^>]*aria-label="复盘筛选测试入口"[^>]*>/)?.[0]
       expect(filter).toBeDefined()
       expect(/\bdisabled(?:=|\s|>)/.test(filter!)).toBe(section === 'prediction')
       expect(html).toContain('aria-label="当前分析范围"')
       expect(html).toContain('复盘范围 0 场')
-      expect(html).toContain('顶部复盘筛选及范围不用于预测')
+      if (section === 'prediction') expect(html).toContain('顶部复盘筛选及范围不用于预测')
+      else expect(html).not.toContain('顶部复盘筛选及范围不用于预测')
     }
   )
 
