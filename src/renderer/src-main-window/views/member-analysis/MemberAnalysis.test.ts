@@ -217,6 +217,24 @@ describe('member analysis native page', () => {
     expect(html).toContain('查询时段位（非比赛当时）')
   })
 
+  test.each(['pairs', 'synergy'])(
+    'keeps the legacy %s route in the single combination entry without redirecting',
+    async (section) => {
+      renderer.route.params.section = section
+      const html = await renderState('ready')
+      expect(renderer.activeTab).toBe('pairs')
+      expect(renderer.replace).not.toHaveBeenCalled()
+      expect(html).toContain('分路组合')
+      expect(html).toContain('成员同队偏差')
+      expect(html).toContain(
+        section === 'pairs'
+          ? '按分路搭配统计；样本不一定等于二人全部共同出场。'
+          : '二人全部共同出场，与各自全部出场的个人基线比较。'
+      )
+      expect(html).toContain('aria-label="当前分析范围"')
+    }
+  )
+
   test.each(['roles', 'prediction', 'matches', 'opponent-ranks'])(
     'preserves the toolbar and range on %s',
     async (section) => {

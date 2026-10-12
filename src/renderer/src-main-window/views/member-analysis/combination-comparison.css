@@ -1,0 +1,337 @@
+.member-analysis-scroll:has(
+  .n-tab-pane:not([style*='display: none']) > [data-member-pane='pairs']
+) {
+  /* Reserve the outer scrollbar before selection; hidden cached panes must not match. */
+  scrollbar-gutter: stable;
+}
+
+.combination-comparison-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* These two populations share visual density, not their statistical definitions. */
+.member-analysis-page .combination-workspace :is(.pair-view, .synergy-view).ma-workspace {
+  padding: 12px 16px;
+  gap: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) {
+  gap: 8px 12px;
+  align-items: center;
+}
+.member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) > .n-select {
+  width: 280px;
+  max-width: 100%;
+}
+.member-analysis-page .combination-workspace .pair-controls > .pair-sort-select,
+.member-analysis-page .combination-workspace .synergy-toolbar > .n-select:nth-of-type(2) {
+  width: 210px;
+}
+.member-analysis-page .combination-workspace .pair-controls > .ma-view-meta {
+  flex-basis: auto;
+  margin-left: auto;
+}
+.member-analysis-page .combination-workspace .synergy-toolbar > strong {
+  order: 3;
+  margin: 0 0 0 auto;
+  color: var(--ma-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.member-analysis-page .combination-workspace .synergy-legend {
+  order: 4;
+  flex-basis: 100%;
+  gap: 8px 16px;
+  margin: 0;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace .combination-comparison-list {
+  padding-bottom: 4px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) {
+  min-width: 1080px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) :is(th, td) {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
+  height: 72px;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 32px;
+  border-top: 1px solid var(--ma-grid-strong);
+  border-bottom: 1px solid var(--ma-grid-strong);
+}
+.member-analysis-page .combination-workspace .ma-table-sort {
+  padding: 0;
+}
+.member-analysis-page .combination-workspace .synergy-comparison thead th:nth-child(4) > small,
+.member-analysis-page .combination-workspace .synergy-comparison thead th:nth-child(5) > small {
+  display: inline;
+  margin-left: 4px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) th:first-child {
+  width: 220px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) th:nth-child(2) {
+  width: 110px;
+}
+.member-analysis-page .combination-workspace .pair-table th:nth-child(3) {
+  width: auto;
+  text-align: left;
+}
+.member-analysis-page .combination-workspace .pair-table th:nth-child(4) {
+  width: 340px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ma-muted);
+  line-height: 1.5;
+}
+.member-analysis-page
+  .combination-workspace
+  :is(.pair-table, .synergy-comparison)
+  tbody
+  tr.selected {
+  background: color-mix(in srgb, var(--la-color-link) 7%, transparent);
+}
+.member-analysis-page .combination-workspace :is(.role-pair-select, .pair-select) {
+  display: block;
+  min-height: 32px;
+  padding: 2px 0;
+  border-radius: 4px;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace :is(.role-pair-select, .pair-select):focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+}
+.member-analysis-page .combination-workspace .pair-name > span {
+  margin: 0;
+  color: inherit;
+}
+.member-analysis-page .combination-workspace :is(.pair-rate-axis, .rate-axis) {
+  margin: 6px 64px 0 0;
+  line-height: 18px;
+}
+.member-analysis-page .combination-workspace .difference-axis {
+  line-height: 18px;
+}
+.member-analysis-page .combination-workspace .rate-cell {
+  gap: 12px;
+}
+.member-analysis-page .combination-workspace .pair-table td:nth-child(3) > strong {
+  float: right;
+  min-width: 52px;
+  line-height: 24px;
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval {
+  width: calc(100% - 64px);
+  height: 24px;
+  margin-top: 0;
+  background: linear-gradient(to right, var(--ma-grid) 1px, transparent 1px);
+  background-size: 25% 100%;
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .baseline {
+  top: auto;
+  bottom: 0;
+  background: var(--ma-grid);
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .balance {
+  display: none;
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range {
+  top: 11px;
+  height: 1px;
+  border-radius: 0;
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::before,
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  height: 9px;
+  border-left: 1px solid var(--ma-muted);
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::after {
+  right: 0;
+}
+.member-analysis-page .combination-workspace .pair-table .win-rate-interval em {
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  margin-left: -4.5px;
+  background: color-mix(in srgb, var(--la-color-link) 80%, var(--la-color-text-primary));
+}
+.member-analysis-page .combination-workspace .pair-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.member-analysis-page .combination-workspace .pair-value > strong {
+  order: 2;
+  min-width: 53px;
+}
+.member-analysis-page .combination-workspace .pair-track {
+  flex: 1;
+  height: 18px;
+  background: none;
+}
+.member-analysis-page .combination-workspace .pair-track::after {
+  top: 0;
+  bottom: 0;
+}
+.member-analysis-page .combination-workspace .pair-track i {
+  top: 5px;
+  height: 8px;
+  border-radius: 0;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) {
+  padding-top: 16px;
+  scroll-margin-top: 64px;
+  font-size: 14px;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail-heading, .evidence-heading) {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail-heading, .evidence-heading) h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.member-analysis-page
+  .combination-workspace
+  :is(.pair-detail-heading, .evidence-heading)
+  > .n-button {
+  flex: none;
+}
+.member-analysis-page .combination-workspace .synergy-evidence > .synergy-note {
+  order: 1;
+}
+.member-analysis-page .combination-workspace .synergy-evidence > .n-button {
+  order: 2;
+  grid-column: 1/-1;
+  justify-self: start;
+}
+.member-analysis-page .combination-workspace .synergy-evidence > section {
+  order: 3;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail > .ma-chart-note, .synergy-note) {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace .pair-detail dl > div {
+  padding: 4px 0;
+  border-bottom: 0;
+}
+.member-analysis-page .combination-workspace .pair-detail dl {
+  margin: 8px 0 16px;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) dt {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) dd {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.member-analysis-page .combination-workspace .pair-side-results {
+  font-size: 12px;
+}
+.combination-comparison-list {
+  box-sizing: border-box;
+  min-width: 0;
+  max-height: min(560px, 52vh);
+  overflow: auto;
+  scroll-padding-top: 100px;
+  scrollbar-gutter: stable;
+}
+.combination-comparison-list thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--la-color-bg-primary);
+}
+.combination-comparison-evidence {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.combination-comparison-placeholder {
+  display: none;
+  padding: 16px 24px;
+  color: var(--ma-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.combination-comparison-placeholder h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--la-color-text-primary);
+  margin: 0 0 8px;
+}
+.combination-comparison-placeholder p {
+  margin: 0;
+}
+.combination-comparison-list:focus-visible,
+.combination-comparison-evidence:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+}
+@container (min-width: 1560px) {
+  .member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) {
+    padding: 0 0 0 24px;
+  }
+  .member-analysis-page .combination-workspace .synergy-evidence {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .combination-comparison-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+  }
+  .combination-comparison-evidence {
+    max-height: min(560px, 52vh);
+    overflow: auto;
+    scrollbar-gutter: stable;
+  }
+  .combination-comparison-placeholder {
+    display: block;
+    padding: 0 0 0 24px;
+    border-left: 1px solid var(--ma-grid-strong);
+  }
+}
+@media (max-height: 600px) {
+  .member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) {
+    gap: 8px;
+  }
+  .member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) > .n-select {
+    width: 132px;
+  }
+  .member-analysis-page .combination-workspace .synergy-toolbar > strong {
+    margin-left: auto;
+  }
+  .member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
+    height: 60px;
+    line-height: 24px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .member-analysis-page .combination-workspace .ma-table-sort {
+    min-height: 24px;
+  }
+}

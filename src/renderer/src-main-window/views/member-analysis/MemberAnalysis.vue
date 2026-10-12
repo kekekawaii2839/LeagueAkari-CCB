@@ -16,6 +16,7 @@
       <MemberAnalysisFilters
         v-if="store.settings?.enabled"
         :disabled="activeSection === 'prediction'"
+        :compact="primarySection === 'pairs' && compactHeight"
       />
 
       <p
@@ -32,7 +33,9 @@
         <strong>复盘范围 {{ rendererAudit.sample }} 场</strong>
         <span>固定排除不足 15 分钟对局</span>
         <span>版本 {{ patchScope }}</span>
-        <span v-if="audit">{{ collectionStatus }}</span>
+        <span v-if="audit && !(primarySection === 'pairs' && compactHeight)">{{
+          collectionStatus
+        }}</span>
       </section>
 
       <div v-if="store.job && jobRunning" class="member-analysis-job">
@@ -92,7 +95,7 @@
         </NAlert>
 
         <div v-else class="member-analysis-ready">
-          <NTabs v-model:value="activeSection" type="line">
+          <NTabs v-model:value="primarySection" type="line">
             <NTabPane
               v-for="section in sections"
               :key="section.key"
@@ -100,7 +103,15 @@
               :tab="section.label"
               display-directive="show:lazy"
             >
-              <component :is="section.component" />
+              <div :data-member-pane="section.key" style="min-width: 0">
+                <CombinationView
+                  v-if="section.key === 'pairs'"
+                  :view="combinationSection"
+                  :context-note="collectionStatus"
+                  @update:view="activateCombination"
+                />
+                <component v-else :is="section.component" />
+              </div>
             </NTabPane>
           </NTabs>
         </div>
@@ -126,6 +137,7 @@
 
 <script setup lang="ts">
 import { useInstance } from '@renderer-shared/shards'
+import { useMediaQuery } from '@vueuse/core'
 import { NAlert, NButton, NEmpty, NProgress, NResult, NSpin, NTabPane, NTabs } from 'naive-ui'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -144,21 +156,19 @@ import JungleView from './JungleView.vue'
 import MatchesView from './MatchesView.vue'
 import OpponentRanksView from './opponent-ranks/OpponentRanksView.vue'
 import MemberRoleView from './MemberRoleView.vue'
-import PairView from './PairView.vue'
+import CombinationView from './CombinationView.vue'
 import ScatterView from './ScatterView.vue'
 import { WinPrediction } from './prediction'
-import SynergyView from './SynergyView.vue'
 import './member-analysis-visuals.css'
 import { uiText } from './ui-text'
 
 const allSections = [
   { key: 'roles', label: '成员分路', description: '', component: MemberRoleView },
   { key: 'champions', label: '英雄', description: '', component: ChampionView },
-  { key: 'pairs', label: '组合', description: '', component: PairView },
+  { key: 'pairs', label: '组合', description: '', component: CombinationView },
   { key: 'jungle', label: '打野', description: '', component: JungleView },
   { key: 'conversion', label: '事件结果', description: '', component: ConversionView },
   { key: 'early', label: '前期与胜负', description: '', component: EarlyConversionView },
-  { key: 'synergy', label: '同队偏差', description: '', component: SynergyView },
   { key: 'scatter', label: '指标对比', description: '', component: ScatterView },
   { key: 'prediction', label: '阵容胜率预测', description: '', component: WinPrediction },
   {
@@ -181,9 +191,23 @@ const memberAnalysis = useInstance(MemberAnalysisRenderer)
 const route = useRoute()
 const router = useRouter()
 const requestedSection = String(route.params.section ?? '')
-const activeSection = ref(
-  sections.value.some((section) => section.key === requestedSection) ? requestedSection : 'roles'
+const compactHeight = useMediaQuery('(max-height: 600px)')
+const isKnownSection = (section: string) =>
+  section === 'synergy' || sections.value.some((candidate) => candidate.key === section)
+const activeSection = ref(isKnownSection(requestedSection) ? requestedSection : 'roles')
+const combinationSection = ref<'pairs' | 'synergy'>(
+  activeSection.value === 'synergy' ? 'synergy' : 'pairs'
 )
+const primarySection = computed({
+  get: () => (activeSection.value === 'synergy' ? 'pairs' : activeSection.value),
+  set: (section: string) => {
+    activeSection.value = section === 'pairs' ? combinationSection.value : section
+  }
+})
+function activateCombination(section: 'pairs' | 'synergy') {
+  combinationSection.value = section
+  activeSection.value = section
+}
 const savingSettings = ref(false)
 const settingsError = ref('')
 const cleanupError = ref('')
@@ -269,6 +293,7 @@ const friendlyJobError = computed(() => {
 })
 
 watch(activeSection, (section) => {
+  if (section === 'pairs' || section === 'synergy') combinationSection.value = section
   void router.replace({ name: 'member-analysis', params: { section } })
 })
 
@@ -285,8 +310,9 @@ watch(
     if (next === 'prediction' && store.settings?.experimentalPredictionEnabled !== true) {
       activeSection.value = 'roles'
       void router.replace({ name: 'member-analysis', params: { section: 'roles' } })
-    } else if (sections.value.some((candidate) => candidate.key === next))
+    } else if (isKnownSection(next) && activeSection.value !== next) {
       activeSection.value = next
+    }
   },
   { immediate: true }
 )

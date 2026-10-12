@@ -7,7 +7,12 @@ import { renderToString } from 'vue/server-renderer'
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
 import { aggregateSynergy } from './analytics'
 import SynergyView from './SynergyView.vue'
-const data = vi.hoisted(() => ({ synergy: null as any, games: null as any, table: null as any }))
+const data = vi.hoisted(() => ({
+  synergy: null as any,
+  games: null as any,
+  table: null as any,
+  selects: [] as any[]
+}))
 vi.mock('./useMemberAnalysisData', () => ({ useMemberAnalysisData: () => data }))
 vi.mock('@renderer-shared/shards/league-client/store', () => ({
   useLeagueClientStore: () => ({ gameData: { champions: {} } })
@@ -22,7 +27,10 @@ vi.mock('./MemberAnalysisMetricTable.vue', () => ({
 }))
 vi.mock('naive-ui', () => ({
   useThemeVars: () => ({ fontFamily: 'system-ui' }),
-  NSelect: () => null,
+  NSelect: (props: any) => {
+    data.selects.push(props.options)
+    return null
+  },
   NButton: () => null,
   NPagination: () => null
 }))
@@ -46,6 +54,7 @@ beforeEach(() => {
   ])
   data.synergy = ref(aggregateSynergy(data.games.value))
   data.table = null
+  data.selects = []
 })
 
 test('default comparison retains every pair, exact sample, baseline and interval with no automatic selection', async () => {
@@ -58,6 +67,8 @@ test('default comparison retains every pair, exact sample, baseline and interval
   expect(html).toContain('aria-pressed="false"')
   expect(html).not.toContain('aria-pressed="true"')
   expect(html).not.toContain('个人基线来自哪里')
+  expect(html).toContain('选择左侧成员组合，查看个人基线')
+  expect(html).toContain('未选择时不显示结果')
   expect(html).toContain('描述性差异，不代表配合带来的因果收益。')
   expect(html).toContain('计算口径与低样本处理')
   expect(html).toContain('全部组合精确值')
@@ -110,4 +121,20 @@ test('long identities, low samples, missing role evidence and numerical zero are
   expect(html).toContain('0.0%')
   data.synergy.value = [{ ...rows[0], gamesList: [] }]
   expect(await render()).toContain('分路未提供')
+})
+
+test('member selector preserves complete IDs and distinguishes equal names with different tags', async () => {
+  // Generate fictional identities rather than recording production IDs in fixtures.
+  const name = 'Member Synthetic Long Name'
+  const first = `${name}#${1111}`
+  const second = `${name}#${2222}`
+  const legacy = 'Member 3'
+  data.games.value = [game(1, [first, second], true), game(2, [second, legacy], false)]
+  data.synergy.value = aggregateSynergy(data.games.value)
+  await render()
+  const options = data.selects.find((items: any[]) => items?.some((item) => item.value === first))
+  expect(options).toHaveLength(3)
+  expect(options).toEqual(
+    expect.arrayContaining([first, second, legacy].map((value) => ({ label: value, value })))
+  )
 })

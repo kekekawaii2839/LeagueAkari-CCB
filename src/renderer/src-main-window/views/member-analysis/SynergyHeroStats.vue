@@ -1,8 +1,21 @@
 <template>
-  <section class="synergy-heroes" :aria-label="uiText('synergyHeroHeading')">
+  <section
+    class="synergy-heroes"
+    :aria-label="
+      uiText(scope === 'role-pair' ? 'combinationRoleHeroHeading' : 'synergyHeroHeading')
+    "
+  >
     <header class="hero-heading">
-      <h3>{{ uiText('synergyHeroHeading') }}</h3>
-      <p>{{ uiText('synergyHeroScope', { count: stats.total }) }}</p>
+      <h3>
+        {{ uiText(scope === 'role-pair' ? 'combinationRoleHeroHeading' : 'synergyHeroHeading') }}
+      </h3>
+      <p>
+        {{
+          uiText(scope === 'role-pair' ? 'combinationRoleHeroScope' : 'synergyHeroScope', {
+            count: stats.total
+          })
+        }}
+      </p>
     </header>
     <div class="hero-member-grid">
       <section v-for="(member, index) in stats.members" :key="member.player" class="hero-member">
@@ -136,7 +149,9 @@
         :aria-label="uiText('synergyHeroPairPages')"
       />
     </section>
-    <p class="hero-note">{{ uiText('synergyHeroNote') }}</p>
+    <p class="hero-note">
+      {{ uiText(scope === 'role-pair' ? 'combinationRoleHeroNote' : 'synergyHeroNote') }}
+    </p>
   </section>
 </template>
 <script setup lang="ts">
@@ -147,7 +162,11 @@ import { ref, watch } from 'vue'
 import { formatMetric } from './metric-defs'
 import type { SharedHeroStats, SharedHeroRow, SharedHeroPairRow } from './synergy-analysis'
 import { uiText } from './ui-text'
-const props = defineProps<{ stats: SharedHeroStats; minimum: number }>()
+const props = defineProps<{
+  stats: SharedHeroStats
+  minimum: number
+  scope?: 'shared' | 'role-pair'
+}>()
 const pages = ref([1, 1, 1]),
   lcs = useLeagueClientStore()
 const short = (s: string) => s.split('#')[0]

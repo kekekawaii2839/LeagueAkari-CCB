@@ -1,3 +1,5 @@
+// sort-imports-ignore
+import './test-i18n'
 import type { MemberAnalysisOverview } from '@shared/shards/member-analysis'
 import { createPinia, setActivePinia } from 'pinia'
 import { describe, expect, test, vi } from 'vitest'
@@ -79,6 +81,35 @@ describe('member analysis filters', () => {
 
     expect(dateInputs).toHaveLength(2)
     expect(dateInputs.every((input) => !/placeholder="[^"]+"/.test(input))).toBe(true)
+  })
+
+  test('compact controls preserve applied conditions and values while offering expansion', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useMemberAnalysisStore()
+    store.filters.query = '合成搜索'
+    store.filters.matchRole = 'TOP'
+    store.filters.patch = '26.1'
+    store.sampleSize = 20
+    store.analysisSide = 'Red'
+    store.filters.outcome = 'loss'
+    const before = JSON.stringify({
+      filters: store.filters,
+      sample: store.sampleSize,
+      side: store.analysisSide
+    })
+    const app = createSSRApp(MemberAnalysisFilters, { compact: true })
+    app.use(pinia)
+    const html = await renderToString(app)
+    expect(html).toContain('展开筛选')
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).toContain('最近 20 场 · 仅红方 · 失败')
+    expect(html).toContain('搜索 合成搜索')
+    expect(html).toContain('搜索 合成搜索 · 仅红方 · 失败 · 上路 · 版本 26.1')
+    expect(html).toContain('版本 26.1')
+    expect(
+      JSON.stringify({ filters: store.filters, sample: store.sampleSize, side: store.analysisSide })
+    ).toBe(before)
   })
 
   test('orders multi-digit patch segments from newest to oldest', async () => {

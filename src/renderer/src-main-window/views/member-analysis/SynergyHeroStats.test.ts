@@ -30,11 +30,25 @@ const game = (id: number, a: string | null, b: string | null, win: boolean): Mem
       { player: 'Member 2', role: 'MIDDLE', champion: b }
     ]
   }) as MemberAnalysisGame
-const render = async (games: MemberAnalysisGame[]) => {
+const render = async (games: MemberAnalysisGame[], scope?: 'shared' | 'role-pair') => {
   pages.items = []
   const stats = sharedHeroStats(aggregateSynergy(games)[0])
-  return renderToString(createSSRApp({ render: () => h(SynergyHeroStats, { stats, minimum: 5 }) }))
+  return renderToString(
+    createSSRApp({ render: () => h(SynergyHeroStats, { stats, minimum: 5, scope }) })
+  )
 }
+
+test('role-pair mode explicitly identifies its narrower denominator and preserves unavailable heroes', async () => {
+  const games = [game(1, 'Garen', 'Vi', true), game(2, null, 'Vi', false)]
+  for (const g of games) g.players[1].role = 'JUNGLE'
+  const html = await render(games, 'role-pair')
+  expect(html).toContain('分路搭配时英雄')
+  expect(html).toContain('有序分路搭配的 2 场')
+  expect(html).toContain('不含二人其他分路的共同出场')
+  expect(html).toContain('英雄未提供')
+  expect(html).toContain('有英雄记录 1/2 场')
+  expect(html).toContain('Wilson 95% 区间仅描述历史胜率')
+})
 test('renders both members and oriented hero combinations with counts, full denominator, roles and intervals', async () => {
   const html = await render([game(1, 'Garen', 'Ahri', true), game(2, 'Garen', 'Lux', false)])
   expect(html).toContain('同队时英雄')

@@ -1,6 +1,6 @@
 <template>
   <div ref="root" class="ma-panel ma-workspace synergy-view">
-    <section v-if="sameRoster" class="synergy-unavailable" role="status">
+    <section v-if="sameRoster" class="synergy-unavailable" role="status" tabindex="-1">
       <h3>{{ uiText('sameRoster') }}</h3>
       <p>{{ uiText('sameRosterDetail') }}</p>
       <div
@@ -50,9 +50,9 @@
       <p v-if="selectionUnavailable" class="synergy-note" role="status">
         {{ uiText('synergySelectionUnavailable') }}
       </p>
-      <div class="synergy-grid" :class="{ 'has-selection': selected }">
+      <div class="combination-comparison-grid">
         <div
-          class="synergy-table-wrap"
+          class="synergy-table-wrap combination-comparison-list"
           tabindex="0"
           role="region"
           :aria-label="uiText('synergyComparisonTable')"
@@ -91,6 +91,7 @@
                     class="pair-select"
                     :aria-pressed="edge.key === selectedKey"
                     :aria-controls="evidenceId"
+                    :data-combination-key="edge.key"
                     :aria-label="pairAction(edge)"
                     @click="selectEdge(edge.key, $event)"
                   >
@@ -153,7 +154,8 @@
           :id="evidenceId"
           ref="edgeDetail"
           tabindex="-1"
-          class="synergy-evidence"
+          class="synergy-evidence combination-comparison-evidence"
+          role="region"
           :aria-label="uiText('synergyEvidence')"
           @keydown.esc.stop.prevent="clearEdge"
         >
@@ -163,6 +165,12 @@
               uiText('synergyClose')
             }}</NButton>
           </header>
+          <NButton
+            size="small"
+            secondary
+            @click="emit('open-role-pairs', [selected.playerA, selected.playerB])"
+            >{{ uiText('combinationOpenRoles') }}</NButton
+          >
           <p class="synergy-note">
             {{ uiText('synergySharedGames', { count: selected.games }) }} ·
             {{
@@ -250,6 +258,14 @@
             <p class="synergy-note">{{ uiText('synergyIntervalNote') }}</p>
             <p class="synergy-note">{{ uiText('synergyCoverageNote') }}</p>
           </section>
+        </aside>
+        <aside
+          v-else
+          class="combination-comparison-evidence combination-comparison-placeholder"
+          :aria-label="uiText('combinationEvidencePlaceholder')"
+        >
+          <h3>{{ uiText('combinationEvidencePlaceholder') }}</h3>
+          <p>{{ uiText('combinationSelectMembers') }}</p>
         </aside>
       </div>
       <p class="synergy-note synergy-limit">{{ uiText('synergyLimit') }}</p>
@@ -399,6 +415,9 @@ import {
 import { uiText } from './ui-text'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { identicalRosters, reliabilityLabel } from './visualization'
+import './combination-comparison.css'
+import { relatedSynergy, type CombinationMembers } from './combination-navigation'
+const emit = defineEmits<{ 'open-role-pairs': [members: CombinationMembers] }>()
 const themeVars = useThemeVars()
 const store = useMemberAnalysisStore(),
   lcs = useLeagueClientStore()
@@ -428,7 +447,7 @@ const minimum = computed(() => (store.sampleSize === 20 ? 2 : store.sampleSize =
 const short = (s: string) => s.split('#')[0]
 const memberOptions = computed(() =>
   [...new Set(synergy.value.flatMap((e) => [e.playerA, e.playerB]))].map((value) => ({
-    label: short(value),
+    label: value,
     value
   }))
 )
@@ -528,8 +547,43 @@ async function clearEdge() {
   selectedKey.value = ''
   selectionUnavailable.value = false
   await nextTick()
-  if (edgeTrigger?.isConnected) edgeTrigger.focus({ preventScroll: true })
+  if (edgeTrigger?.isConnected) {
+    const list = edgeTrigger.closest<HTMLElement>('.combination-comparison-list')
+    if (list)
+      list.scrollTop = Math.max(
+        0,
+        list.scrollTop +
+          edgeTrigger.getBoundingClientRect().top -
+          list.getBoundingClientRect().top -
+          100
+      )
+    edgeTrigger.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    edgeTrigger.focus({ preventScroll: true })
+  }
 }
+async function selectMembers(members: CombinationMembers) {
+  focus.value = null
+  const edge = relatedSynergy(synergy.value, members)
+  if (!edge || sameRoster.value) {
+    selectedKey.value = ''
+    selectionUnavailable.value = !edge
+    await nextTick()
+    const status = root.value?.querySelector<HTMLElement>('.synergy-unavailable')
+    status?.scrollIntoView({ block: 'center' })
+    status?.focus({ preventScroll: true })
+    return
+  }
+  selectedKey.value = edge.key
+  selectionUnavailable.value = false
+  await nextTick()
+  edgeTrigger =
+    [...(root.value?.querySelectorAll<HTMLElement>('.pair-select') ?? [])].find(
+      (button) => button.dataset.combinationKey === edge.key
+    ) ?? null
+  edgeDetail.value?.scrollIntoView({ block: 'center' })
+  edgeDetail.value?.focus({ preventScroll: true })
+}
+defineExpose({ selectMembers })
 function toggleAll() {
   showAll.value = !showAll.value
   page.value = 1
@@ -629,12 +683,6 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   margin-left: auto;
   font-size: 12px;
   color: var(--ma-muted);
-}
-.synergy-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 24px;
-  min-width: 0;
 }
 .synergy-table-wrap {
   min-width: 0;
@@ -1027,9 +1075,6 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   overflow-wrap: anywhere;
 }
 @container (min-width:1560px) {
-  .synergy-grid.has-selection {
-    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
-  }
   .synergy-evidence {
     display: block;
     border-top: 0;
@@ -1062,6 +1107,26 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   }
   .synergy-toolbar :deep(.n-select) {
     width: 180px;
+  }
+}
+@media (max-height: 600px) {
+  .synergy-toolbar {
+    gap: 8px;
+  }
+  .synergy-toolbar > strong {
+    margin-right: 0;
+  }
+  .synergy-toolbar :deep(.n-select) {
+    width: 140px;
+  }
+  .synergy-comparison thead th {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .synergy-comparison thead th:nth-child(4) > small,
+  .synergy-comparison thead th:nth-child(5) > small {
+    display: inline;
+    margin-left: 4px;
   }
 }
 </style>

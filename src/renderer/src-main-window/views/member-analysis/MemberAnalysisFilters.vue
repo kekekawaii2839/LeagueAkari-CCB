@@ -4,140 +4,164 @@
     aria-label="成员分析筛选"
     :aria-describedby="disabled ? 'member-analysis-prediction-filter-note' : undefined"
   >
-    <NInput
-      :disabled="disabled"
-      v-model:value="store.filters.query"
-      class="member-analysis-filters__query"
-      clearable
-      size="small"
-      aria-label="搜索对局、成员或英雄"
-      placeholder="搜索对局、成员或英雄"
-    />
-    <NSelect
-      :disabled="disabled"
-      v-model:value="store.sampleSize"
-      class="member-analysis-filters__select"
-      :options="sampleOptions"
-      size="small"
-      aria-label="样本范围"
-    />
-    <NSelect
-      :disabled="disabled"
-      v-model:value="store.analysisSide"
-      class="member-analysis-filters__select"
-      :options="sideOptions"
-      size="small"
-      aria-label="阵营"
-    />
-    <NSelect
-      :disabled="disabled"
-      v-model:value="store.filters.outcome"
-      class="member-analysis-filters__select"
-      :options="outcomeOptions"
-      size="small"
-      aria-label="结果"
-    />
-    <NButton
-      :disabled="disabled"
-      size="small"
-      quaternary
-      :aria-expanded="advanced"
-      aria-controls="member-analysis-advanced-filters"
-      @click="advanced = !advanced"
-    >
-      {{ advanced ? '收起高级筛选' : `高级筛选${activeAdvanced ? ` · ${activeAdvanced}` : ''}` }}
-    </NButton>
-    <NButton
-      :disabled="disabled"
-      v-if="activeFilters"
-      size="small"
-      quaternary
-      type="warning"
-      @click="store.resetFilters"
-      >重置 {{ activeFilters }}</NButton
-    >
-    <div
-      v-show="advanced"
-      id="member-analysis-advanced-filters"
-      class="member-analysis-filters__advanced"
-    >
-      <NSelect
-        :disabled="disabled"
-        v-model:value="store.filters.participant"
-        class="member-analysis-filters__select"
-        :options="participantOptions"
-        aria-label="成员"
-      />
-      <NSelect
-        :disabled="disabled"
-        v-model:value="store.filters.matchRole"
-        class="member-analysis-filters__select"
-        :options="roleOptions"
-        aria-label="分路"
-      />
-      <NSelect
-        :disabled="disabled"
-        v-model:value="store.filters.champion"
-        class="member-analysis-filters__select"
-        :options="championOptions"
-        aria-label="英雄"
-      />
-      <NSelect
-        :disabled="disabled"
-        v-model:value="store.filters.patch"
-        class="member-analysis-filters__select"
-        :options="patchOptions"
-        aria-label="版本"
-      />
-      <NInputNumber
-        :disabled="disabled"
-        v-model:value="store.filters.durationMin"
-        class="member-analysis-filters__duration"
-        :min="0"
-        :max="180"
-        clearable
-        aria-label="最短对局分钟"
-        placeholder="最短分钟"
-      />
-      <NInput
-        :disabled="disabled"
-        v-model:value="store.filters.dateFrom"
-        class="member-analysis-filters__date"
-        :input-props="{ type: 'date', 'aria-label': '开始日期' }"
-        placeholder=""
-      />
-      <NInput
-        :disabled="disabled"
-        v-model:value="store.filters.dateTo"
-        class="member-analysis-filters__date"
-        :input-props="{ type: 'date', 'aria-label': '结束日期' }"
-        placeholder=""
-      />
-      <NInputNumber
-        :disabled="disabled"
-        v-model:value="store.filters.durationMax"
-        class="member-analysis-filters__duration"
-        :min="0"
-        :max="180"
-        clearable
-        aria-label="最长对局分钟"
-        placeholder="最长分钟"
-      />
+    <div v-if="compact" class="compact-filter-summary">
+      <NButton
+        size="small"
+        quaternary
+        :aria-expanded="expanded"
+        aria-controls="member-analysis-filter-controls"
+        @click="expanded = !expanded"
+        >{{ uiText(expanded ? 'combinationHideFilters' : 'combinationShowFilters') }}</NButton
+      >
+      <span
+        >{{ sampleOptions.find((option) => option.value === store.sampleSize)?.label }} ·
+        {{ sideOptions.find((option) => option.value === store.analysisSide)?.label }} ·
+        {{ outcomeOptions.find((option) => option.value === store.filters.outcome)?.label }}</span
+      >
+      <p v-if="activeDescriptions.length">{{ activeDescriptions.join(' · ') }}</p>
     </div>
-    <p v-if="activeFilters && !advanced" class="active-filter-summary">
-      当前筛选：{{ activeDescriptions.join(' · ') }}
-    </p>
+    <div
+      id="member-analysis-filter-controls"
+      v-show="!compact || expanded"
+      class="member-analysis-filter-controls"
+    >
+      <NInput
+        :disabled="disabled"
+        v-model:value="store.filters.query"
+        class="member-analysis-filters__query"
+        clearable
+        size="small"
+        aria-label="搜索对局、成员或英雄"
+        placeholder="搜索对局、成员或英雄"
+      />
+      <NSelect
+        :disabled="disabled"
+        v-model:value="store.sampleSize"
+        class="member-analysis-filters__select"
+        :options="sampleOptions"
+        size="small"
+        aria-label="样本范围"
+      />
+      <NSelect
+        :disabled="disabled"
+        v-model:value="store.analysisSide"
+        class="member-analysis-filters__select"
+        :options="sideOptions"
+        size="small"
+        aria-label="阵营"
+      />
+      <NSelect
+        :disabled="disabled"
+        v-model:value="store.filters.outcome"
+        class="member-analysis-filters__select"
+        :options="outcomeOptions"
+        size="small"
+        aria-label="结果"
+      />
+      <NButton
+        :disabled="disabled"
+        size="small"
+        quaternary
+        :aria-expanded="advanced"
+        aria-controls="member-analysis-advanced-filters"
+        @click="advanced = !advanced"
+      >
+        {{ advanced ? '收起高级筛选' : `高级筛选${activeAdvanced ? ` · ${activeAdvanced}` : ''}` }}
+      </NButton>
+      <NButton
+        :disabled="disabled"
+        v-if="activeFilters"
+        size="small"
+        quaternary
+        type="warning"
+        @click="store.resetFilters"
+        >重置 {{ activeFilters }}</NButton
+      >
+      <div
+        v-show="advanced"
+        id="member-analysis-advanced-filters"
+        class="member-analysis-filters__advanced"
+      >
+        <NSelect
+          :disabled="disabled"
+          v-model:value="store.filters.participant"
+          class="member-analysis-filters__select"
+          :options="participantOptions"
+          aria-label="成员"
+        />
+        <NSelect
+          :disabled="disabled"
+          v-model:value="store.filters.matchRole"
+          class="member-analysis-filters__select"
+          :options="roleOptions"
+          aria-label="分路"
+        />
+        <NSelect
+          :disabled="disabled"
+          v-model:value="store.filters.champion"
+          class="member-analysis-filters__select"
+          :options="championOptions"
+          aria-label="英雄"
+        />
+        <NSelect
+          :disabled="disabled"
+          v-model:value="store.filters.patch"
+          class="member-analysis-filters__select"
+          :options="patchOptions"
+          aria-label="版本"
+        />
+        <NInputNumber
+          :disabled="disabled"
+          v-model:value="store.filters.durationMin"
+          class="member-analysis-filters__duration"
+          :min="0"
+          :max="180"
+          clearable
+          aria-label="最短对局分钟"
+          placeholder="最短分钟"
+        />
+        <NInput
+          :disabled="disabled"
+          v-model:value="store.filters.dateFrom"
+          class="member-analysis-filters__date"
+          :input-props="{ type: 'date', 'aria-label': '开始日期' }"
+          placeholder=""
+        />
+        <NInput
+          :disabled="disabled"
+          v-model:value="store.filters.dateTo"
+          class="member-analysis-filters__date"
+          :input-props="{ type: 'date', 'aria-label': '结束日期' }"
+          placeholder=""
+        />
+        <NInputNumber
+          :disabled="disabled"
+          v-model:value="store.filters.durationMax"
+          class="member-analysis-filters__duration"
+          :min="0"
+          :max="180"
+          clearable
+          aria-label="最长对局分钟"
+          placeholder="最长分钟"
+        />
+      </div>
+      <p v-if="activeFilters && !advanced" class="active-filter-summary">
+        当前筛选：{{ activeDescriptions.join(' · ') }}
+      </p>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { NButton, NInput, NInputNumber, NSelect } from 'naive-ui'
 import { computed, ref } from 'vue'
+import { uiText } from './ui-text'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 
 const store = useMemberAnalysisStore()
-defineProps<{ disabled?: boolean }>()
+defineProps<{ disabled?: boolean; compact?: boolean }>()
+const expanded = ref(false)
 const advanced = ref(false)
 const patchVersionCollator = new Intl.Collator(undefined, {
   numeric: true,
@@ -245,6 +269,23 @@ const activeDescriptions = computed(() => {
 
 .member-analysis-filters__query {
   width: clamp(200px, 28vw, 320px);
+}
+.member-analysis-filter-controls {
+  display: contents;
+}
+.compact-filter-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.compact-filter-summary p {
+  flex-basis: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 .member-analysis-filters__sample {
   color: color-mix(in srgb, var(--la-color-text-primary) 58%, transparent);

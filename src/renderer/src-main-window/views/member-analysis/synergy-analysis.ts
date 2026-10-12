@@ -120,7 +120,9 @@ export type SharedHeroStats = {
 
 // Only selected-pair games. Missing identities/hero fields remain explicit buckets;
 // their matches are not dropped from the shared-sample denominator.
-export function sharedHeroStats(edge: SynergyAggregate): SharedHeroStats {
+export function sharedHeroStats(
+  edge: Pick<SynergyAggregate, 'playerA' | 'playerB' | 'games' | 'gamesList'>
+): SharedHeroStats {
   const maps = [
     new Map<string | null, { games: number; wins: number; roles: Map<string | null, number> }>(),
     new Map<string | null, { games: number; wins: number; roles: Map<string | null, number> }>()
