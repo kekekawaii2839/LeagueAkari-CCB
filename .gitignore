@@ -71,3 +71,7 @@ packages/prediction-lab/.runtime/
 /.agents/skills/league-akari-sgp-data-source/
 /.agents/skills/league-akari-shard-development/
 /.agents/skills/league-akari-ui-components/
+
+# Private local agent instructions; never add these files to source control.
+AGENTS.md
+CLAUDE.md
