@@ -31,6 +31,11 @@
 
             <div class="role-table-wrap">
               <table class="role-table" :style="{ minWidth: `${tableMinWidth}px` }">
+                <colgroup>
+                  <col class="member-col" />
+                  <col class="sample-col" />
+                  <col v-for="column in visualColumns" :key="column.key" />
+                </colgroup>
                 <thead>
                   <tr>
                     <th
@@ -50,11 +55,13 @@
                           :aria-label="sortActionLabel(column.key, column.label)"
                           @click="toggleSort(column.key)"
                         >
-                          <span>{{ column.displayName }}</span>
-                          <span v-if="column.unit" class="metric-heading-unit"
-                            >（{{ column.unit }}）</span
-                          >
-                          <span aria-hidden="true">{{
+                          <span class="metric-heading-text">
+                            <span class="metric-heading-name">{{ column.displayName }}</span>
+                            <span v-if="column.unit" class="metric-heading-unit">
+                              （{{ column.unit }}）
+                            </span>
+                          </span>
+                          <span class="sort-direction" aria-hidden="true">{{
                             currentSort?.key === column.key
                               ? currentSort.direction === 'descending'
                                 ? '↓'
@@ -450,6 +457,7 @@ const formatEventTime = (seconds: number) =>
 }
 .role-sections {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 .role-section {
@@ -493,7 +501,9 @@ const formatEventTime = (seconds: number) =>
   font-weight: 700;
 }
 .role-table-wrap {
+  max-width: 100%;
   overflow-x: auto;
+  scroll-padding-left: 268px;
 }
 .role-table {
   width: 100%;
@@ -512,7 +522,6 @@ const formatEventTime = (seconds: number) =>
   position: static;
   z-index: 3;
   top: calc(var(--role-tab-offset) + var(--role-toolbar-height) + var(--role-heading-height));
-  height: 26px;
   color: var(--ma-muted);
   background: var(--la-color-bg-primary);
   box-shadow: 0 1px 0 var(--ma-grid-strong);
@@ -526,13 +535,29 @@ const formatEventTime = (seconds: number) =>
 .role-table tbody tr:hover {
   background: var(--ma-grid);
 }
+.role-table .member-col {
+  width: 168px;
+}
+.role-table .sample-col {
+  width: 100px;
+}
 .role-table .member-column,
 .role-table .member-cell {
-  width: 148px;
+  position: sticky;
+  top: auto;
+  left: 0;
+  z-index: 2;
+  background: var(--la-color-bg-primary);
   text-align: left;
 }
-.role-table .sample-column {
-  width: 88px;
+.role-table .sample-column,
+.role-table .sample-cell {
+  position: sticky;
+  top: auto;
+  left: 168px;
+  z-index: 2;
+  background: var(--la-color-bg-primary);
+  box-shadow: 1px 0 0 var(--ma-grid-strong);
 }
 .sample-cell small {
   display: block;
@@ -546,10 +571,22 @@ const formatEventTime = (seconds: number) =>
   justify-content: flex-end;
   gap: 4px;
 }
+.sortable-heading :deep(.metric-help) {
+  flex: 0 0 24px;
+  min-width: 24px;
+}
+.sortable-heading .sort-button {
+  flex: 1;
+  min-width: 0;
+}
 .member-column .sortable-heading {
   justify-content: flex-start;
 }
 .sort-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 4px;
   min-height: 32px;
   padding: 4px 0;
   border: 0;
@@ -561,8 +598,26 @@ const formatEventTime = (seconds: number) =>
   white-space: normal;
   cursor: pointer;
 }
+.metric-heading-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.metric-heading-name {
+  display: block;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+}
 .metric-heading-unit {
-  display: inline-block;
+  display: block;
+  line-height: 21px;
+  white-space: nowrap;
+}
+.sort-direction {
+  width: 16px;
+  text-align: center;
   white-space: nowrap;
 }
 .sort-button:hover {
@@ -584,9 +639,8 @@ const formatEventTime = (seconds: number) =>
   gap: 7px;
 }
 .member-line strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .member-cell small {
   display: block;
