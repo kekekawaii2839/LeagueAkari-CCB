@@ -1,384 +1,429 @@
 <template>
-  <div class="ma-panel champion-view">
-    <div class="ma-view-toolbar">
-      <span class="ma-view-meta"
-        >{{ scopeCount }} 个成员分路 · {{ champions.length }} 个英雄选择</span
-      >
-    </div>
-
-    <section
-      v-if="selected"
-      ref="heroDetail"
-      tabindex="-1"
-      class="hero-detail"
-      aria-label="当前英雄指标"
-    >
-      <header>
-        <ChampionIcon class="detail-portrait" :champion-id="championId(selected.champion)" />
-        <div>
-          <h3>{{ championDisplayName(selected.champion) }}</h3>
-          <p>
-            {{ short(selected.player) }} · {{ roleName[selected.role] }} · {{ selected.games }} 场
-          </p>
-        </div>
-      </header>
-      <NButton class="close-detail" size="small" quaternary @click="clearHero">
-        {{ uiText('clearSelection') }}
-      </NButton>
-      <div class="detail-result">
-        <span class="result-label">胜率</span>
-        <strong>{{ formatMetric(selected.winRate, 'pct') }}</strong>
-        <span>{{ selected.wins }}胜 {{ selected.games - selected.wins }}负</span>
-        <small>95% 区间 {{ intervalText(selected.wins, selected.games) }}</small>
+  <div ref="root" class="ma-panel champion-view">
+    <template v-if="champions.length">
+      <div class="pool-toolbar">
+        <span>{{ uiText('poolTopHeroes') }}</span>
+        <NButton v-if="sort" size="small" quaternary @click="restoreOrder">{{
+          uiText('poolResetSort')
+        }}</NButton>
+        <span class="pool-legend">{{ uiText('poolLegend') }}</span>
       </div>
-      <div class="detail-sides">
-        <span class="ma-blue"
-          >蓝 {{ sideRate(selected.blueWins, selected.blueGames) }} ·
-          {{ selected.blueGames }} 场</span
-        >
-        <span class="ma-red"
-          >红 {{ sideRate(selected.redWins, selected.redGames) }} · {{ selected.redGames }} 场</span
-        >
-      </div>
-      <dl class="detail-metrics">
-        <div v-for="metric in detailMetrics" :key="metric.key">
-          <dt>
-            <MetricHelp
-              v-if="metric.description"
-              :label="metric.label"
-              :definition="metric.description"
-            /><template v-else>{{ metric.label }}</template>
-          </dt>
-          <dd :class="metric.signed ? toneClass(selected.performance[metric.key]) : ''">
-            {{
-              roleMetricDetail(
-                metric.key,
-                selected.performance[metric.key],
-                metric.signed
-                  ? formatSigned(selected.performance[metric.key], 1)
-                  : formatMetric(selected.performance[metric.key], metric.fmt)
-              )
-            }}
-          </dd>
-        </div>
-      </dl>
-    </section>
-    <div class="role-grid">
-      <section v-for="section in roleSections" :key="section.role" class="role-lane">
-        <header class="role-heading">
-          <span class="role-mark" aria-hidden="true">{{ roleAbbr[section.role] }}</span>
-          <div>
-            <h3>{{ roleName[section.role] }}</h3>
-            <p>{{ section.scopes.length }} 名成员 · {{ section.games }} 场</p>
-          </div>
-        </header>
-
-        <article v-for="scope in section.scopes" :key="scope.key" class="pool-member">
-          <header>
-            <div>
-              <strong>{{ short(scope.player) }}</strong
-              ><small
-                >{{ scope.games }} 场 · {{ scope.rows.length }} 英雄 · 前三
-                {{ formatMetric(scope.topThreeShare, 'pct') }}</small
+      <div class="pool-matrix-scroll" tabindex="0" role="region" :aria-label="uiText('poolMatrix')">
+        <table class="pool-matrix">
+          <colgroup>
+            <col class="member-column" />
+            <col v-for="role in championPoolRoles" :key="role" />
+          </colgroup>
+          <thead ref="matrixHeader" :style="{ transform: `translateY(${headerOffset}px)` }">
+            <tr>
+              <th scope="col" class="member-heading">{{ uiText('poolMember') }}</th>
+              <th
+                v-for="role in championPoolRoles"
+                :key="role"
+                scope="col"
+                :aria-sort="sort?.role === role ? sort.direction : 'none'"
               >
-            </div>
-          </header>
-          <div class="pool-body">
-            <svg
-              class="pool-donut"
-              viewBox="0 0 72 72"
-              role="group"
-              :aria-label="`${short(scope.player)}，${roleName[scope.role]}，英雄选用构成，共 ${scope.games} 场`"
-            >
-              <circle class="track" cx="36" cy="36" r="27" />
-              <circle
-                v-for="(segment, index) in segments(scope)"
-                :key="segment.key"
-                class="segment"
-                :class="{
-                  'segment-selected':
-                    selectedKey === segment.key ||
-                    (segment.key === 'other' &&
-                      scope.rows.slice(visibleHeroes).some((row) => key(row) === selectedKey))
-                }"
-                :aria-pressed="
-                  segment.key === 'other'
-                    ? expandedScopes.has(scope.key)
-                    : selectedKey === segment.key
-                "
-                cx="36"
-                cy="36"
-                r="27"
-                :style="segmentStyle(scope, index)"
-                role="button"
-                tabindex="0"
-                :aria-label="
-                  segment.key === 'other'
-                    ? `其他英雄，${formatMetric(segment.share, 'pct')}`
-                    : `${championDisplayName(scope.rows[index].champion)}，${scope.rows[index].games} 场，${formatMetric(segment.share, 'pct')}`
-                "
-                @click="activateSegment(scope, index, $event)"
-                @keydown.enter.prevent="activateSegment(scope, index, $event)"
-                @keydown.space.prevent="activateSegment(scope, index, $event)"
-              />
-              <text x="36" y="41" text-anchor="middle">
-                {{ scope.games }}
-                <tspan class="unit">场</tspan>
-              </text>
-            </svg>
-            <div class="pool-legend">
-              <div class="hero-options" :class="{ expanded: expandedScopes.has(scope.key) }">
-                <button
-                  v-for="(row, index) in legendRows(scope)"
-                  :key="key(row)"
-                  type="button"
-                  :class="{ selected: selectedKey === key(row) }"
-                  :aria-pressed="selectedKey === key(row)"
-                  @click="selectHero(key(row), $event)"
+                <NPopover
+                  :show="sortMenuRole === role"
+                  trigger="click"
+                  placement="bottom-start"
+                  :style="{ ...popoverTheme, background: 'var(--la-color-bg-primary)' }"
+                  :disabled="excludedRole(role)"
+                  @update:show="(value) => (sortMenuRole = value ? role : null)"
                 >
-                  <i class="legend-swatch" :style="{ background: palette[Math.min(index, 3)] }" />
-                  <ChampionIcon class="legend-portrait" :champion-id="championId(row.champion)" />
-                  <span>{{ championDisplayName(row.champion) }}</span>
-                  <b :aria-label="`选用率 ${formatMetric(row.pickRate, 'pct')}`">{{
-                    formatMetric(row.pickRate, 'pct')
-                  }}</b>
-                  <small class="hero-win-rate">胜率 {{ formatMetric(row.winRate, 'pct') }}</small>
-                </button>
-              </div>
-              <button
-                v-if="scope.rows.length > visibleHeroes"
-                type="button"
-                class="more"
-                :aria-expanded="expandedScopes.has(scope.key)"
-                @click="toggleScope(scope.key)"
+                  <template #trigger
+                    ><button
+                      type="button"
+                      class="pool-sort-trigger"
+                      :data-sort-role="role"
+                      :disabled="excludedRole(role)"
+                      :aria-label="uiText('poolSort', { role: roleNames[role] })"
+                      :aria-expanded="sortMenuRole === role"
+                      @keydown.esc.stop.prevent="closeSortMenu(role)"
+                    >
+                      <span>{{ roleNames[role] }}</span
+                      ><small v-if="sort?.role === role"
+                        >{{ uiText(sort.metric === 'games' ? 'poolSortGames' : 'poolSortHeroes') }}
+                        {{ sort.direction === 'descending' ? '↓' : '↑' }}</small
+                      ><span v-else aria-hidden="true" class="pool-sort-mark">↕</span>
+                    </button></template
+                  >
+                  <div class="pool-sort-menu" @keydown.esc.stop.prevent="closeSortMenu(role)">
+                    <button
+                      v-for="option in sortOptions"
+                      :key="option.label"
+                      type="button"
+                      :aria-pressed="
+                        sort?.role === role &&
+                        sort.metric === option.metric &&
+                        sort.direction === option.direction
+                      "
+                      @click="applySort(role, option.metric, option.direction)"
+                    >
+                      {{ uiText(option.label)
+                      }}<span
+                        v-if="
+                          sort?.role === role &&
+                          sort.metric === option.metric &&
+                          sort.direction === option.direction
+                        "
+                        aria-hidden="true"
+                      >
+                        ✓</span
+                      >
+                    </button>
+                  </div>
+                </NPopover>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="member in sortedMembers" :key="member.player">
+              <th scope="row" class="member-heading">{{ short(member.player) }}</th>
+              <td
+                v-for="role in championPoolRoles"
+                :key="role"
+                :class="{ 'pool-active': activePool?.key === member.pools[role]?.key }"
               >
-                {{
-                  expandedScopes.has(scope.key)
-                    ? '收起'
-                    : `其他 ${scope.rows.length - visibleHeroes} 个`
-                }}
-              </button>
-            </div>
-          </div>
-        </article>
-      </section>
-    </div>
+                <template v-if="member.pools[role]">
+                  <div class="pool-cell-heading">
+                    <span>{{
+                      uiText(
+                        member.pools[role]!.unidentifiedGames ? 'poolIdentified' : 'poolUsed',
+                        { count: member.pools[role]!.heroCount }
+                      )
+                    }}</span>
+                    <span class="pool-cell-games">{{
+                      uiText('poolGames', { count: member.pools[role]!.games })
+                    }}</span>
+                    <button
+                      type="button"
+                      class="pool-more"
+                      :aria-label="
+                        uiText('poolOpen', { member: short(member.player), role: roleNames[role] })
+                      "
+                      aria-haspopup="dialog"
+                      :aria-expanded="activePool?.key === member.pools[role]!.key"
+                      @click="openPool(member.pools[role]!, null, $event)"
+                    >
+                      ···
+                    </button>
+                  </div>
+                  <p v-if="member.pools[role]!.unidentifiedGames" class="pool-missing">
+                    {{ uiText('poolMissing', { count: member.pools[role]!.unidentifiedGames }) }}
+                  </p>
+                  <div class="pool-heroes">
+                    <ChampionPoolPortrait
+                      v-for="row in member.pools[role]!.rows.slice(0, 3)"
+                      :key="row.champion"
+                      :row="row"
+                      :name="championName(row.champion)"
+                      :champion-id="championId(row.champion)"
+                      @open="(event) => openPool(member.pools[role]!, row.champion, event)"
+                    />
+                  </div>
+                </template>
+                <span v-else class="pool-cell-empty">{{
+                  uiText(excludedRole(role) ? 'poolExcludedRole' : 'poolEmptyRole')
+                }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <NPopover
+        :show="!!activePool"
+        ref="poolPopover"
+        trigger="manual"
+        placement="bottom-start"
+        :flip="false"
+        :animated="false"
+        :x="popoverPosition.x"
+        :y="popoverPosition.y"
+        :show-arrow="false"
+        display-directive="if"
+        :style="{
+          ...popoverTheme,
+          width: popoverWidth + 'px',
+          maxWidth: popoverWidth + 'px',
+          boxSizing: 'border-box',
+          padding: '12px',
+          margin: '0',
+          maxHeight: popoverMaxHeight + 'px',
+          '--pool-panel-max-height': popoverPanelMaxHeight + 'px',
+          background: 'var(--la-color-bg-primary)'
+        }"
+        @clickoutside="closePool(false)"
+      >
+        <ChampionPoolPopover
+          ref="poolPanel"
+          v-if="activePool"
+          :key="activePool.key"
+          :pool="activePool"
+          :role-label="roleNames[activePool.role]"
+          :champion-id="championId"
+          :champion-name="championName"
+          :initial-champion="initialChampion"
+          @close="closePool()"
+        />
+      </NPopover>
+    </template>
   </div>
 </template>
-
 <script setup lang="ts">
-import { NButton } from 'naive-ui'
-import MetricHelp from './MetricHelp.vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
+import { NButton, NPopover } from 'naive-ui'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
-import { uiText } from './ui-text'
-import { memberOrder } from './visualization'
-import { computed, nextTick, ref, watch } from 'vue'
-import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
+import { useExtraAssetsStore } from '@renderer-shared/shards/extra-assets/store'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric, roleMetricMeta, roleMetricName, roleMetricDetail } from './metric-defs'
-import { finiteOrNull, formatSigned, wilsonInterval } from './visualization'
-
-const { champions } = useMemberAnalysisData()
+import {
+  buildChampionPools,
+  championPoolRoles,
+  isIdentifiedChampion,
+  sortChampionPools,
+  type ChampionPool,
+  type ChampionPoolRole,
+  type ChampionPoolSort
+} from './champion-pools'
+import ChampionPoolPortrait from './ChampionPoolPortrait.vue'
+import ChampionPoolPopover from './ChampionPoolPopover.vue'
+import { useAkariResourceProvider } from '@renderer-shared/providers/akari-resource'
+import { uiText } from './ui-text'
+import { resolveChampionPoolPosition } from './champion-pool-position'
 const store = useMemberAnalysisStore()
-const lcs = useLeagueClientStore()
-const roleOrder = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] as const
-type Role = (typeof roleOrder)[number]
-type ChampionRow = (typeof champions.value)[number]
-type PoolScope = {
-  key: string
-  role: Role
-  player: string
-  games: number
-  rows: ChampionRow[]
-  topThreeShare: number
-}
-
-const visibleHeroes = 3
-const palette = [
-  'var(--ma-series-1)',
-  'var(--ma-series-2)',
-  'var(--ma-series-3)',
-  'var(--ma-series-5)'
-]
-const segments = (scope: PoolScope) => {
-  const result = scope.rows
-    .slice(0, visibleHeroes)
-    .map((row) => ({ key: key(row), share: row.pickRate }))
-  const rest = scope.rows.slice(visibleHeroes)
-  if (rest.length)
-    result.push({ key: 'other', share: rest.reduce((sum, row) => sum + row.pickRate, 0) })
-  return result
-}
-const activateSegment = (scope: PoolScope, index: number, event: Event) => {
-  if (index < visibleHeroes) void selectHero(key(scope.rows[index]), event)
-  else toggleScope(scope.key)
-}
-const segmentStyle = (scope: PoolScope, index: number) => {
-  const parts = segments(scope)
-  const circumference = Math.PI * 54
-  const length = parts[index].share * circumference
-  const gap = parts.length > 1 ? Math.min(1.5, length * 0.2) : 0
-  return {
-    stroke: palette[index],
-    strokeDasharray: `${Math.max(0, length - gap)} ${circumference}`,
-    strokeDashoffset: `${-parts.slice(0, index).reduce((sum, part) => sum + part.share, 0) * circumference - gap / 2}`
+const { champions } = useMemberAnalysisData()
+const league = useLeagueClientStore()
+const extra = useExtraAssetsStore()
+const resources = useAkariResourceProvider()
+const root = ref<HTMLElement | null>(null)
+const matrixHeader = ref<HTMLElement | null>(null)
+const headerOffset = ref(0)
+function positionHeader() {
+  const scroll = root.value?.querySelector('.pool-matrix-scroll')
+  const nav = root.value?.closest('.member-analysis-ready')?.querySelector('.n-tabs-nav')
+  if (!scroll || !matrixHeader.value || !nav || !root.value?.getClientRects().length) {
+    headerOffset.value = 0
+    return
   }
+  const bounds = scroll.getBoundingClientRect()
+  // Horizontal overflow makes this wrapper the CSS sticky ancestor. Follow the
+  // native page scroller without duplicating the semantic header or its controls.
+  headerOffset.value = Math.max(
+    0,
+    Math.min(
+      nav.getBoundingClientRect().bottom - bounds.top,
+      bounds.height - matrixHeader.value.offsetHeight
+    )
+  )
 }
-const roleName: Record<Role, string> = {
+const roleNames = {
   TOP: '上路',
   JUNGLE: '打野',
   MIDDLE: '中路',
   BOTTOM: '下路',
   UTILITY: '辅助'
+} as const
+const members = computed(() => buildChampionPools(champions.value, store.settings?.members ?? []))
+const sort = computed(() => store.championViewState.sort)
+const sortedMembers = computed(() => sortChampionPools(members.value, sort.value))
+const sortMenuRole = ref<ChampionPoolRole | null>(null)
+const sortOptions = [
+  { metric: 'games', direction: 'descending', label: 'poolSortGamesDesc' },
+  { metric: 'games', direction: 'ascending', label: 'poolSortGamesAsc' },
+  { metric: 'heroes', direction: 'descending', label: 'poolSortHeroesDesc' },
+  { metric: 'heroes', direction: 'ascending', label: 'poolSortHeroesAsc' }
+] as const
+const excludedRole = (role: ChampionPoolRole) =>
+  store.filters.matchRole !== 'all' && store.filters.matchRole !== role
+function sortTrigger(role: ChampionPoolRole) {
+  return root.value?.querySelector<HTMLButtonElement>('[data-sort-role="' + role + '"]')
 }
-const roleAbbr: Record<Role, string> = {
-  TOP: '上',
-  JUNGLE: '野',
-  MIDDLE: '中',
-  BOTTOM: '下',
-  UTILITY: '辅'
-}
-const short = (value: string) => value.split('#')[0]
-const key = (row: ChampionRow) => `${row.player}|${row.role}|${row.champion}`
-const roleSections = computed(() =>
-  roleOrder
-    .map((role) => {
-      const roleRows = champions.value.filter((row) => row.role === role)
-      const players = [...new Set(roleRows.map((row) => row.player))]
-      const scopes: PoolScope[] = players
-        .map((player) => {
-          const rows = roleRows
-            .filter((row) => row.player === player)
-            .sort((a, b) => b.games - a.games || b.winRate - a.winRate)
-          const games = rows.reduce((sum, row) => sum + row.games, 0)
-          return {
-            key: `${role}|${player}`,
-            role,
-            player,
-            games,
-            rows,
-            topThreeShare: rows.slice(0, 3).reduce((sum, row) => sum + row.pickRate, 0)
-          }
-        })
-        .sort(
-          (a, b) =>
-            memberOrder(players, store.settings?.members ?? []).indexOf(a.player) -
-            memberOrder(players, store.settings?.members ?? []).indexOf(b.player)
-        )
-      return { role, scopes, games: scopes.reduce((sum, scope) => sum + scope.games, 0) }
-    })
-    .filter((section) => section.scopes.length)
-)
-const scopeCount = computed(() =>
-  roleSections.value.reduce((sum, section) => sum + section.scopes.length, 0)
-)
-const selectedKey = ref('')
-const heroDetail = ref<HTMLElement | null>(null)
-let heroTrigger: HTMLElement | SVGElement | null = null
-async function selectHero(value: string, event: Event) {
-  heroTrigger = event.currentTarget as HTMLElement | SVGElement
-  if (selectedKey.value === value) return clearHero()
-  selectedKey.value = value
+async function closeSortMenu(role: ChampionPoolRole) {
+  sortMenuRole.value = null
   await nextTick()
-  heroDetail.value?.scrollIntoView({ block: 'nearest' })
-  heroDetail.value?.focus({ preventScroll: true })
+  sortTrigger(role)?.focus()
 }
-async function clearHero() {
-  selectedKey.value = ''
-  await nextTick()
-  if (heroTrigger?.isConnected) heroTrigger.focus()
+async function applySort(
+  role: ChampionPoolRole,
+  metric: ChampionPoolSort['metric'],
+  direction: ChampionPoolSort['direction']
+) {
+  await closePool(false)
+  store.championViewState.sort = { role, metric, direction }
+  await closeSortMenu(role)
+}
+async function restoreOrder() {
+  await closePool(false)
+  store.championViewState.sort = null
 }
 watch(
-  champions,
-  (rows) => {
-    if (!rows.some((row) => key(row) === selectedKey.value)) {
-      selectedKey.value = ''
-    }
-  },
-  { immediate: true }
-)
-const selected = computed(() => champions.value.find((row) => key(row) === selectedKey.value))
-const expandedScopes = ref(new Set<string>())
-const toggleScope = (scopeKey: string) => {
-  const next = new Set(expandedScopes.value)
-  if (next.has(scopeKey)) next.delete(scopeKey)
-  else next.add(scopeKey)
-  expandedScopes.value = next
-}
-const legendRows = (scope: PoolScope) =>
-  expandedScopes.value.has(scope.key) ? scope.rows : scope.rows.slice(0, visibleHeroes)
-const normalizeChampion = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
-const championInfo = (value: string) => {
-  const normalized = normalizeChampion(value)
-  return Object.values(lcs.gameData.champions).find(
-    (champion) =>
-      normalizeChampion(champion.alias) === normalized ||
-      normalizeChampion(champion.name) === normalized
-  )
-}
-const championId = (value: string) => championInfo(value)?.id ?? -1
-const championDisplayName = (value: string) => championInfo(value)?.name ?? value
-const sideRate = (wins: number, games: number) => (games ? formatMetric(wins / games, 'pct') : '—')
-const intervalText = (wins: number, games: number) => {
-  const interval = wilsonInterval(wins, games)
-  return interval
-    ? `${formatMetric(interval.low, 'pct')}–${formatMetric(interval.high, 'pct')}`
-    : '—'
-}
-const toneClass = (value: unknown) => {
-  const number = finiteOrNull(value)
-  return number === null || number === 0 ? '' : number > 0 ? 'ma-positive' : 'ma-negative'
-}
-const detailMetrics = [
-  {
-    key: 'kda',
-    label: roleMetricName('kda'),
-    fmt: 'num',
-    signed: false,
-    description: roleMetricMeta.kda.description
-  },
-  {
-    key: 'dpm',
-    label: roleMetricName('dpm'),
-    fmt: 'num',
-    signed: false,
-    description: roleMetricMeta.dpm.description
-  },
-  {
-    key: 'gpm',
-    label: roleMetricName('gpm'),
-    fmt: 'num',
-    signed: false,
-    description: roleMetricMeta.gpm.description
-  },
-  {
-    key: 'kp',
-    label: roleMetricName('kp'),
-    fmt: 'pct',
-    signed: false,
-    description: roleMetricMeta.kp.description
-  },
-  {
-    key: 'damageConversion',
-    label: roleMetricName('damageConversion'),
-    fmt: 'pct',
-    signed: false,
-    description: roleMetricMeta.damageConversion.description
-  },
-  {
-    key: 'gd15',
-    label: roleMetricName('gd15'),
-    fmt: 'num',
-    signed: true,
-    description: roleMetricMeta.gd15.description
+  () => store.filters.matchRole,
+  () => {
+    if (sort.value && excludedRole(sort.value.role)) store.championViewState.sort = null
   }
-] as const
+)
+const poolKey = ref<string | null>(null)
+const initialChampion = ref<string | null>(null)
+const activePool = computed(() =>
+  members.value
+    .flatMap((member) => Object.values(member.pools))
+    .find((pool) => pool.key === poolKey.value)
+)
+const popoverWidth = ref(560)
+const popoverMaxHeight = ref(544)
+const popoverPanelMaxHeight = ref(520)
+const poolPanel = ref<InstanceType<typeof ChampionPoolPopover> | null>(null)
+const poolPopover = ref<InstanceType<typeof NPopover> | null>(null)
+const popoverTheme = ref<Record<string, string>>({})
+const popoverPosition = ref({ x: 0, y: 0 })
+let poolTrigger: HTMLElement | null = null
+function positionPool() {
+  if (!root.value) return
+  const theme = getComputedStyle(root.value)
+  popoverTheme.value = Object.fromEntries(
+    [
+      '--ma-blue',
+      '--ma-red',
+      '--ma-positive',
+      '--ma-negative',
+      '--ma-grid',
+      '--ma-grid-strong',
+      '--ma-muted',
+      '--ma-hover',
+      '--ma-series-1'
+    ].map((name) => [name, theme.getPropertyValue(name)])
+  )
+  if (!activePool.value) return
+  if (!poolTrigger?.isConnected) {
+    void closePool(false)
+    return
+  }
+  const page =
+    root.value.closest('.member-analysis-page')?.getBoundingClientRect() ??
+    root.value.getBoundingClientRect()
+  const trigger = poolTrigger.getBoundingClientRect()
+  const scroller = root.value.closest('.member-analysis-scroll')?.getBoundingClientRect()
+  const nav = root.value.closest('.member-analysis-ready')?.querySelector('.n-tabs-nav')
+  const bounds = {
+    left: Math.max(0, page.left) + 8,
+    right: Math.min(window.innerWidth, page.right) - 8,
+    top:
+      Math.max(
+        scroller?.top ?? 0,
+        nav?.getBoundingClientRect().bottom ?? 0,
+        matrixHeader.value?.getBoundingClientRect().bottom ?? 0
+      ) + 8,
+    bottom: Math.min(window.innerHeight, scroller?.bottom ?? window.innerHeight) - 8
+  }
+  const body = (poolPanel.value?.$el as HTMLElement | undefined)?.closest<HTMLElement>('.n-popover')
+  const position = resolveChampionPoolPosition(bounds, trigger, body?.offsetHeight || undefined)
+  if (!position) {
+    void closePool(false)
+    return
+  }
+  popoverWidth.value = position.width
+  popoverMaxHeight.value = position.maxHeight
+  popoverPanelMaxHeight.value = position.panelMaxHeight
+  // Akari offsets vueuc's measured viewport below the native titlebar. Manual
+  // point coordinates are relative to that viewport, unlike client rects.
+  const measuredView = document.getElementById('v-binder-view-measurer')?.getBoundingClientRect()
+  const titlebarHeight =
+    Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--la-titlebar-height')
+    ) || 0
+  popoverPosition.value = {
+    x: position.x - (measuredView?.left ?? 0),
+    y: position.y - (measuredView?.top ?? titlebarHeight)
+  }
+  void nextTick(() => poolPopover.value?.syncPosition())
+}
+async function openPool(pool: ChampionPool, champion: string | null, event: MouseEvent) {
+  sortMenuRole.value = null
+  poolTrigger = event.currentTarget as HTMLElement
+  initialChampion.value = champion
+  poolKey.value = pool.key
+  positionPool()
+  await nextTick()
+  positionPool()
+}
+async function closePool(restoreFocus = true) {
+  const wasOpen = !!poolKey.value
+  poolKey.value = null
+  initialChampion.value = null
+  await nextTick()
+  if (wasOpen && restoreFocus && poolTrigger?.isConnected)
+    poolTrigger.focus({ preventScroll: true })
+}
+watch(champions, () => {
+  if (poolKey.value && !activePool.value) void closePool(false)
+  else if (activePool.value) {
+    if (!activePool.value.rows.some((row) => row.champion === initialChampion.value))
+      initialChampion.value = null
+    void nextTick(positionPool)
+  }
+})
+useEventListener(typeof window === 'undefined' ? undefined : window, 'resize', positionPool)
+useEventListener(typeof window === 'undefined' ? undefined : window, 'resize', positionHeader)
+useEventListener(root, 'scroll', positionPool, { capture: true })
+useResizeObserver(
+  computed(() => poolPanel.value?.$el as HTMLElement | undefined),
+  positionPool
+)
+useResizeObserver(root, () => {
+  if (!root.value?.getClientRects().length) {
+    sortMenuRole.value = null
+    void closePool(false)
+  } else {
+    positionHeader()
+    positionPool()
+  }
+})
+useEventListener(
+  computed(() => root.value?.closest('.member-analysis-scroll')),
+  'scroll',
+  () => {
+    positionHeader()
+    positionPool()
+  },
+  { passive: true }
+)
+useMutationObserver(
+  typeof document === 'undefined' ? undefined : document.documentElement,
+  positionPool,
+  { attributes: true, attributeFilter: ['data-theme', 'data-theme-id'] }
+)
+onBeforeUnmount(() => {
+  poolTrigger = null
+})
+const short = (value: string) => value.split('#')[0]
+const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
+const championInfos = computed(() => {
+  const index = new Map<string, { id: number; name: string }>()
+  for (const hero of Object.values(extra.heroListMap)) {
+    const info = { id: Number(hero.heroId), name: hero.name }
+    index.set(normalize(hero.alias), info)
+    index.set(normalize(hero.name), info)
+    if (hero.title) index.set(normalize(hero.title), info)
+  }
+  for (const hero of Object.values(league.gameData.champions)) {
+    const info = { id: hero.id, name: hero.name }
+    index.set(normalize(hero.alias), info)
+    index.set(normalize(hero.name), info)
+  }
+  return index
+})
+const championId = (name: string) => championInfos.value.get(normalize(name))?.id ?? -1
+const championName = (name: string) => {
+  if (!isIdentifiedChampion(name)) return uiText('poolUnknown')
+  const info = championInfos.value.get(normalize(name))
+  return info ? resources.champions.name(info.id) : name
+}
 </script>
-
 <style scoped>
 .champion-view {
-  container-type: inline-size;
+  min-width: 0;
   font-family:
     system-ui,
     -apple-system,
@@ -386,336 +431,174 @@ const detailMetrics = [
     'Segoe UI',
     sans-serif;
   font-size: 14px;
-  line-height: 1.5;
-}
-.role-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
-}
-.role-lane {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.role-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--ma-grid-strong);
-}
-.role-heading h3,
-.hero-detail h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-.role-heading p,
-.hero-detail p {
-  margin: 4px 0 0;
-  color: var(--ma-muted);
-  font-size: 12px;
-}
-.role-mark {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  color: var(--ma-muted);
-  font-size: 16px;
-}
-.pool-member {
-  min-width: 0;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--ma-grid);
-}
-.pool-member > header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-.pool-member > header div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 4px;
-}
-.pool-member > header strong {
-  overflow-wrap: anywhere;
-  font-size: 14px;
-  font-weight: 600;
-}
-.pool-member > header small,
-.pool-member > header > span {
-  color: var(--ma-muted);
-  font-size: 12px;
-}
-.pool-body {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-}
-.pool-donut {
-  align-self: center;
-  margin: 0;
-  width: 64px;
-  height: 64px;
-  overflow: visible;
-}
-.pool-donut circle {
-  fill: none;
-  transform: rotate(-90deg);
-  transform-origin: 36px 36px;
-  stroke-width: 5.5px;
-}
-.pool-donut .segment {
-  cursor: pointer;
-}
-.pool-donut .segment:focus-visible,
-.pool-donut .segment:hover {
-  stroke-width: 7px;
-}
-.pool-donut .track {
-  stroke: var(--ma-grid);
-}
-.pool-donut .segment-selected {
-  stroke-width: 8px;
-}
-.pool-donut text {
-  pointer-events: none;
-  fill: currentColor;
-  font-family: system-ui, sans-serif;
-  font-weight: 400;
-  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-.pool-donut .unit {
-  fill: var(--ma-muted);
-  font-weight: 400;
-  font-size: 14px;
+.pool-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  color: var(--ma-muted);
+  font-size: 12px;
 }
 .pool-legend {
-  display: contents;
+  margin-left: auto;
 }
-.hero-options {
-  align-self: center;
-  grid-column: 2;
-  grid-row: 1;
+.pool-matrix-scroll {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
-.pool-legend button.more {
-  grid-column: 2;
+.pool-matrix-scroll:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
 }
-.hero-options {
-  display: grid;
-  gap: 0;
+.pool-matrix {
+  width: 100%;
+  min-width: 1040px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  text-align: left;
 }
-.hero-options.expanded {
-  max-height: 168px;
-  overflow-y: auto;
-  scrollbar-width: thin;
+.pool-matrix .member-column {
+  width: 100px;
 }
-
-.pool-legend button {
-  display: grid;
-  grid-template-columns: 3px 20px minmax(0, 1fr) 44px;
+.pool-matrix th,
+.pool-matrix td {
+  border-bottom: 1px solid var(--ma-grid);
+  padding: 10px 8px;
+}
+.pool-matrix th {
+  font-weight: 600;
+}
+.pool-matrix td {
+  vertical-align: top;
+}
+.pool-matrix thead th {
+  padding-block: 8px;
+  background: var(--la-color-bg-primary);
+}
+.pool-matrix thead {
+  position: relative;
+  z-index: 3;
+  background: var(--la-color-bg-primary);
+  box-shadow: 0 1px 0 var(--ma-grid-strong);
+}
+.pool-matrix .member-heading {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--la-color-bg-primary);
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.pool-matrix thead .member-heading {
+  color: var(--ma-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.pool-sort-trigger {
+  display: flex;
   align-items: center;
-  gap: 4px;
-  min-height: 28px;
-  padding: 1px 2px;
-  background: transparent;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-height: 32px;
   color: inherit;
   font: inherit;
-  font-size: 13px;
-  line-height: 1.4;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
   text-align: left;
-  border: 1px solid transparent;
-  border-radius: 6px;
+}
+.pool-sort-trigger small,
+.pool-sort-mark {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ma-muted);
+}
+.pool-sort-trigger:disabled {
+  cursor: default;
+}
+.pool-sort-trigger:focus-visible,
+.pool-more:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+}
+.pool-sort-menu {
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pool-sort-menu button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 10px;
   cursor: pointer;
 }
-.pool-legend button:hover {
+.pool-sort-menu button:hover,
+.pool-sort-menu button[aria-pressed='true'] {
   background: var(--ma-hover);
 }
-.pool-legend button.selected {
-  background: var(--ma-hover);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.pool-sort-menu button:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: -1px;
 }
-.pool-legend button > span {
-  overflow-wrap: anywhere;
-}
-.pool-legend button b {
-  text-align: right;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.pool-legend button.more {
-  display: block;
-  color: var(--ma-muted);
-  font-size: 12px;
-}
-.hero-options button {
-  row-gap: 0;
-  padding-block: 3px;
-}
-.hero-options .legend-swatch,
-.hero-options .legend-portrait {
-  grid-row: 1 / 3;
-}
-.hero-options button > span {
-  grid-column: 3;
-  grid-row: 1;
-}
-.hero-options button > b {
-  grid-column: 4;
-  grid-row: 1;
-}
-.hero-win-rate {
-  grid-column: 3 / 5;
-  grid-row: 2;
-  color: var(--ma-muted);
+.pool-cell-heading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  align-items: center;
   font-size: 12px;
   line-height: 1.5;
-  font-weight: 400;
-  font-variant-numeric: tabular-nums;
 }
-.legend-portrait {
-  width: 20px;
-  height: 20px;
-  border-radius: 3px;
+.pool-cell-games {
+  margin-left: auto;
+  color: var(--ma-muted);
 }
-.legend-swatch {
-  width: 4px;
-  height: 12px;
-  border-radius: 1px;
+.pool-more {
+  font: inherit;
+  color: var(--ma-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 2px;
+  cursor: pointer;
 }
-.hero-detail {
-  margin: 16px 0 8px;
-  padding: 20px;
+.pool-more:hover {
   background: var(--ma-hover);
-  border-radius: 8px;
+}
+.pool-heroes {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 20px 32px;
-  align-items: center;
-  outline: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  align-items: stretch;
+  margin-top: 4px;
 }
-.hero-detail:focus-visible {
-  box-shadow: inset 0 0 0 1px var(--la-color-link);
+.pool-cell-empty {
+  display: block;
+  padding: 12px 0;
+  color: var(--ma-muted);
+  font-size: 12px;
 }
-.hero-detail header {
-  grid-column: 1 / 3;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.detail-portrait {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  border-radius: 6px;
-}
-.close-detail {
-  grid-column: 3;
-  grid-row: 1;
-  justify-self: end;
-}
-.detail-result {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  font-variant-numeric: tabular-nums;
-}
-.result-label,
-.detail-result small {
+.pool-missing {
+  margin: 4px 0;
   font-size: 12px;
   color: var(--ma-muted);
 }
-.detail-result strong {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-}
-.detail-result small {
-  flex-basis: 100%;
-}
-.detail-sides {
-  grid-column: 2 / 4;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 24px;
-  font-size: 12px;
-}
-.detail-metrics {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 16px;
-  margin: 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--ma-grid-strong);
-}
-.detail-metrics dt {
-  font-size: 12px;
-  color: var(--ma-muted);
-}
-.detail-metrics dd {
-  margin: 6px 0 0;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
-}
-@container (max-width: 1080px) {
-  .role-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px 24px;
-  }
-  .detail-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-@container (max-width: 720px) {
-  .role-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .hero-detail {
-    gap: 16px;
-    padding: 16px;
-  }
-  .detail-result {
-    grid-column: 1 / -1;
-  }
-  .detail-sides {
-    grid-column: 1 / -1;
-  }
-}
-@container (max-width: 440px) {
-  .role-grid {
-    grid-template-columns: 1fr;
-  }
-  .detail-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.pool-active {
+  background: var(--ma-hover);
 }
 </style>

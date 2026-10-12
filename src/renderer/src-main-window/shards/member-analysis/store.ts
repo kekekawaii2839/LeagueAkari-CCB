@@ -55,6 +55,13 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     side: 'all' as 'all' | 'Blue' | 'Red',
     lineup: { TOP: '', JUNGLE: '', MIDDLE: '', BOTTOM: '', UTILITY: '' }
   })
+  const championViewState = reactive({
+    sort: null as {
+      role: 'TOP' | 'JUNGLE' | 'MIDDLE' | 'BOTTOM' | 'UTILITY'
+      metric: 'games' | 'heroes'
+      direction: 'ascending' | 'descending'
+    } | null
+  })
   const filters = reactive<MemberAnalysisFilters>({
     outcome: 'all',
     patch: 'all',
@@ -106,6 +113,7 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     sideBreakdown,
     scatterViewState,
     predictionViewState,
+    championViewState,
     filters,
     viewState,
     resetFilters
