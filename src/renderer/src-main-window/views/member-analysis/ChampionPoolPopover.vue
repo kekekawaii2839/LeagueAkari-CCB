@@ -112,7 +112,8 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { useMediaQuery } from '@vueuse/core'
 import { NButton, NIcon, NScrollbar } from 'naive-ui'
 import ChevronUp20Regular from '@vicons/fluent/es/ChevronUp20Regular'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
@@ -121,6 +122,7 @@ import MetricHelp from './MetricHelp.vue'
 import { formatMetric, roleMetricMeta, roleMetricName, roleMetricDetail } from './metric-defs'
 import { finiteOrNull, formatSigned, wilsonInterval } from './visualization'
 import { uiText } from './ui-text'
+import { createChampionPoolMotion } from './champion-pool-motion'
 const props = defineProps<{
   pool: ChampionPool
   roleLabel: string
@@ -138,6 +140,17 @@ const selectedChampion = ref(props.initialChampion)
 const selected = computed(() =>
   props.pool.rows.find((row) => row.champion === selectedChampion.value)
 )
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+const detailMotion = createChampionPoolMotion(() => reducedMotion.value)
+watch(reducedMotion, () => detailMotion.finish())
+watch(selected, (row) => {
+  detailMotion.cancel()
+  if (!row) return
+  void nextTick(() => {
+    if (selected.value === row) detailMotion.enter(detail.value)
+  })
+})
+onBeforeUnmount(() => detailMotion.cancel())
 watch(
   () => [props.pool.key, props.initialChampion],
   async () => {
@@ -183,6 +196,7 @@ function scrollToDetail() {
 onMounted(async () => {
   await nextTick()
   if (selected.value) scrollToDetail()
+  if (selected.value) detailMotion.enter(detail.value)
   closeButton.value?.$el?.focus({ preventScroll: true })
 })
 function onEscape(event: KeyboardEvent) {

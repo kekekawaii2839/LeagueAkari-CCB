@@ -132,7 +132,7 @@
         </table>
       </div>
       <NPopover
-        :show="!!activePool"
+        :show="!!renderedPool"
         ref="poolPopover"
         trigger="manual"
         placement="bottom-start"
@@ -149,18 +149,21 @@
           boxSizing: 'border-box',
           padding: '12px',
           margin: '0',
+          pointerEvents: activePool ? undefined : 'none',
           maxHeight: popoverMaxHeight + 'px',
           '--pool-panel-max-height': popoverPanelMaxHeight + 'px',
           background: 'var(--la-color-bg-primary)'
         }"
-        @clickoutside="closePool(false)"
+        @clickoutside="onPoolClickOutside"
       >
         <ChampionPoolPopover
           ref="poolPanel"
-          v-if="activePool"
-          :key="activePool.key"
-          :pool="activePool"
-          :role-label="roleNames[activePool.role]"
+          v-if="renderedPool"
+          :key="renderedPool.key"
+          :pool="renderedPool"
+          :inert="!activePool || undefined"
+          :aria-hidden="!activePool || undefined"
+          :role-label="roleNames[renderedPool.role]"
           :champion-id="championId"
           :champion-name="championName"
           :initial-champion="initialChampion"
@@ -171,8 +174,13 @@
   </div>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
+import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, shallowRef, watch } from 'vue'
+import {
+  useEventListener,
+  useMediaQuery,
+  useMutationObserver,
+  useResizeObserver
+} from '@vueuse/core'
 import { NButton, NPopover } from 'naive-ui'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
@@ -192,6 +200,7 @@ import ChampionPoolPopover from './ChampionPoolPopover.vue'
 import { useAkariResourceProvider } from '@renderer-shared/providers/akari-resource'
 import { uiText } from './ui-text'
 import { resolveChampionPoolPosition } from './champion-pool-position'
+import { createChampionPoolMotion } from './champion-pool-motion'
 const store = useMemberAnalysisStore()
 const { champions } = useMemberAnalysisData()
 const league = useLeagueClientStore()
@@ -271,6 +280,14 @@ const activePool = computed(() =>
     .flatMap((member) => Object.values(member.pools))
     .find((pool) => pool.key === poolKey.value)
 )
+const renderedPool = shallowRef<ChampionPool | null>(null)
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+const poolMotion = createChampionPoolMotion(() => reducedMotion.value)
+let interactionSequence = 0
+watch(reducedMotion, () => poolMotion.finish())
+watch(activePool, (pool) => {
+  if (pool) renderedPool.value = pool
+})
 const popoverWidth = ref(560)
 const popoverMaxHeight = ref(544)
 const popoverPanelMaxHeight = ref(520)
@@ -340,24 +357,56 @@ function positionPool() {
   void nextTick(() => poolPopover.value?.syncPosition())
 }
 async function openPool(pool: ChampionPool, champion: string | null, event: MouseEvent) {
+  const sequence = ++interactionSequence
+  poolMotion.cancel()
   sortMenuRole.value = null
   poolTrigger = event.currentTarget as HTMLElement
   initialChampion.value = champion
   poolKey.value = pool.key
+  renderedPool.value = pool
   positionPool()
   await nextTick()
+  if (sequence !== interactionSequence || !activePool.value) return
   positionPool()
+  poolMotion.enter(
+    (poolPanel.value?.$el as HTMLElement | undefined)?.closest<HTMLElement>('.n-popover')
+  )
 }
 async function closePool(restoreFocus = true) {
+  const sequence = ++interactionSequence
   const wasOpen = !!poolKey.value
   poolKey.value = null
-  initialChampion.value = null
+  const clear = () => {
+    renderedPool.value = null
+    initialChampion.value = null
+  }
+  if (!restoreFocus || !wasOpen) {
+    poolMotion.cancel()
+    clear()
+  }
   await nextTick()
+  if (sequence !== interactionSequence) return
   if (wasOpen && restoreFocus && poolTrigger?.isConnected)
     poolTrigger.focus({ preventScroll: true })
+  if (wasOpen && restoreFocus)
+    poolMotion.leave(
+      (poolPanel.value?.$el as HTMLElement | undefined)?.closest<HTMLElement>('.n-popover'),
+      clear
+    )
+}
+function onPoolClickOutside(event: MouseEvent) {
+  // The manual popover remains mounted during exit. A new pool entrance is
+  // outside that surface but must win over its document click-outside handler.
+  if (
+    event.target instanceof Element &&
+    root.value?.contains(event.target) &&
+    event.target.closest('.pool-hero, .pool-more')
+  )
+    return
+  void closePool(false)
 }
 watch(champions, () => {
-  if (poolKey.value && !activePool.value) void closePool(false)
+  if (renderedPool.value && !activePool.value) void closePool(false)
   else if (activePool.value) {
     if (!activePool.value.rows.some((row) => row.champion === initialChampion.value))
       initialChampion.value = null
@@ -394,9 +443,17 @@ useMutationObserver(
   positionPool,
   { attributes: true, attributeFilter: ['data-theme', 'data-theme-id'] }
 )
-onBeforeUnmount(() => {
+function disposePool() {
+  interactionSequence++
+  poolMotion.cancel()
+  poolKey.value = null
+  renderedPool.value = null
+  initialChampion.value = null
+  sortMenuRole.value = null
   poolTrigger = null
-})
+}
+onDeactivated(disposePool)
+onBeforeUnmount(disposePool)
 const short = (value: string) => value.split('#')[0]
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
 const championInfos = computed(() => {
