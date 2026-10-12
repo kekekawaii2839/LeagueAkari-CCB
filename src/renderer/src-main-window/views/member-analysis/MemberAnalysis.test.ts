@@ -4,7 +4,7 @@ import './test-i18n'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { createSSRApp, h } from 'vue'
+import { createSSRApp, defineComponent, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
@@ -13,7 +13,9 @@ import MemberAnalysis from './MemberAnalysis.vue'
 
 const renderer = vi.hoisted(() => ({
   reload: vi.fn(),
-  updateSettings: vi.fn()
+  updateSettings: vi.fn(),
+  route: { params: { section: 'roles' } },
+  replace: vi.fn()
 }))
 
 vi.mock('@renderer-shared/shards', () => ({
@@ -22,12 +24,18 @@ vi.mock('@renderer-shared/shards', () => ({
 
 vi.mock('vue-router', () => ({
   RouterLink: (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.default?.(),
-  useRoute: () => ({ params: { section: 'roles' } }),
-  useRouter: () => ({ replace: vi.fn() })
+  useRoute: () => renderer.route,
+  useRouter: () => ({ replace: renderer.replace })
 }))
 
 vi.mock('./MemberAnalysisHeader.vue', () => ({ default: { setup: () => () => null } }))
-vi.mock('./MemberAnalysisFilters.vue', () => ({ default: { setup: () => () => null } }))
+vi.mock('./MemberAnalysisFilters.vue', () => ({
+  default: defineComponent({
+    props: { disabled: Boolean },
+    setup: (props) => () =>
+      h('input', { 'aria-label': '复盘筛选测试入口', disabled: props.disabled })
+  })
+}))
 vi.mock('./MemberAnalysisSettingsDrawer.vue', () => ({
   default: { setup: () => () => null }
 }))
@@ -130,14 +138,17 @@ async function renderState(
 }
 
 describe('member analysis native page', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    renderer.route.params.section = 'roles'
+  })
 
   test.each([
     ['feature-disabled', '成员分析已关闭'],
     ['first-run', '尚未生成分析数据'],
     ['loading', '正在初始化成员分析'],
     ['empty', '当前筛选范围内没有可显示的对局'],
-    ['error', 'synthetic degraded state'],
+    ['error', '无法读取分析数据，请稍后重试。'],
     ['ready', '成员分路']
   ] as const)('renders the %s state', async (state, expectedText) => {
     expect(await renderState(state)).toContain(expectedText)
@@ -149,7 +160,43 @@ describe('member analysis native page', () => {
     expect(html).toContain('完整指标与事件明细')
     expect(html).toContain('蓝红方拆分')
     expect(html).toContain('被抓统计')
+    expect(html).toContain('阵容胜率预测')
+    expect(html.match(/aria-label="五排阵容胜率预测"/g)).toHaveLength(1)
+    expect(html).toContain('预测方位')
+    expect(html).toContain('对局列表')
+    expect(html).not.toContain('逐场对手快照')
+    expect(html).not.toContain('对局明细')
   })
+
+  test('does not expose internal error codes or service messages in the error state', async () => {
+    const html = await renderState('error')
+    expect(html).not.toContain('INTERNAL_ERROR')
+    expect(html).not.toContain('synthetic degraded state')
+    expect(html).toContain('重试')
+  })
+
+  test('maps the retired rank-list address to the single match list', async () => {
+    renderer.route.params.section = 'opponent-ranks'
+    await renderState('ready')
+    expect(renderer.replace).toHaveBeenCalledWith({
+      name: 'member-analysis',
+      params: { section: 'matches' }
+    })
+  })
+
+  test.each(['roles', 'prediction', 'matches'])(
+    'preserves the toolbar and range on %s',
+    async (section) => {
+      renderer.route.params.section = section
+      const html = await renderState('ready')
+      const filter = html.match(/<input[^>]*aria-label="复盘筛选测试入口"[^>]*>/)?.[0]
+      expect(filter).toBeDefined()
+      expect(/\bdisabled(?:=|\s|>)/.test(filter!)).toBe(section === 'prediction')
+      expect(html).toContain('aria-label="当前分析范围"')
+      expect(html).toContain('复盘范围 0 场')
+      expect(html).toContain('顶部复盘筛选及范围不用于预测')
+    }
+  )
 
   test.each([
     ['light', 'light'],

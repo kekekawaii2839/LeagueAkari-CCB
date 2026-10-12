@@ -15,7 +15,9 @@
     "src/preload/*.d.ts",
     "src/shared/**/*",
     "src/renderer-shared/**/*",
-    "uno.config.*"
+    "uno.config.*",
+    "packages/prediction-lab/src/**/*.ts",
+    "packages/prediction-lab/adapters/**/*.ts"
   ],
   "compilerOptions": {
     "target": "ESNext",

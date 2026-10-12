@@ -1,9 +1,10 @@
 <template>
   <div class="ma-panel champion-view">
-    <header class="ma-view-heading">
-      <div><h2>英雄池</h2></div>
-      <span>{{ scopeCount }} 个成员分路 · {{ champions.length }} 个英雄选择</span>
-    </header>
+    <div class="ma-view-toolbar">
+      <span class="ma-view-meta"
+        >{{ scopeCount }} 个成员分路 · {{ champions.length }} 个英雄选择</span
+      >
+    </div>
 
     <section
       v-if="selected"

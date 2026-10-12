@@ -6,6 +6,8 @@ import { defineConfig, swcPlugin } from 'electron-vite'
 import { resolve } from 'path'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
+import { nativePredictionFingerprint } from './src/main/shards/member-analysis/prediction/native-prediction-source-loader'
+
 const minify = process.env.NODE_ENV === 'production'
 const MAIN_EXTERNALS = [
   'electron',
@@ -51,6 +53,11 @@ const LC_CUSTOM_TAGS = new Set([
 
 export default defineConfig({
   main: {
+    define: {
+      __NATIVE_PREDICTION_BUILD_FINGERPRINT__: JSON.stringify(
+        nativePredictionFingerprint(__dirname)
+      )
+    },
     plugins: [swcPlugin(), yaml()],
     // Vite 8 uses Oxc for its default transform. Keep SWC as the sole transform for
     // legacy decorators and emitDecoratorMetadata until swcPlugin disables Oxc itself.

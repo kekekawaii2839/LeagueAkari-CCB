@@ -1,8 +1,8 @@
 import type { MemberAnalysisJob, MemberAnalysisSettings } from '@shared/shards/member-analysis'
 import { randomUUID } from 'node:crypto'
 
-import type { MemberAnalysisCollector } from './collector'
-import type { MemberAnalysisRepository } from './repository'
+import type { MemberAnalysisCollector } from '../collector'
+import type { MemberAnalysisRepository } from '../repository'
 import type { MemberAnalysisWorkerSupervisor, WorkerMessage } from './worker-supervisor'
 
 export class MemberAnalysisPipeline {
@@ -83,10 +83,15 @@ export class MemberAnalysisPipeline {
         scanLimitPerMember: settings.scanLimitPerMember,
         historyTag: settings.historyTag,
         signal,
-        onProgress: (processed, total) =>
+        onProgress: (processed, total, message) =>
           this._update({
-            progress: total ? 0.05 + (processed / total) * 0.4 : 0.45,
-            message: `collecting ${processed}/${total}`,
+            progress: Math.max(
+              this._job?.progress ?? 0,
+              message === 'loading-opponent-ranks'
+                ? 0.4 + (total ? processed / total : 1) * 0.05
+                : 0.05 + (total ? processed / total : 1) * 0.35
+            ),
+            message: `${message === 'loading-opponent-ranks' ? 'opponent-ranks' : 'collecting'} ${processed}/${total}`,
             checkpointAt: new Date().toISOString()
           })
       })
@@ -117,7 +122,7 @@ export class MemberAnalysisPipeline {
       if (message.type !== 'result' || message.status !== 'completed')
         throw new Error('worker did not complete successfully')
       this._update({ status: 'publishing', progress: 0.95, message: 'publishing' })
-      this._repository.publishStaging()
+      this._repository.publishStaging(collected.rankSnapshots)
       this._finish('completed', 'completed')
     } catch (error) {
       if (signal.aborted || (error instanceof Error && error.message === 'cancelled')) {

@@ -3,7 +3,7 @@ import type { AkariLogger } from '@main/shards/logger-factory'
 import type { SetterSettingService } from '@main/shards/setting-factory/setter-setting-service'
 import type { WindowManagerMain } from '@main/shards/window-manager'
 
-import type { MemberAnalysisPipeline } from './pipeline'
+import type { MemberAnalysisPipeline } from './execution'
 import type { MemberAnalysisRepository } from './repository'
 import type { MemberAnalysisRuntimeState, MemberAnalysisSettingsState } from './state'
 

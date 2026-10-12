@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { OpponentRanksSchema } from './opponent-ranks'
+
 export const MEMBER_ANALYSIS_CONTRACT_VERSION = 1 as const
 export const MEMBER_ANALYSIS_DATA_VERSION = 4 as const
 
@@ -154,6 +156,8 @@ export const MemberAnalysisGameSchema = z
     win: z.boolean(),
     duration: z.number().finite().nonnegative(),
     roster: z.string().max(512),
+    // Additive, main-owned current snapshots; absent in legacy worker datasets.
+    opponentRanks: OpponentRanksSchema.optional(),
     dragon15Diff: z.number().finite(),
     grub15Diff: z.number().finite(),
     objectiveFight15Diff: z.number().finite(),
@@ -395,6 +399,7 @@ export const MemberAnalysisCapabilitiesSchema = z
       z.enum([
         'getCapabilities',
         'getOverview',
+        'getMatchDetails',
         'getSettings',
         'updateSettings',
         'startRefresh',

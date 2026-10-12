@@ -1,29 +1,48 @@
 <template>
   <div class="ma-panel ma-workspace">
-    <header class="ma-view-heading">
-      <h2>双人组合表现</h2>
-      <span>{{ rows.length }} 组 · 按场数排序，少量样本保留</span>
-    </header>
-    <div class="pair-controls">
+    <div class="pair-controls ma-view-toolbar">
       <NRadioGroup v-model:value="pairType"
         ><NRadioButton v-for="(name, value) in names" :key="value" :value="value">{{
           name
         }}</NRadioButton></NRadioGroup
       >
       <NSelect v-model:value="metric" :options="[...metricOptions]" aria-label="组合比较指标" />
+      <span class="ma-view-meta">{{ rows.length }} 组</span>
     </div>
     <p class="ma-chart-note">{{ uiText('rateLegend') }}</p>
     <div v-if="!rows.length" class="ma-empty">{{ uiText('noData') }}</div>
-    <div v-else class="pair-table-wrap">
+    <div
+      v-else
+      class="pair-table-wrap"
+      tabindex="0"
+      role="region"
+      :aria-label="uiText('pairComparison')"
+    >
       <table class="pair-table">
         <thead>
           <tr>
-            <th>成员组合</th>
-            <th>场数</th>
-            <th>胜率 · 胜 / 负</th>
-            <th>
-              {{ metricLabel
-              }}<small class="pair-scale"
+            <th
+              v-for="column in sortColumns"
+              :key="column.key"
+              scope="col"
+              :aria-sort="currentSort?.key === column.key ? currentSort.direction : 'none'"
+            >
+              <button
+                type="button"
+                class="ma-table-sort"
+                :aria-label="sortActionLabel(column.key, column.label)"
+                @click="toggleSort(column.key)"
+              >
+                {{ column.label }}
+                <span aria-hidden="true">{{
+                  currentSort?.key === column.key
+                    ? currentSort.direction === 'descending'
+                      ? '↓'
+                      : '↑'
+                    : '↕'
+                }}</span>
+              </button>
+              <small v-if="column.key === metric" class="pair-scale"
                 >−{{ formatMetric(domain) }} · 0 · +{{ formatMetric(domain) }}</small
               >
             </th>
@@ -37,11 +56,12 @@
               <td>{{ row.games }}</td>
               <td>
                 <div>
-                  {{ formatMetric(row.winRate, 'pct') }} · {{ row.wins }} /
-                  {{ row.games - row.wins }}
+                  {{ formatMetric(row.winRate, 'pct') }}
                 </div>
                 <WinRateInterval :wins="row.wins" :games="row.games" />
               </td>
+              <td>{{ row.wins }}</td>
+              <td>{{ row.losses }}</td>
               <td>
                 <div class="pair-value">
                   <strong :class="toneClass(row[metric])">{{ formatSigned(row[metric], 1) }}</strong
@@ -63,7 +83,7 @@
               </td>
             </tr>
             <tr v-if="selected === row.pair">
-              <td colspan="5" class="pair-detail">
+              <td colspan="7" class="pair-detail">
                 <dl>
                   <div v-for="option in metricOptions" :key="option.value">
                     <dt>{{ option.label }}</dt>
@@ -99,6 +119,7 @@ import { formatMetric } from './metric-defs'
 import { finiteOrNull, formatSigned } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
 import { uiText } from './ui-text'
+import { nextRoleTableSort, sortAnalysisTableRows, type RoleTableSort } from './role-table-sort'
 const { pairs } = useMemberAnalysisData()
 const names = { upper_pair: '上野', mid_jg_pair: '中野', bot_pair: '下辅' } as const
 const pairType = ref<keyof typeof names>('upper_pair')
@@ -115,11 +136,39 @@ const metric = ref<(typeof metricOptions)[number]['value']>('upperGold15')
 const metricLabel = computed(
   () => metricOptions.find((option) => option.value === metric.value)?.label
 )
-const rows = computed(() =>
+const defaultRows = computed(() =>
   pairs.value
     .filter((row) => row.pairType === pairType.value && row.sideLabel === '总计')
     .sort((a, b) => b.games - a.games)
+    .map((row) => ({ ...row, losses: row.games - row.wins }))
 )
+const pairSorts = ref<Partial<Record<keyof typeof names, RoleTableSort>>>({})
+const currentSort = computed(() => pairSorts.value[pairType.value] ?? null)
+const sortColumns = computed(() => [
+  { key: 'pair', label: '成员组合' },
+  { key: 'games', label: '场数' },
+  { key: 'winRate', label: '胜率' },
+  { key: 'wins', label: '胜场' },
+  { key: 'losses', label: '负场' },
+  { key: metric.value, label: metricLabel.value ?? '' }
+])
+const rows = computed(() => sortAnalysisTableRows(defaultRows.value, currentSort.value, ['pair']))
+function toggleSort(key: string) {
+  pairSorts.value[pairType.value] = nextRoleTableSort(currentSort.value, key)
+}
+function sortActionLabel(key: string, label: string) {
+  const next = nextRoleTableSort(currentSort.value, key)
+  return uiText(
+    next ? (next.direction === 'descending' ? 'sortDescending' : 'sortAscending') : 'sortDefault',
+    { label }
+  )
+}
+watch(metric, (next, previous) => {
+  for (const type of Object.keys(names) as (keyof typeof names)[]) {
+    const sort = pairSorts.value[type]
+    if (sort?.key === previous) pairSorts.value[type] = { ...sort, key: next }
+  }
+})
 const domain = computed(() =>
   Math.max(1, ...rows.value.map((row) => Math.abs(finiteOrNull(row[metric.value]) ?? 0)))
 )
@@ -168,7 +217,7 @@ const toneClass = (value: unknown) => {
 .pair-table {
   border-collapse: collapse;
   width: 100%;
-  min-width: 650px;
+  min-width: 880px;
   font-variant-numeric: tabular-nums;
 }
 .pair-table th,
@@ -179,6 +228,7 @@ const toneClass = (value: unknown) => {
 }
 .pair-table th:first-child {
   text-align: left;
+  min-width: 180px;
   max-width: 230px;
   overflow-wrap: anywhere;
   font-weight: 500;
@@ -188,11 +238,19 @@ const toneClass = (value: unknown) => {
   color: var(--ma-muted);
 }
 .pair-table thead th {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
 }
 .pair-table td:nth-child(3) {
   min-width: 140px;
+}
+.pair-table th:nth-child(2),
+.pair-table th:nth-child(4),
+.pair-table th:nth-child(5) {
+  min-width: 56px;
+}
+.pair-table th:nth-child(6) {
+  min-width: 180px;
 }
 .pair-table td.pair-detail {
   text-align: left;

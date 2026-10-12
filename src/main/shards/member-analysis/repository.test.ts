@@ -1,4 +1,5 @@
-﻿import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+﻿import { type OpponentRanks, unavailableRank } from '@shared/shards/member-analysis/opponent-ranks'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -129,6 +130,183 @@ function writeAnalysis(path: string, count: number) {
 }
 
 describe('member analysis repository', () => {
+  test('future prediction expansion checks raw future start before touching old derived outcomes', () => {
+    const value = repository()
+    try {
+      for (const [gameId, start] of [
+        [1, 500],
+        [2, 1500]
+      ])
+        value.storeRaw(
+          'TEST',
+          gameId,
+          710,
+          'synthetic',
+          {
+            json: {
+              gameId,
+              gameStartTimestamp: start,
+              gameEndTimestamp: start + 900000,
+              gameDuration: 900,
+              queueId: 710,
+              participants: [],
+              teams: []
+            }
+          },
+          {}
+        )
+      writeAnalysis(value.currentAnalysisPath, 2)
+      const database = new DatabaseSync(value.currentAnalysisPath)
+      database
+        .prepare('UPDATE derived_games SET payload_json=? WHERE game_id=1')
+        .run('not valid JSON: old isolated tail must not be read')
+      database.close()
+      const future = value.readFuturePredictionGames(1000, 1000000)
+      expect(future.games).toHaveLength(1)
+      expect(future.queueEntries).toEqual([['1500|2', 710]])
+      expect(future.studyCreatedAtMs).toBe(1000)
+      expect(future.observedAtMs).toBeGreaterThanOrEqual(1000000)
+      expect(value.readFuturePredictionGames(1000, 901500).games).toHaveLength(0)
+    } finally {
+      value.close()
+    }
+  })
+
+  test('observed future game without derived features fails instead of silently dropping it', () => {
+    const value = repository()
+    try {
+      value.storeRaw(
+        'TEST',
+        2,
+        710,
+        'synthetic',
+        {
+          json: {
+            gameId: 2,
+            gameStartTimestamp: 1500,
+            gameEndTimestamp: 901500,
+            gameDuration: 900,
+            queueId: 710,
+            participants: [],
+            teams: []
+          }
+        },
+        {}
+      )
+      expect(() => value.readFuturePredictionGames(1000, 1000000)).toThrow(
+        'Future features not ready'
+      )
+      expect(() => value.readFuturePredictionGames(2000, 1000)).toThrow(
+        'Invalid future prediction window'
+      )
+    } finally {
+      value.close()
+    }
+  })
+
+  test('prediction source reads only an exact unambiguous raw cache without current derived data', () => {
+    const value = repository()
+    try {
+      const summary = { json: { gameId: 1, participants: [], teams: [] } }
+      const item = value.storeRaw('TEST', 1, 440, 'synthetic', summary, { json: { gameId: 1 } })
+      expect(value.readPredictionSource(1)).toEqual({ serverId: 'TEST', summary })
+      expect(existsSync(value.currentAnalysisPath)).toBe(false)
+      expect(() => value.readPredictionSource(2)).toThrow('missing or ambiguous')
+      expect(() => value.readPredictionSource(-1)).toThrow('Invalid prediction source')
+      const database = new DatabaseSync(value.catalogPath)
+      database
+        .prepare('UPDATE catalog_games SET summary_path=? WHERE game_id=1')
+        .run(item.detailsPath)
+      database.close()
+      expect(() => value.readPredictionSource(1)).toThrow('Invalid prediction source path')
+      value.storeRaw('TEST', 1, 440, 'synthetic', summary, {})
+      value.storeRaw('OTHER', 1, 440, 'synthetic', summary, {})
+      expect(() => value.readPredictionSource(1)).toThrow('missing or ambiguous')
+    } finally {
+      value.close()
+    }
+  })
+
+  test('reads only an eligible unambiguous derived match from its exact local cache', () => {
+    const value = repository()
+    const summary = { json: { gameId: 1, participants: [], teams: [] } }
+    const details = { json: { gameId: 1, frames: [] } }
+    value.storeRaw('TEST', 1, 440, 'test', summary, details)
+    expect(value.readMatchDetails(1)).toBeNull()
+    writeAnalysis(value.currentAnalysisPath, 2)
+    expect(value.readMatchDetails(1)).toEqual({
+      serverId: 'TEST',
+      summary: { source: 'sgp', gameId: 1, data: summary },
+      details: { source: 'sgp', gameId: 1, data: details }
+    })
+    expect(value.readMatchDetails(2)).toBeNull()
+    expect(value.readMatchDetails(99)).toBeNull()
+    const item = value.catalogItem('TEST', 1)!
+    rmSync(value.safePath(item.detailsPath))
+    expect(value.readMatchDetails(1)?.details).toBeNull()
+    value.storeRaw('TEST', 1, 440, 'test', { json: { ...summary.json, gameId: 9 } }, details)
+    expect(() => value.readMatchDetails(1)).toThrow('Invalid cached match summary')
+    const database = new DatabaseSync(value.currentAnalysisPath)
+    database
+      .prepare(
+        'INSERT INTO derived_games SELECT ?,game_id,checksum,payload_json,updated_at FROM derived_games WHERE game_id=1'
+      )
+      .run('OTHER')
+    database.close()
+    expect(value.readMatchDetails(1)).toBeNull()
+    value.close()
+  })
+
+  test('does not expose remake caches or renderer-selected file paths', () => {
+    const value = repository()
+    writeAnalysis(value.currentAnalysisPath, 1)
+    value.storeRaw(
+      'TEST',
+      1,
+      440,
+      'test',
+      { json: { gameId: 1, participants: [], teams: [] } },
+      null
+    )
+    const catalog = new DatabaseSync(value.catalogPath)
+    catalog.prepare("UPDATE catalog_games SET summary_path='db/catalog.sqlite3'").run()
+    catalog.close()
+    expect(() => value.readMatchDetails(1)).toThrow('Invalid cached match path')
+    const database = new DatabaseSync(value.currentAnalysisPath)
+    database
+      .prepare("UPDATE derived_games SET payload_json=json_set(payload_json,'$.duration',899)")
+      .run()
+    database.close()
+    expect(value.readMatchDetails(1)).toBeNull()
+    value.close()
+  })
+  test('hydrates additive rank snapshots through existing overview reads and restores old analysis if rank publication fails', () => {
+    const value = repository()
+    writeAnalysis(value.currentAnalysisPath, 1)
+    expect(value.readGames().games[0].opponentRanks).toBeUndefined()
+    const ranks: OpponentRanks = {
+      version: 1,
+      source: 'SGP leagues-ledge (current snapshot)',
+      serverId: 'TEST',
+      opponents: Array.from({ length: 5 }, (_, i) => ({
+        slot: i + 1,
+        role: null,
+        champion: null,
+        snapshot: unavailableRank('cross-region', '2026-10-07T12:00:00.000Z')
+      }))
+    }
+    writeAnalysis(value.stagingAnalysisPath, 2)
+    value.publishStaging([{ serverId: 'TEST', gameId: 2, ranks }])
+    expect(value.readGames().games[0].opponentRanks).toEqual(ranks)
+    expect(value.readGames().games[1].opponentRanks).toBeUndefined()
+    writeAnalysis(value.stagingAnalysisPath, 3)
+    const invalid = structuredClone(ranks)
+    invalid.opponents.pop()
+    expect(() => value.publishStaging([{ serverId: 'TEST', gameId: 3, ranks: invalid }])).toThrow()
+    expect(value.readGames().total).toBe(2)
+    expect(value.opponentRanks.readGame('TEST', 3)).toBeUndefined()
+    value.close()
+  })
   test('stores compressed raw data atomically and indexes by checksum', () => {
     const value = repository()
     const item = value.storeRaw(
@@ -209,6 +387,40 @@ describe('member analysis repository', () => {
     expect(first.nextCursor).toBeTruthy()
     const second = value.readGames({ cursor: first.nextCursor, pageSize: 37 })
     expect(second.games[0].gameId).toBeLessThan(first.games.at(-1)!.gameId)
+    value.close()
+  })
+
+  test('excludes short cached games from counts, players and pagination without rewriting storage', () => {
+    const value = repository()
+    writeAnalysis(value.currentAnalysisPath, 4)
+    const database = new DatabaseSync(value.currentAnalysisPath)
+    const update = database.prepare('UPDATE derived_games SET payload_json=? WHERE game_id=?')
+    for (const [gameId, duration] of [
+      [1, 900],
+      [2, 901],
+      [3, 899],
+      [4, 0]
+    ]) {
+      update.run(
+        JSON.stringify({
+          ...syntheticGame(gameId, gameId > 2 ? 'Short Only' : 'Eligible'),
+          duration
+        }),
+        gameId
+      )
+    }
+    database.close()
+    const first = value.readGames({ pageSize: 1 })
+    expect(first.total).toBe(2)
+    expect(first.playerCount).toBe(1)
+    expect(first.games.map((row) => row.gameId)).toEqual([2])
+    const second = value.readGames({ pageSize: 1, cursor: first.nextCursor })
+    expect(second.games.map((row) => row.gameId)).toEqual([1])
+    expect(second.games[0].duration).toBe(900)
+    expect(second.nextCursor).toBeNull()
+    const unchanged = new DatabaseSync(value.currentAnalysisPath, { readOnly: true })
+    expect(unchanged.prepare('SELECT COUNT(*) AS count FROM derived_games').get()?.count).toBe(4)
+    unchanged.close()
     value.close()
   })
 

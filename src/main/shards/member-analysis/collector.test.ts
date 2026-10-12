@@ -22,7 +22,7 @@ function harness(known: string | null, targetCount = 5) {
     })),
     ...Array.from({ length: 5 }, (_, index) => ({ puuid: `enemy-${index + 1}`, teamId: 200 }))
   ]
-  const summary = { json: { gameId: 7, mapId: 11, queueId: 420, participants } }
+  const summary = { json: { gameId: 7, mapId: 11, queueId: 420, gameDuration: 1800, participants } }
   const riotClient = {
     api: {
       playerAccount: {
@@ -36,6 +36,10 @@ function harness(known: string | null, targetCount = 5) {
     }
   }
   const sgp = {
+    state: {
+      availability: { sgpServerId: '', serversSupported: { common: false } },
+      isTokenReady: false
+    },
     api: {
       matchHistoryQuery: {
         getMatchHistorySummaryByPlayerPuuid: vi.fn(
@@ -56,6 +60,12 @@ function harness(known: string | null, targetCount = 5) {
     detailsPath: 'raw/TEST/7/details.json.gz'
   }
   const repository = {
+    opponentRanks: {
+      readGame: vi.fn(),
+      readPlayer: vi.fn(() => null),
+      prune: vi.fn(),
+      publishGames: vi.fn()
+    },
     recordMember: vi.fn(),
     checksum: vi.fn(() => 'checksum'),
     knownChecksum: vi.fn(() => known),
@@ -88,6 +98,13 @@ describe('member analysis main-only collector', () => {
       skipped: 0,
       memberErrors: 0
     })
+    expect(result.rankSnapshots[0].ranks.opponents).toHaveLength(5)
+    expect(
+      result.rankSnapshots[0].ranks.opponents.every(
+        ({ snapshot }) => snapshot.reason === 'disconnected'
+      )
+    ).toBe(true)
+    expect(value.repository.opponentRanks.publishGames).not.toHaveBeenCalled()
     expect(value.sgp.api.matchHistoryQuery.getGameDetailsByGameId).not.toHaveBeenCalled()
     expect(value.repository.updateRawSummary).toHaveBeenCalledOnce()
     const normalized = value.repository.updateRawSummary.mock.calls[0][1] as any
@@ -492,6 +509,7 @@ function pagedHarness(
       }
     },
     repository: {
+      opponentRanks: { readGame: vi.fn(), prune: vi.fn(), publishGames: vi.fn() },
       recordMember: vi.fn(),
       checksum: vi.fn((summary: any) => `checksum-${summary.json.gameId}`),
       knownChecksum: vi.fn(() => null),

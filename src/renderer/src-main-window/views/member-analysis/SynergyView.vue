@@ -1,21 +1,11 @@
 <template>
   <div class="ma-panel ma-workspace">
-    <header class="ma-view-heading">
-      <div>
-        <h2>同队样本比较</h2>
-      </div>
-      <span v-if="!identicalRosters(games)"
-        >{{ visibleEdges.length }} 条关系 · 按差值绝对值排序</span
-      ><span v-else>相同出场范围 · 不作排名</span>
-    </header>
-    <div v-if="identicalRosters(games)" class="synergy-unavailable">
-      <strong>{{ uiText('sameRoster') }}</strong>
-      <p>{{ uiText('sameRosterDetail') }}</p>
-    </div>
+    <p v-if="identicalRosters(games)" class="ma-empty" role="status">{{ uiText('sameRoster') }}</p>
     <div v-else-if="!synergy.length" class="ma-empty">{{ uiText('noData') }}</div>
     <template v-else>
-      <div class="synergy-toolbar">
+      <div class="synergy-toolbar ma-view-toolbar">
         <NSelect v-model:value="focus" :options="memberOptions" clearable placeholder="聚焦成员" />
+        <span class="ma-view-meta">{{ visibleEdges.length }} 条关系</span>
       </div>
       <div class="network-layout">
         <section class="relationship-plot" aria-label="同队胜率相对个人基线的描述性偏差排序">

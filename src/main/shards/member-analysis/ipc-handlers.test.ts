@@ -28,6 +28,7 @@ function createHarness() {
       })
     },
     repository: {
+      readMatchDetails: vi.fn(() => null),
       readGames: vi.fn(() => ({
         generatedAt: null,
         games: [],
@@ -59,6 +60,81 @@ function createHarness() {
 }
 
 describe('member analysis IPC boundary', () => {
+  test('prediction registration accepts only five declared aliases and rejects forged forecasts, paths and non-main senders', () => {
+    const { handlers, event } = createHarness()
+    const invoke = handlers.get('startPredictionOpportunity')!
+    const request = {
+      members: Array.from({ length: 5 }, (_, i) => ({
+        serverId: 'SYNTHETIC',
+        gameName: `Member${i}`,
+        tagLine: 'TEST'
+      })),
+      side: 'all',
+      targetQueue: null
+    }
+    for (const args of [
+      [],
+      [{ ...request, probability: 0.99 }],
+      [{ ...request, path: 'private-input.json' }],
+      [{ ...request, members: request.members.slice(0, 4) }],
+      [{ ...request, side: 'Blue' }],
+      [request, 'extra']
+    ])
+      expect(invoke(event, ...args)).resolves.toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_ARGUMENT' }
+      })
+    expect(invoke({ sender: {} }, request)).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+    expect(invoke(event, request)).resolves.toEqual({
+      ok: true,
+      value: { status: 'rejected', reason: 'not-ready' }
+    })
+    expect(handlers.get('getPredictionPilotSummary')!(event, 'extra')).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+    expect(
+      handlers.get('cancelPredictionOpportunity')!(event, { id: '../private-input' })
+    ).toMatchObject({ ok: false, error: { code: 'INVALID_ARGUMENT' } })
+  })
+  test('restricts cached native match details to enabled main renderer and a strict game ID', () => {
+    const { handlers, event, context } = createHarness()
+    const invoke = handlers.get('getMatchDetails')!
+    expect(invoke(event, { gameId: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'FEATURE_DISABLED' }
+    })
+    context.settings.enabled = true
+    for (const args of [
+      [],
+      [{ gameId: -1 }],
+      [{ gameId: 1.5 }],
+      [{ gameId: Number.MAX_SAFE_INTEGER + 1 }],
+      [{ gameId: 1, path: 'x' }],
+      [{ gameId: 1 }, 'extra']
+    ]) {
+      expect(invoke(event, ...args)).toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_ARGUMENT' }
+      })
+    }
+    expect(invoke({ sender: {} }, { gameId: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+    expect(context.repository.readMatchDetails).not.toHaveBeenCalled()
+    expect(invoke(event, { gameId: 1 })).toEqual({ ok: true, value: null })
+    vi.mocked(context.repository.readMatchDetails).mockImplementation(() => {
+      throw new Error('private path')
+    })
+    expect(invoke(event, { gameId: 1 })).toMatchObject({
+      ok: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Cached match details could not be read' }
+    })
+  })
   test('blocks settings changes during refresh and cancels when disabling', async () => {
     const { handlers, event, context } = createHarness()
     vi.mocked(context.pipeline.get).mockReturnValue({

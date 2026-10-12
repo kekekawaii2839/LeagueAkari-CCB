@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import { MemberAnalysisRepository } from '../repository'
 import { MemberAnalysisPipeline } from './pipeline'
-import { MemberAnalysisRepository } from './repository'
 
 const roots: string[] = []
 afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })))
@@ -37,6 +37,44 @@ function createRepository() {
 }
 
 describe('member analysis refresh pipeline', () => {
+  test('rank collection has its own label and never moves collection progress backwards', async () => {
+    const jobs: { progress: number; message: string }[] = []
+    const collector = {
+      collect: vi.fn(
+        async (options: { onProgress: (done: number, total: number, phase: string) => void }) => {
+          options.onProgress(10, 10, 'loading-details')
+          options.onProgress(1, 10, 'loading-opponent-ranks')
+          options.onProgress(10, 10, 'loading-opponent-ranks')
+          return { items: [], memberErrors: 0, rankSnapshots: [] }
+        }
+      )
+    }
+    const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }
+    const worker = {
+      available: true,
+      run: vi.fn(async () => ({ type: 'result', status: 'failed' }))
+    }
+    const pipeline = new MemberAnalysisPipeline(
+      collector as any,
+      repository as any,
+      worker as any,
+      settings,
+      (job) => {
+        jobs.push({ progress: job.progress, message: job.message })
+      }
+    )
+    pipeline.start()
+    await waitFor(() => pipeline.get()?.status === 'failed')
+    const collecting = jobs.filter((job) => /collecting|opponent-ranks/.test(job.message))
+    expect(collecting).toHaveLength(4)
+    ;[0.02, 0.4, 0.405, 0.45].forEach((expected, index) => {
+      expect(collecting[index].progress).toBeCloseTo(expected, 8)
+      if (index > 0)
+        expect(collecting[index].progress).toBeGreaterThanOrEqual(collecting[index - 1].progress)
+    })
+    expect(collecting[2].message).toBe('opponent-ranks 1/10')
+    expect(repository.publishStaging).not.toHaveBeenCalled()
+  })
   test('does not publish an unsuccessful worker result or expose raw failure details', async () => {
     const collector = { collect: vi.fn(async () => ({ items: [], memberErrors: 0 })) }
     const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }

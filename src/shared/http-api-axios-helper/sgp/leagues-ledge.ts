@@ -10,13 +10,15 @@ export class LeaguesLedgeHttpApi {
   /**
    * 注：此 API 无法跨区
    */
-  getRankedStatsByPuuid(puuid: string, options: SgpRegionParam = {}) {
+  getRankedStatsByPuuid(puuid: string, options: SgpRegionParam & { retry?: false } = {}) {
     return this._http.get<SgpRankedStats>(`/leagues-ledge/v2/rankedStats/puuid/${puuid}`, {
       headers: {
         [AKARI_HEADER_SGP_SERVER_ID]: options.__sgpServerId,
         [AKARI_HEADER_TOKEN_TYPE]: 'league-session'
       },
-      signal: options.signal
+      signal: options.signal,
+      // A bounded caller can own retries without multiplying the shared client's policy.
+      ...(options.retry === false ? { 'axios-retry': { retries: 0 } } : {})
     })
   }
 }

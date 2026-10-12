@@ -33,15 +33,15 @@
         </div>
 
         <h3 class="settings-group-heading">采集范围</h3>
-        <NFormItem label="固定五人结果目标">
+        <NFormItem :label="uiText('collectionCount')">
           <div class="member-analysis-settings__field">
             <NSelect v-model:value="draft.historyDepth" :options="historyOptions" />
             <div class="member-analysis-settings__description">
-              选择“全部”时不裁剪最终有效样本，持续扫描到历史耗尽或下方安全上限。
+              {{ uiText('collectionCountHelp') }}
             </div>
           </div>
         </NFormItem>
-        <NFormItem label="单成员历史扫描安全上限">
+        <NFormItem :label="uiText('historyQueryLimit')">
           <div class="member-analysis-settings__field">
             <NInputNumber
               v-model:value="draft.scanLimitPerMember"
@@ -50,7 +50,7 @@
               :step="100"
             />
             <div class="member-analysis-settings__description">
-              每名成员最多读取的历史条目数。数值越高越可能找到更早的固定五人对局，但刷新时间和本地占用也会增加。
+              {{ uiText('historyQueryLimitHelp') }}
             </div>
           </div>
         </NFormItem>
@@ -58,8 +58,7 @@
           <div class="member-analysis-settings__field">
             <NSelect v-model:value="draft.historyTag" :options="historyTagOptions" />
             <div class="member-analysis-settings__description">
-              “排位积分类模式”沿用 League Akari 的 SGP ranked
-              定义；选择“5人排位赛”等具体模式时则只读取该模式。
+              {{ uiText('collectionModeHelp') }}
             </div>
           </div>
         </NFormItem>
@@ -73,7 +72,7 @@
           <div>
             <div class="member-analysis-settings__label">OP.GG 公共参考数据</div>
             <div class="member-analysis-settings__description">
-              默认关闭。开启也不得发送 Riot ID、PUUID、gameId 或比赛数据。
+              {{ uiText('publicReferenceHelp') }}
             </div>
           </div>
           <NSwitch v-model:value="draft.opggEnabled" />
@@ -125,7 +124,7 @@
             tabindex="-1"
             class="settings-feedback"
           >
-            <NAlert type="warning" title="需要二次确认">
+            <NAlert type="warning" :title="uiText('confirmCleanupTitle')">
               将清理 {{ cleanupPreview.gameCount }} 场最旧历史原始数据，预计释放
               {{ formatBytes(cleanupPreview.reclaimableBytes) }}。当前可查看的分析结果不会被删除。
               <NButton
@@ -268,9 +267,11 @@ const historyTagOptions = computed(() =>
       group.type === 'group'
         ? {
             ...group,
-            children: group.children?.filter(
-              (option: { value?: unknown }) => option.value !== ALL_SGPTAG_VALUE
-            )
+            children: group.children
+              ?.filter((option: { value?: unknown }) => option.value !== ALL_SGPTAG_VALUE)
+              .map((option: { value?: unknown }) =>
+                option.value === 'ranked' ? { ...option, label: uiText('rankedModes') } : option
+              )
           }
         : group
     )
@@ -279,10 +280,10 @@ const historyTagOptions = computed(() =>
 const historyOptions: { label: string; value: number | 'all' }[] = [
   20, 50, 100, 200, 500, 1000
 ].map((value) => ({
-  label: `最近 ${value} 场固定五人有效样本`,
+  label: uiText('collectionRecent', { count: value }),
   value
 }))
-historyOptions.push({ label: '全部有效样本（受扫描安全上限约束）', value: 'all' })
+historyOptions.push({ label: uiText('collectionAll'), value: 'all' })
 const memberList = ref<HTMLElement | null>(null)
 async function addMember() {
   if (draft.members.length >= 20) return

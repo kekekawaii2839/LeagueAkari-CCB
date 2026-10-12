@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 
+import { MemberAnalysisRepository } from '../repository'
 import { MemberAnalysisPipeline } from './pipeline'
-import { MemberAnalysisRepository } from './repository'
 import { MemberAnalysisWorkerSupervisor, resolveWorkerLaunch } from './worker-supervisor'
 
 const python = process.env.MEMBER_ANALYSIS_TEST_PYTHON

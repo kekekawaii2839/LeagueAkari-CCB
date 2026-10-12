@@ -1,6 +1,11 @@
 <template>
-  <section class="member-analysis-filters" aria-label="成员分析筛选">
+  <section
+    class="member-analysis-filters"
+    aria-label="成员分析筛选"
+    :aria-describedby="disabled ? 'member-analysis-prediction-filter-note' : undefined"
+  >
     <NInput
+      :disabled="disabled"
       v-model:value="store.filters.query"
       class="member-analysis-filters__query"
       clearable
@@ -9,6 +14,7 @@
       placeholder="搜索对局、成员或英雄"
     />
     <NSelect
+      :disabled="disabled"
       v-model:value="store.sampleSize"
       class="member-analysis-filters__select"
       :options="sampleOptions"
@@ -16,6 +22,7 @@
       aria-label="样本范围"
     />
     <NSelect
+      :disabled="disabled"
       v-model:value="store.analysisSide"
       class="member-analysis-filters__select"
       :options="sideOptions"
@@ -23,6 +30,7 @@
       aria-label="阵营"
     />
     <NSelect
+      :disabled="disabled"
       v-model:value="store.filters.outcome"
       class="member-analysis-filters__select"
       :options="outcomeOptions"
@@ -30,6 +38,7 @@
       aria-label="结果"
     />
     <NButton
+      :disabled="disabled"
       size="small"
       quaternary
       :aria-expanded="advanced"
@@ -38,7 +47,13 @@
     >
       {{ advanced ? '收起高级筛选' : `高级筛选${activeAdvanced ? ` · ${activeAdvanced}` : ''}` }}
     </NButton>
-    <NButton v-if="activeFilters" size="small" quaternary type="warning" @click="store.resetFilters"
+    <NButton
+      :disabled="disabled"
+      v-if="activeFilters"
+      size="small"
+      quaternary
+      type="warning"
+      @click="store.resetFilters"
       >重置 {{ activeFilters }}</NButton
     >
     <div
@@ -47,30 +62,35 @@
       class="member-analysis-filters__advanced"
     >
       <NSelect
+        :disabled="disabled"
         v-model:value="store.filters.participant"
         class="member-analysis-filters__select"
         :options="participantOptions"
         aria-label="成员"
       />
       <NSelect
+        :disabled="disabled"
         v-model:value="store.filters.matchRole"
         class="member-analysis-filters__select"
         :options="roleOptions"
         aria-label="分路"
       />
       <NSelect
+        :disabled="disabled"
         v-model:value="store.filters.champion"
         class="member-analysis-filters__select"
         :options="championOptions"
         aria-label="英雄"
       />
       <NSelect
+        :disabled="disabled"
         v-model:value="store.filters.patch"
         class="member-analysis-filters__select"
         :options="patchOptions"
         aria-label="版本"
       />
       <NInputNumber
+        :disabled="disabled"
         v-model:value="store.filters.durationMin"
         class="member-analysis-filters__duration"
         :min="0"
@@ -80,18 +100,21 @@
         placeholder="最短分钟"
       />
       <NInput
+        :disabled="disabled"
         v-model:value="store.filters.dateFrom"
         class="member-analysis-filters__date"
         :input-props="{ type: 'date', 'aria-label': '开始日期' }"
         placeholder=""
       />
       <NInput
+        :disabled="disabled"
         v-model:value="store.filters.dateTo"
         class="member-analysis-filters__date"
         :input-props="{ type: 'date', 'aria-label': '结束日期' }"
         placeholder=""
       />
       <NInputNumber
+        :disabled="disabled"
         v-model:value="store.filters.durationMax"
         class="member-analysis-filters__duration"
         :min="0"
@@ -114,6 +137,7 @@ import { computed, ref } from 'vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 
 const store = useMemberAnalysisStore()
+defineProps<{ disabled?: boolean }>()
 const advanced = ref(false)
 const patchVersionCollator = new Intl.Collator(undefined, {
   numeric: true,

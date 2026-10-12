@@ -4,6 +4,7 @@ import type {
   MemberAnalysisCapabilities,
   MemberAnalysisCleanupPreview,
   MemberAnalysisJob,
+  MemberAnalysisMatchDetails,
   MemberAnalysisOverview,
   MemberAnalysisResult,
   MemberAnalysisSettings,
@@ -15,6 +16,12 @@ import {
   MEMBER_ANALYSIS_DATA_VERSION,
   MemberAnalysisUpdateSettingsRequestSchema
 } from '@shared/shards/member-analysis'
+import {
+  type PredictionOpportunityReply,
+  type PredictionOpportunityRequest,
+  PredictionOpportunityRequestSchema,
+  type PredictionPilotSummary
+} from '@shared/shards/member-analysis/prediction'
 
 import { useMemberAnalysisStore } from './store'
 
@@ -122,6 +129,23 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
     if (result.ok) store.job = result.value
     else store.error = result.error
     return result
+  }
+
+  getMatchDetails(gameId: number) {
+    return this._call<MemberAnalysisMatchDetails | null>('getMatchDetails', { gameId })
+  }
+
+  startPredictionOpportunity(request: PredictionOpportunityRequest) {
+    return this._call<PredictionOpportunityReply>(
+      'startPredictionOpportunity',
+      PredictionOpportunityRequestSchema.parse(request)
+    )
+  }
+  cancelPredictionOpportunity(id: string) {
+    return this._call<boolean>('cancelPredictionOpportunity', { id })
+  }
+  getPredictionPilotSummary() {
+    return this._call<PredictionPilotSummary | null>('getPredictionPilotSummary')
   }
 
   async updateSettings(settings: MemberAnalysisSettingsUpdate) {

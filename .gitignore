@@ -61,3 +61,6 @@ caches/
 *.db-shm
 __pycache__/
 *.py[co]
+
+# Compiled research code only; all private datasets/results live in userData.
+packages/prediction-lab/.runtime/

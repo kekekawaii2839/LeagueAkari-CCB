@@ -122,6 +122,30 @@ describe('member analysis contract', () => {
     })
   })
 
+  test('summary excludes short games but retains exactly 15 minutes and raw payload', () => {
+    const payload = migrateLegacyMemberAnalysisPayload(anonymousLegacyPayload)
+    const base = payload.games[0]
+    payload.games = [
+      { ...base, gameId: 1, duration: 900, win: true },
+      { ...base, gameId: 2, duration: 901, win: false },
+      { ...base, gameId: 3, duration: 899, win: true },
+      { ...base, gameId: 4, duration: 0, win: true }
+    ]
+    expect(summarizeMemberAnalysisPayload(payload)).toEqual({
+      gameCount: 2,
+      playerCount: 1,
+      wins: 1,
+      winRate: 0.5
+    })
+    expect(payload.games).toHaveLength(4)
+    expect(summarizeMemberAnalysisPayload({ ...payload, games: payload.games.slice(2) })).toEqual({
+      gameCount: 0,
+      playerCount: 0,
+      wins: 0,
+      winRate: 0
+    })
+  })
+
   test('rejects invalid enums, oversized strings, and unversioned current payloads', () => {
     expect(
       MemberAnalysisPayloadSchema.safeParse({

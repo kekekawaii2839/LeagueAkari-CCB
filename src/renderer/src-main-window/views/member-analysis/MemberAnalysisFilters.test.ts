@@ -24,7 +24,7 @@ vi.mock('naive-ui', () => ({
       h('input', { ...(props.inputProps ?? {}), placeholder: props.placeholder })
   }),
   NInputNumber: defineComponent({
-    setup: () => () => null
+    setup: () => () => h('input', { type: 'number' })
   }),
   NSelect: defineComponent({
     props: {
@@ -44,6 +44,32 @@ vi.mock('naive-ui', () => ({
 }))
 
 describe('member analysis filters', () => {
+  test.each([false, true])('keeps all controls visible with disabled=%s', async (disabled) => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useMemberAnalysisStore()
+    store.filters.query = '合成搜索'
+    store.filters.matchRole = 'TOP'
+    store.sampleSize = 50
+    const original = JSON.stringify({ filters: store.filters, sample: store.sampleSize })
+    const app = createSSRApp(MemberAnalysisFilters, { disabled })
+    app.use(pinia)
+
+    const html = await renderToString(app)
+    const controls = html.match(/<(?:input|button|div data-control)[^>]*>/g) ?? []
+    expect(controls).toHaveLength(14)
+    expect(controls.every((control) => /\bdisabled(?:=|\s|>)/.test(control) === disabled)).toBe(
+      true
+    )
+    expect(html).toContain('搜索对局、成员或英雄')
+    expect(html).toContain('最近 50 场')
+    expect(html).toContain('重置 2')
+    expect(html.includes('aria-describedby="member-analysis-prediction-filter-note"')).toBe(
+      disabled
+    )
+    expect(JSON.stringify({ filters: store.filters, sample: store.sampleSize })).toBe(original)
+  })
+
   test('leaves native date hints unobstructed by a text placeholder', async () => {
     const app = createSSRApp(MemberAnalysisFilters)
     app.use(createPinia())

@@ -6,6 +6,7 @@ import {
   type MemberAnalysisErrorCode,
   type MemberAnalysisFilters,
   type MemberAnalysisJob,
+  type MemberAnalysisMatchDetails,
   type MemberAnalysisOverview,
   type MemberAnalysisResult,
   type MemberAnalysisSettings,
@@ -18,6 +19,7 @@ import type { MemberAnalysisMainContext } from './context'
 const METHODS: MemberAnalysisCapabilities['methods'] = [
   'getCapabilities',
   'getOverview',
+  'getMatchDetails',
   'getSettings',
   'updateSettings',
   'startRefresh',
@@ -46,6 +48,16 @@ export class MemberAnalysisController {
       return this._failure('NOT_INITIALIZED', 'Member analysis is not initialized', true)
     }
     return this._success(this._settings())
+  }
+
+  getMatchDetails(gameId: number): MemberAnalysisResult<MemberAnalysisMatchDetails | null> {
+    const unavailable = this._requireEnabled()
+    if (unavailable) return unavailable
+    try {
+      return this._success(this._context.repository.readMatchDetails(gameId))
+    } catch {
+      return this._failure('INTERNAL_ERROR', 'Cached match details could not be read', true)
+    }
   }
 
   async updateSettings(

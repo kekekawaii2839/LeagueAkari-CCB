@@ -13,7 +13,10 @@
     />
 
     <div class="member-analysis-scroll">
-      <MemberAnalysisFilters v-if="store.settings?.enabled" />
+      <MemberAnalysisFilters
+        v-if="store.settings?.enabled"
+        :disabled="activeSection === 'prediction'"
+      />
 
       <p
         v-if="store.overview && !audit && store.overview.gameCount > 0"
@@ -26,7 +29,8 @@
       <section v-if="store.overview" class="member-analysis-context" aria-label="当前分析范围">
         <span>来源 {{ store.overview.source }}</span>
 
-        <strong>当前分析 {{ rendererAudit.sample }} 场</strong>
+        <strong>复盘范围 {{ rendererAudit.sample }} 场</strong>
+        <span>固定排除不足 15 分钟对局</span>
         <span>版本 {{ patchScope }}</span>
         <span v-if="audit">{{ collectionStatus }}</span>
       </section>
@@ -70,7 +74,7 @@
           v-else-if="store.viewState === 'first-run'"
           status="info"
           title="尚未生成分析数据"
-          description="请先配置固定成员，然后运行首次刷新。刷新可取消，失败时仍保留上一版数据。"
+          :description="uiText('firstRunHelp')"
         >
           <template #footer>
             <NButton type="primary" @click="store.settingsDrawerVisible = true">配置成员</NButton>
@@ -83,7 +87,8 @@
         />
 
         <NAlert v-else-if="store.viewState === 'error'" type="error" title="成员分析暂时不可用">
-          {{ store.error?.code }}：{{ store.error?.message }}
+          {{ unavailableMessage }}
+          <NButton secondary @click="memberAnalysis.reload()">{{ uiText('retry') }}</NButton>
         </NAlert>
 
         <div v-else class="member-analysis-ready">
@@ -140,6 +145,7 @@ import MatchesView from './MatchesView.vue'
 import MemberRoleView from './MemberRoleView.vue'
 import PairView from './PairView.vue'
 import ScatterView from './ScatterView.vue'
+import { WinPrediction } from './prediction'
 import SynergyView from './SynergyView.vue'
 import './member-analysis-visuals.css'
 import { uiText } from './ui-text'
@@ -153,14 +159,16 @@ const sections = [
   { key: 'early', label: '前期与胜负', description: '', component: EarlyConversionView },
   { key: 'synergy', label: '同队偏差', description: '', component: SynergyView },
   { key: 'scatter', label: '指标对比', description: '', component: ScatterView },
-  { key: 'matches', label: '对局明细', description: '', component: MatchesView }
+  { key: 'prediction', label: '阵容胜率预测', description: '', component: WinPrediction },
+  { key: 'matches', label: '对局列表', description: '', component: MatchesView }
 ] as const
 
 const store = useMemberAnalysisStore()
 const memberAnalysis = useInstance(MemberAnalysisRenderer)
 const route = useRoute()
 const router = useRouter()
-const requestedSection = String(route.params.section ?? '')
+const requestedSection =
+  route.params.section === 'opponent-ranks' ? 'matches' : String(route.params.section ?? '')
 const activeSection = ref(
   sections.some((section) => section.key === requestedSection) ? requestedSection : 'roles'
 )
@@ -172,6 +180,8 @@ const jobRunning = computed(() =>
   store.job ? !['completed', 'failed', 'cancelled'].includes(store.job.status) : false
 )
 const jobProgressLabel = computed(() => {
+  if (store.job?.status === 'collecting' && store.job.message.startsWith('opponent-ranks '))
+    return '正在获取对手当前段位'
   const labels = {
     starting: '正在准备刷新',
     collecting: '正在读取对局历史',
@@ -219,6 +229,19 @@ const collectionStatus = computed(() => {
   } as const
   return labels[audit.value.collectionStopReason]
 })
+const unavailableMessage = computed(() => {
+  const keys = {
+    FEATURE_DISABLED: 'errorDisabled',
+    NOT_INITIALIZED: 'errorInitializing',
+    INVALID_ARGUMENT: 'errorSettings',
+    WORKER_UNAVAILABLE: 'errorAnalysisUnavailable',
+    JOB_ALREADY_RUNNING: 'errorJobRunning',
+    JOB_NOT_FOUND: 'errorJobMissing',
+    CANCELLED: 'errorCancelled',
+    INTERNAL_ERROR: 'errorUnavailable'
+  } as const
+  return uiText(keys[store.error?.code ?? 'INTERNAL_ERROR'])
+})
 const friendlyJobError = computed(() => {
   const code = store.job?.error?.code
   if (code === 'PIPELINE_FAILED') {
@@ -236,11 +259,17 @@ const friendlyJobError = computed(() => {
 watch(activeSection, (section) => {
   void router.replace({ name: 'member-analysis', params: { section } })
 })
+if (route.params.section === 'opponent-ranks') {
+  void router.replace({ name: 'member-analysis', params: { section: 'matches' } })
+}
 
 watch(
   () => route.params.section,
   (section) => {
-    const next = String(section ?? '')
+    const next = section === 'opponent-ranks' ? 'matches' : String(section ?? '')
+    if (section === 'opponent-ranks') {
+      void router.replace({ name: 'member-analysis', params: { section: 'matches' } })
+    }
     if (sections.some((candidate) => candidate.key === next)) activeSection.value = next
   }
 )

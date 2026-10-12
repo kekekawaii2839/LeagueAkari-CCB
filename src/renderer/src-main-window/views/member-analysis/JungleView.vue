@@ -1,16 +1,12 @@
 <template>
   <div class="ma-panel ma-workspace jungle-view">
-    <header class="ma-view-heading">
-      <div><h2>打野路线与表现</h2></div>
-      <span>{{ totals.length }} 名打野 · {{ totalGames }} 场分路样本</span>
-    </header>
-
-    <div class="jungle-toolbar">
+    <div class="jungle-toolbar ma-view-toolbar">
       <NRadioGroup v-model:value="group" size="small">
         <NRadioButton v-for="(value, key) in jungleGroups" :key="key" :value="key">{{
           value.label
         }}</NRadioButton>
       </NRadioGroup>
+      <span class="ma-view-meta">{{ totals.length }} 名打野 · {{ totalGames }} 场分路样本</span>
       <label v-if="store.analysisSide === 'all'" class="side-toggle">
         <span>蓝红方拆分</span>
         <NSwitch v-model:value="store.sideBreakdown" size="small" />
@@ -89,7 +85,7 @@
                 <b>{{ formatMetric(part.value, 'pct') }}</b></span
               >
             </div>
-            <small>可识别 {{ integer(row.startSamples) }} 次 · 未列营地为 0%</small>
+            <small>可识别 {{ integer(row.startSamples) }} 次</small>
             <SideValues
               v-if="showSideBreakdown"
               :blue="sideComposition(row, '蓝方', campKeys, campShorts)"

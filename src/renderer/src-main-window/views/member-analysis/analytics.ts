@@ -4,6 +4,7 @@
   MemberAnalysisLaneGankDeathEvent,
   MemberAnalysisPlayerGame
 } from '@shared/shards/member-analysis'
+import { isEligibleMemberAnalysisGame } from '@shared/shards/member-analysis/eligibility'
 
 export type SideLabel = '总计' | '蓝方' | '红方'
 export type RoleAggregate = {
@@ -198,6 +199,7 @@ export function filterMemberAnalysisGames(
 ) {
   const query = filters.query.toLocaleLowerCase('zh-CN')
   return games.filter((game) => {
+    if (!isEligibleMemberAnalysisGame(game)) return false
     if (filters.outcome === 'win' && !game.win) return false
     if (filters.outcome === 'loss' && game.win) return false
     if (filters.patch !== 'all' && game.patch !== filters.patch) return false

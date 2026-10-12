@@ -34,7 +34,7 @@
         v-if="rows.length"
         class="comparison-scroll"
         tabindex="0"
-        aria-label="五人成员比较，可横向滚动"
+        aria-label="成员比较，可横向滚动查看更多成员"
       >
         <div class="comparison-chart" :style="{ '--member-count': rows.length }">
           <div class="plot">
@@ -130,10 +130,6 @@
         <p>试试切换分路，或清除当前筛选。</p>
         <NButton @click="store.resetFilters()">清除筛选</NButton>
       </div>
-      <footer class="chart-caption">
-        <span>{{ metricInfo.note }}</span
-        ><span>胜率短线为 95% 区间，小样本只作参考。</span>
-      </footer>
     </section>
     <section
       v-if="selectedRow"
@@ -208,13 +204,11 @@ const metricInfo = computed(() =>
   metric.value === 'gd15'
     ? {
         label: '15 分钟经济差',
-        description: '相对敌方同分路 · 金币',
-        note: '零线上方为领先，下方为落后。'
+        description: '相对敌方同分路 · 金币'
       }
     : {
         label: '参团率',
-        description: '逐场参团率的平均值 · %',
-        note: '五位成员共用 0–100% 尺度。'
+        description: '逐场参团率的平均值 · %'
       }
 )
 const rows = computed(() => {
@@ -361,9 +355,10 @@ h3 {
 .comparison-scroll {
   overflow-x: auto;
   padding-top: 56px;
+  padding-bottom: 12px;
 }
 .comparison-chart {
-  min-width: 660px;
+  min-width: max(660px, calc(48px + var(--member-count) * 184px));
 }
 .plot {
   position: relative;
@@ -542,9 +537,17 @@ h3 {
   gap: 8px;
 }
 .member-secondary div {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
   gap: 8px;
+}
+.member-secondary dt,
+.member-secondary dd {
+  line-height: 1.5;
+}
+.member-secondary dd {
+  text-align: right;
 }
 dt {
   color: var(--comparison-muted);
@@ -553,17 +556,6 @@ dt {
 dd {
   margin: 0;
   font-size: 14px;
-}
-.chart-caption {
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid var(--ma-grid);
-  color: var(--comparison-muted);
-  font-size: 12px;
 }
 .member-detail {
   margin-top: 16px;

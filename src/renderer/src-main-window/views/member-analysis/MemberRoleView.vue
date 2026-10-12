@@ -33,14 +33,39 @@
               <table class="role-table" :style="{ minWidth: `${tableMinWidth}px` }">
                 <thead>
                   <tr>
-                    <th class="member-column">成员 / 样本</th>
-                    <th v-for="column in visualColumns" :key="column.key">
-                      <MetricHelp
-                        v-if="column.description"
-                        :label="column.label"
-                        :definition="column.description"
-                      />
-                      <span v-else class="metric-heading">{{ column.label }}</span>
+                    <th
+                      v-for="column in tableColumns"
+                      :key="column.key"
+                      scope="col"
+                      :class="{
+                        'member-column': column.key === 'player',
+                        'sample-column': column.key === 'games'
+                      }"
+                      :aria-sort="currentSort?.key === column.key ? currentSort.direction : 'none'"
+                    >
+                      <div class="sortable-heading">
+                        <button
+                          type="button"
+                          class="sort-button"
+                          :aria-label="sortActionLabel(column.key, column.label)"
+                          @click="toggleSort(column.key)"
+                        >
+                          {{ column.label }}
+                          <span aria-hidden="true">{{
+                            currentSort?.key === column.key
+                              ? currentSort.direction === 'descending'
+                                ? '↓'
+                                : '↑'
+                              : '↕'
+                          }}</span>
+                        </button>
+                        <MetricHelp
+                          v-if="column.description"
+                          :label="column.label"
+                          :definition="column.description"
+                          icon-only
+                        />
+                      </div>
                     </th>
                   </tr>
                 </thead>
@@ -58,12 +83,15 @@
                         </button>
                         <strong v-else>{{ short(row.player) }}</strong>
                       </span>
-                      <small>{{ row.games }} 场 · {{ reliabilityLabel(row.games, minimum) }}</small>
+                    </th>
+                    <td class="sample-cell">
+                      <strong>{{ row.games }} 场</strong>
+                      <small>{{ reliabilityLabel(row.games, minimum) }}</small>
                       <span v-if="showSideBreakdown" class="side-samples">
                         <b class="blue">蓝 {{ sideGames(row, '蓝方') }} 场</b>
                         <b class="red">红 {{ sideGames(row, '红方') }} 场</b>
                       </span>
-                    </th>
+                    </td>
                     <td v-for="column in visualColumns" :key="column.key" class="metric-cell">
                       <template v-if="column.key === 'winRate'">
                         <div class="rate-value">
@@ -166,10 +194,22 @@ import { finiteOrNull, formatSigned, reliabilityLabel } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
 import MemberRoleComparison from './MemberRoleComparison.vue'
 import MetricHelp from './MetricHelp.vue'
+import { nextRoleTableSort, sortRoleTableRows, type RoleTableSort } from './role-table-sort'
 
 const store = useMemberAnalysisStore()
 const { windowGames } = useMemberAnalysisData()
 const group = ref<keyof typeof roleMetricGroups>('core')
+const groupSorts = ref<Partial<Record<keyof typeof roleMetricGroups, RoleTableSort>>>({})
+const currentSort = computed(() => groupSorts.value[group.value] ?? null)
+function toggleSort(key: string) {
+  groupSorts.value[group.value] = nextRoleTableSort(currentSort.value, key)
+}
+function sortActionLabel(key: string, label: string) {
+  const next = nextRoleTableSort(currentSort.value, key)
+  return next
+    ? `${label}：按${next.direction === 'descending' ? '降序' : '升序'}排序`
+    : `${label}：取消排序`
+}
 const rows = computed(() =>
   aggregateRolesBySide(
     windowGames.value,
@@ -218,7 +258,12 @@ const visualColumns = computed(() =>
       signed: signed.has(key)
     }))
 )
-const tableMinWidth = computed(() => 160 + visualColumns.value.length * 108)
+const tableColumns = computed(() => [
+  { key: 'player', label: '成员', description: '' },
+  { key: 'games', label: '样本', description: '' },
+  ...visualColumns.value
+])
+const tableMinWidth = computed(() => 268 + visualColumns.value.length * 108)
 const showSideBreakdown = computed(() => store.analysisSide === 'all' && store.sideBreakdown)
 const sideRows = computed(() => {
   const map = new Map<string, (typeof rows.value)[number]>()
@@ -232,19 +277,14 @@ const roleSections = computed(() =>
       const sectionRows = rows.value.filter(
         (row) => row.role === role && (!showSideBreakdown.value || row.sideLabel === '总计')
       )
+      const order = memberOrder(
+        sectionRows.map((row) => row.player),
+        store.settings?.members ?? []
+      )
+      sectionRows.sort((a, b) => order.indexOf(a.player) - order.indexOf(b.player))
       return {
         role,
-        rows: sectionRows.sort(
-          (a, b) =>
-            memberOrder(
-              sectionRows.map((row) => row.player),
-              store.settings?.members ?? []
-            ).indexOf(a.player) -
-            memberOrder(
-              sectionRows.map((row) => row.player),
-              store.settings?.members ?? []
-            ).indexOf(b.player)
-        ),
+        rows: sortRoleTableRows(sectionRows, currentSort.value),
         members: new Set(sectionRows.map((row) => row.player)).size,
         games: sectionRows.reduce((sum, row) => sum + row.games, 0)
       }
@@ -481,6 +521,48 @@ const formatEventTime = (seconds: number) =>
   width: 148px;
   text-align: left;
 }
+.role-table .sample-column {
+  width: 88px;
+}
+.sample-cell small {
+  display: block;
+  margin-top: 3px;
+  color: var(--ma-muted);
+  font-size: 12px;
+}
+.sortable-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.member-column .sortable-heading {
+  justify-content: flex-start;
+}
+.sort-button {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  white-space: normal;
+  cursor: pointer;
+}
+.sort-button:hover {
+  color: var(--la-color-link);
+}
+.sort-button:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+}
+.role-table th[aria-sort='descending'] .sort-button,
+.role-table th[aria-sort='ascending'] .sort-button {
+  color: var(--la-color-link);
+  font-weight: 600;
+}
 .member-line {
   display: flex;
   min-width: 0;
@@ -506,7 +588,8 @@ const formatEventTime = (seconds: number) =>
 }
 .side-samples {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 2px;
   margin-top: 5px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;

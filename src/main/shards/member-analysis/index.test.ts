@@ -7,6 +7,7 @@ vi.mock('@main/shards/logger-factory', () => ({ LoggerFactoryMain: class {} }))
 vi.mock('@main/shards/setting-factory', () => ({ SettingFactoryMain: class {} }))
 vi.mock('@main/shards/window-manager', () => ({ WindowManagerMain: class {} }))
 vi.mock('@main/shards/riot-client', () => ({ RiotClientMain: class {} }))
+vi.mock('@main/shards/league-client', () => ({ LeagueClientMain: class {} }))
 vi.mock('@main/shards/sgp', () => ({ SgpMain: class {} }))
 vi.mock('electron', () => ({ app: { getPath: vi.fn(), isPackaged: false } }))
 
@@ -19,6 +20,7 @@ describe('MemberAnalysisMain degraded lifecycle', () => {
           throw new Error('synthetic logger initialization failure')
         }
       } as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,

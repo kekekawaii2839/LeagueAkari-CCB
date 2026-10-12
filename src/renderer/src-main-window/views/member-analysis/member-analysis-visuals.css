@@ -381,3 +381,117 @@
 .member-analysis-page .n-radio-group__splitor {
   display: none;
 }
+
+/* Page identity belongs to the native tabs; local controls share one compact row. */
+.ma-view-toolbar {
+  display: flex;
+  min-height: 32px;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.ma-view-toolbar > .ma-view-meta {
+  margin-left: auto;
+}
+.ma-view-meta {
+  color: var(--ma-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.ma-table-sort {
+  min-height: 32px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+.ma-table-sort:hover,
+th[aria-sort='descending'] .ma-table-sort,
+th[aria-sort='ascending'] .ma-table-sort {
+  color: var(--la-color-link);
+}
+th[aria-sort='descending'] .ma-table-sort,
+th[aria-sort='ascending'] .ma-table-sort {
+  font-weight: 600;
+}
+@media (max-width: 760px) {
+  .ma-view-toolbar > .ma-view-meta {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
+
+/* Event and early-result comparisons share density, not a new app-wide type scale. */
+.ma-results {
+  container: ma-results / inline-size;
+}
+.member-analysis-page .ma-workspace.ma-results {
+  gap: 12px;
+  padding-top: 16px;
+}
+.ma-results > .ma-section-title {
+  margin-top: 4px;
+  padding-top: 12px;
+}
+.ma-result-controls {
+  min-width: 0;
+  max-width: 100%;
+}
+.ma-result-controls .n-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ma-result-table-wrap {
+  min-width: 0;
+  overflow-x: auto;
+}
+.ma-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ma-result-table th,
+.ma-result-table td {
+  padding: 6px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--ma-grid);
+}
+.ma-result-table th:first-child {
+  text-align: left;
+  font-weight: 500;
+}
+.ma-result-table thead {
+  border-top: 1px solid var(--ma-grid-strong);
+}
+.ma-result-table thead th {
+  color: var(--ma-muted);
+  font-weight: 500;
+}
+.ma-result-table small {
+  color: var(--ma-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.ma-result-table tbody tr:hover,
+.ma-result-table .is-selected {
+  background: var(--ma-hover);
+}
+.ma-result-selected {
+  color: var(--la-color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ma-results .metric-help:focus-visible,
+.ma-results .early-group-button:focus-visible,
+.ma-results .n-radio-button:has(input:focus-visible) {
+  outline: 2px solid var(--la-color-text-primary);
+  outline-offset: 3px;
+}

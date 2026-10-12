@@ -8,6 +8,7 @@ import type {
   MemberAnalysisSettings,
   MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
+import type { PerformanceMetric } from '@shared/shards/member-analysis/performance-metrics'
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
@@ -41,6 +42,19 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
   const sampleSize = ref<20 | 50 | 100 | 'all'>(50)
   const analysisSide = ref<'all' | 'Blue' | 'Red'>('all')
   const sideBreakdown = ref(false)
+  // Session-only controls; no player data or view choices are written to disk.
+  const scatterViewState = reactive({
+    matchMode: false,
+    perMember: false,
+    hiddenMembersByRole: {} as Record<string, string[]>,
+    xMetric: 'damageConversion' as PerformanceMetric,
+    yMetric: 'winRate' as PerformanceMetric,
+    roleFilter: 'MIDDLE'
+  })
+  const predictionViewState = reactive({
+    side: 'all' as 'all' | 'Blue' | 'Red',
+    lineup: { TOP: '', JUNGLE: '', MIDDLE: '', BOTTOM: '', UTILITY: '' }
+  })
   const filters = reactive<MemberAnalysisFilters>({
     outcome: 'all',
     patch: 'all',
@@ -90,6 +104,8 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     sampleSize,
     analysisSide,
     sideBreakdown,
+    scatterViewState,
+    predictionViewState,
     filters,
     viewState,
     resetFilters

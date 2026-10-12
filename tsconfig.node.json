@@ -5,7 +5,8 @@
     "src/main/**/*",
     "src/preload/*",
     "src/shared/**/*",
-    "native/**/*.ts"
+    "native/**/*.ts",
+    "packages/prediction-lab/src/**/*.ts"
   ],
   "compilerOptions": {
     "moduleResolution": "NodeNext",
@@ -25,5 +26,6 @@
     "strictPropertyInitialization": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
-  }
+  },
+  "exclude": ["packages/prediction-lab/src/**/*.test.ts"]
 }

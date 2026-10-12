@@ -1,0 +1,4 @@
+[submodule "prediction-lab"]
+	path = packages/prediction-lab
+	url = https://github.com/kekekawaii2839/akari-prediction-lab.git
+	update = checkout

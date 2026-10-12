@@ -22,11 +22,12 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:repository-scripts": "node --test scripts/checks/*.node-test.mjs scripts/member-analysis/*.node-test.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev --watch -- --inspect",
     "dev:no-watch": "electron-vite dev -- --inspect",
-    "dev:member-analysis": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/start-member-analysis-dev.ps1",
-    "audit:member-analysis-ui": "node scripts/member-analysis-ui-audit.mjs",
+    "dev:member-analysis": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/member-analysis/start-member-analysis-dev.ps1",
+    "audit:member-analysis-ui": "node scripts/member-analysis/member-analysis-ui-audit.mjs",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "build:native:win": "node native/win32-x64/scripts/build.js",
@@ -37,7 +38,12 @@
     "build:ccb:win": "npm run build && electron-builder --win --config packaging/member-analysis-builder.yml",
     "build:win:native": "npm run build:native:win && npm run build:win",
     "gen-types": "tsc --declaration --emitDeclarationOnly --outDir ./out/types -p tsconfig.node.json",
-    "build:mac": "npm run build && electron-builder --mac --config"
+    "build:mac": "npm run build && electron-builder --mac --config",
+    "lab:build": "node packages/prediction-lab/build.mjs",
+    "lab:typecheck": "node packages/prediction-lab/build.mjs --check",
+    "lab": "node packages/prediction-lab/cli.mjs",
+    "lab:test": "node packages/prediction-lab/scripts/test.mjs",
+    "check:lab-submodule": "node scripts/checks/check-prediction-lab-submodule.mjs"
   },
   "dependencies": {
     "@babel/runtime": "^8.0.0",

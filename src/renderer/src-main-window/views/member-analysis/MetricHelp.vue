@@ -1,8 +1,14 @@
 <template>
   <NPopover v-model:show="show" trigger="click" placement="bottom" :style="{ maxWidth: '300px' }">
     <template #trigger>
-      <button ref="trigger" type="button" class="metric-help" :aria-expanded="show">
-        {{ label }} <span aria-hidden="true">ⓘ</span>
+      <button
+        ref="trigger"
+        type="button"
+        class="metric-help"
+        :aria-expanded="show"
+        :aria-label="iconOnly ? `${label}说明` : undefined"
+      >
+        {{ iconOnly ? '' : label }} <span aria-hidden="true">ⓘ</span>
       </button>
     </template>
     <div class="metric-help-content">
@@ -15,7 +21,7 @@
 import { NButton, NPopover } from 'naive-ui'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { uiText } from './ui-text'
-defineProps<{ label: string; definition: string }>()
+defineProps<{ label: string; definition: string; iconOnly?: boolean }>()
 const show = ref(false)
 const trigger = ref<HTMLButtonElement | null>(null)
 async function close() {

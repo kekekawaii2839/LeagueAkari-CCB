@@ -2,6 +2,8 @@ import type { RiotClientMain } from '@main/shards/riot-client'
 import type { SgpMain } from '@main/shards/sgp'
 import type { MemberAnalysisCollectionAudit } from '@shared/shards/member-analysis'
 
+import { OpponentRankLoader, type RankGameTarget } from './opponent-ranks/loader'
+import type { GameRankSnapshot } from './opponent-ranks/repository'
 import type { CatalogItem, MemberAnalysisRepository } from './repository'
 
 export type MemberTarget = { serverId: string; gameName: string; tagLine: string }
@@ -16,6 +18,7 @@ export type CollectionOptions = {
 }
 
 export type CollectionResult = {
+  rankSnapshots: GameRankSnapshot[]
   items: CatalogItem[]
   changed: CatalogItem[]
   skipped: number
@@ -91,6 +94,7 @@ export class MemberAnalysisCollector {
       options.historyDepth === 'all' ? eligible : eligible.slice(0, options.historyDepth)
     const items: CatalogItem[] = []
     const changed: CatalogItem[] = []
+    const rankTargets: RankGameTarget[] = []
     let cacheHits = 0
     let processed = 0
     for (const { serverId, summary } of selected) {
@@ -102,6 +106,37 @@ export class MemberAnalysisCollector {
           .map((member) => [member.puuid, `${member.target.gameName}#${member.target.tagLine}`])
       )
       const teamId = this._configuredTeam(summary, new Set(targets.keys()))
+      if (Number(summary.json.gameDuration) >= 900) {
+        const normalizeRole = (value: unknown): RankGameTarget['opponents'][number]['role'] => {
+          const role = String(value ?? '').toUpperCase()
+          if (role === 'MID') return 'MIDDLE'
+          if (role === 'SUPPORT') return 'UTILITY'
+          return ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'].includes(role)
+            ? (role as NonNullable<RankGameTarget['opponents'][number]['role']>)
+            : null
+        }
+        rankTargets.push({
+          serverId,
+          gameId,
+          opponents: (summary.json.participants ?? [])
+            .filter((participant: any) => Number(participant.teamId) !== teamId)
+            .map((participant: any) => ({
+              puuid:
+                typeof participant.puuid === 'string' && participant.puuid
+                  ? participant.puuid
+                  : null,
+              role: normalizeRole(
+                participant.teamPosition ?? participant.individualPosition ?? participant.lane
+              ),
+              champion:
+                typeof participant.championName === 'string' &&
+                participant.championName.length > 0 &&
+                participant.championName.length <= 64
+                  ? participant.championName
+                  : null
+            }))
+        })
+      }
       const normalizedSummary = structuredClone(summary)
       for (const participant of normalizedSummary.json.participants ?? []) {
         const targetName = targets.get(participant.puuid)
@@ -135,6 +170,13 @@ export class MemberAnalysisCollector {
       options.onProgress(processed, selected.length, 'loading-details')
     }
 
+    const ranks = await new OpponentRankLoader(this._sgp, this._repository.opponentRanks).load(
+      rankTargets,
+      options.signal,
+      options.onProgress
+    )
+    this._throwIfCancelled(options.signal)
+
     const audit: MemberAnalysisCollectionAudit = {
       requestedMembers: options.members.length,
       resolvedMembers: resolved.length,
@@ -159,6 +201,7 @@ export class MemberAnalysisCollector {
       publishedGames: 0
     }
     return {
+      rankSnapshots: ranks,
       items,
       changed,
       skipped: classified.sourceUnion - selected.length,

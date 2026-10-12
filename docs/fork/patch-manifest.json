@@ -20,6 +20,18 @@
   ],
   "patches": [
     {
+      "id": "native-prediction-build-fingerprint",
+      "upstreamFile": "electron.vite.config.ts",
+      "purpose": "Embed the maintained prediction source and protocol fingerprint in the main build to reject mixed-source native prediction studies",
+      "replacementIfUpstreamChanges": "Use an upstream build-time feature define or contribution API while preserving the frozen prediction source/protocol identity"
+    },
+    {
+      "id": "member-analysis-rank-retry-ownership",
+      "upstreamFile": "src/shared/http-api-axios-helper/sgp/leagues-ledge.ts",
+      "purpose": "Allow the bounded member-analysis rank collector to disable nested axios retries without changing ordinary callers",
+      "replacementIfUpstreamChanges": "Use an upstream per-request retry policy option"
+    },
+    {
       "id": "member-analysis-main-registration",
       "upstreamFile": "src/main/bootstrap/index.ts",
       "purpose": "Register the isolated, degradable main shard",
@@ -216,6 +228,24 @@
       "upstreamFile": "src/shared/i18n/zh-CN/renderer/opgg.yaml",
       "purpose": "Provide Simplified Chinese copy for the experimental matchup selector",
       "replacementIfUpstreamChanges": "Move copy into an upstream-supported feature locale namespace"
+    },
+    {
+      "id": "prediction-lab-node-types",
+      "upstreamFile": "tsconfig.node.json",
+      "purpose": "Type-check the extracted pure prediction library while excluding Vitest-only tests from NodeNext application compilation",
+      "replacementIfUpstreamChanges": "Use an upstream workspace-package TypeScript project reference"
+    },
+    {
+      "id": "prediction-lab-web-types",
+      "upstreamFile": "tsconfig.web.json",
+      "purpose": "Type-check the extracted pure library and browser compatibility adapter consumed by native member-analysis",
+      "replacementIfUpstreamChanges": "Use an upstream workspace-package TypeScript project reference"
+    },
+    {
+      "id": "prediction-lab-node-test-isolation",
+      "upstreamFile": "vitest.config.mts",
+      "purpose": "Keep standalone node:test infrastructure files out of the application Vitest discovery",
+      "replacementIfUpstreamChanges": "Use an upstream multi-project test runner boundary"
     }
   ]
 }

@@ -2,24 +2,68 @@ import {
   MemberAnalysisConfirmCleanupRequestSchema,
   type MemberAnalysisError,
   MemberAnalysisJobRequestSchema,
+  MemberAnalysisMatchRequestSchema,
   MemberAnalysisOverviewRequestSchema,
   type MemberAnalysisResult,
   MemberAnalysisStartRefreshRequestSchema,
   MemberAnalysisUpdateSettingsRequestSchema
 } from '@shared/shards/member-analysis'
+import {
+  PredictionOpportunityIdSchema,
+  PredictionOpportunityRequestSchema
+} from '@shared/shards/member-analysis/prediction'
 import type { IpcMainInvokeEvent } from 'electron'
 import { type ZodType, z } from 'zod'
 
 import type { MemberAnalysisMainContext } from './context'
 import type { MemberAnalysisController } from './member-analysis-controller'
+import type { NativePredictionController } from './prediction/native-prediction-controller'
 
 export class MemberAnalysisIpcHandlers {
   constructor(
     private readonly _context: MemberAnalysisMainContext,
-    private readonly _controller: MemberAnalysisController
+    private readonly _controller: MemberAnalysisController,
+    private readonly _prediction: NativePredictionController | null = null
   ) {}
 
   register() {
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'startPredictionOpportunity',
+      async (event, ...args) => {
+        const parsed = this._parseArgs(event, z.tuple([PredictionOpportunityRequestSchema]), args)
+        if (!parsed.ok) return parsed.result
+        if (
+          !this._prediction ||
+          !this._context.runtime.initialized ||
+          !this._context.settings.enabled
+        )
+          return { ok: true, value: { status: 'rejected', reason: 'not-ready' } }
+        return { ok: true, value: await this._prediction.begin(parsed.value[0]) }
+      }
+    )
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'cancelPredictionOpportunity',
+      (event, ...args) => {
+        const parsed = this._parseArgs(event, z.tuple([PredictionOpportunityIdSchema]), args)
+        if (!parsed.ok) return parsed.result
+        return { ok: true, value: this._prediction?.cancel(parsed.value[0].id) ?? false }
+      }
+    )
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'getPredictionPilotSummary',
+      (event, ...args) => {
+        const invalid = this._validateNoArgs(event, args)
+        return invalid ?? { ok: true, value: this._prediction?.summary() ?? null }
+      }
+    )
+    this._context.ipc.onCall(this._context.namespace, 'getMatchDetails', (event, ...args) => {
+      const parsed = this._parseArgs(event, z.tuple([MemberAnalysisMatchRequestSchema]), args)
+      if (!parsed.ok) return parsed.result
+      return this._controller.getMatchDetails(parsed.value[0].gameId)
+    })
     this._context.ipc.onCall(this._context.namespace, 'getCapabilities', (event, ...args) => {
       const invalid = this._validateNoArgs(event, args)
       return invalid ?? this._controller.getCapabilities()

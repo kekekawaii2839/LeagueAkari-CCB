@@ -1,4 +1,63 @@
 zh-CN:
+  eventWindowNote: 比例按事件窗口统计，不等于对局胜率，也不代表因果。
+  eventGameNote: 按对局展示相关汇总，不代表逐事件关联
+  noEventSelection: 选择指标数值查看对应对局。
+  earlyResultNote: 圆点为胜率，短线为 95% 区间；前期经济与胜负相关，不代表因果。
+  noEarlyGames: 当前范围没有该时刻的完整五路经济数据。
+  selectionUnavailable: 当前筛选已不含原选择，已清空对应详情。
+  pairComparison: 组合表现
+  chooseMember: 选择成员
+  historicalReferenceLimit: 仅供历史参考，不是所选阵容的下一场预测；少量对局的胜率和区间可能大幅波动。
+  lineupHistoryMethod: 相同阵容历史参考
+  blendedHistoryMethod: 成员表现与历史胜率
+  memberPerformanceMethod: 成员表现模型
+  collectionCount: 五人同队对局数量
+  collectionCountHelp: 选择全部时，查询到没有更多记录或达到查询上限为止。
+  historyQueryLimit: 每名成员最多查询场数
+  historyQueryLimitHelp: 增加场数可查找更早的对局，但查询时间和本地存储占用也会增加。
+  collectionModeHelp: 选择排位相关模式，或仅查询指定比赛模式的对局。
+  rankedModes: 排位相关模式
+  collectionRecent: '最近 {{count}} 场五人同队对局'
+  collectionAll: 全部可用对局
+  publicReferenceHelp: 仅获取公开的英雄统计，不上传成员或对局数据。
+  confirmCleanupTitle: 确认清理本地数据
+  firstRunHelp: 配置成员后，刷新以获取分析数据。
+  retry: 重试
+  errorDisabled: 成员分析已关闭，请在设置中启用。
+  errorInitializing: 分析服务尚未就绪，请稍后重试。
+  errorSettings: 设置不完整或无效，请检查成员分析设置。
+  errorAnalysisUnavailable: 分析功能暂不可用，请重启应用后重试。
+  errorJobRunning: 刷新正在进行，请等待完成或先取消刷新。
+  errorJobMissing: 刷新任务已结束，请重新刷新。
+  errorCancelled: 刷新已取消，现有数据没有变化。
+  errorUnavailable: 无法读取分析数据，请稍后重试。
+  timelineUnavailable: 时间线数据缺失，请刷新分析补齐。
+  matchingGames: 对应对局
+  sortDescending: '{{label}}：按降序排序'
+  sortAscending: '{{label}}：按升序排序'
+  sortDefault: '{{label}}：恢复默认顺序'
+  rankSource: 来源：英雄联盟对局服务
+  rankComparisonLimit: 段位以查询时间为准，不代表比赛开始时的段位或实际实力；重复对手、段位变化和缺失数据可能影响比较。
+  predictionIntro: 选择五个分路的成员，估计下一场胜率。顶部复盘筛选及范围不用于预测。
+  predictionProgress: 胜率计算进度
+  predictionCalculating: 正在计算胜率…
+  predictionMethod: 当前方法
+  predictionSample: '使用 {{total}} 场历史对局 · 验证 {{validation}} 场'
+  predictionNoAdvantage: 尚未发现比历史胜率参考更可靠的预测表现。
+  predictionInterval: 95% 模型估计区间
+  intervalUnavailable: 无法估计区间
+  predictionDetails: 数据与验证
+  hidePredictionDetails: 收起数据与验证
+  predictionHistoryScope: 每位成员使用对应分路最近最多 20 场先前对局；蓝方或红方仅使用对应方历史，红蓝综合使用两方历史。排除不足 15 分钟的对局。
+  predictionLimit: 仅根据历史表现估计，未考虑下一场对手、英雄阵容和版本变化；不是配合能力评分。
+  predictionIntervalLimit: 区间只反映当前历史与方法下的估计差异，不覆盖全部未来变化，也不保证下一场结果。
+  predictionValidationScope: '训练：{{trainFrom}}–{{trainTo}} · 验证：{{testFrom}}–{{testTo}}。验证结果只供参考，不保证未来表现。'
+  predictionValidation: 历史验证结果
+  predictionBaseline: 历史胜率参考
+  historyAverage: 近期场均
+  predictionInput: 用于预测
+  inputUsed: 是
+  inputUnused: 否
   cleanupPreviewFailed: 无法生成清理预览，请稍后重试。
   cleanupFailed: 清理未完成，请重新预览后重试。
   closeHelp: 关闭说明
@@ -22,6 +81,65 @@ zh-CN:
   membersRequired: 启用后至少需要五名成员，并填写每名成员的服务器、名称和 Tag。
   percentagePoints: '{{value}} 个百分点'
 en:
+  eventWindowNote: Rates use event windows, not independent matches, and do not imply causation.
+  eventGameNote: Match-level summaries, not individual event links
+  noEventSelection: Select a metric value to see matching games.
+  earlyResultNote: Dots show win rates and lines show 95% intervals; early gold and results are associated, not causal.
+  noEarlyGames: No complete five-role gold data is available at this time in the current sample.
+  selectionUnavailable: The current filters no longer include the selection. Its details have been cleared.
+  pairComparison: Pair performance
+  chooseMember: Choose a member
+  historicalReferenceLimit: Historical reference only, not a next-match prediction for this lineup. Rates and intervals may vary substantially with few matches.
+  lineupHistoryMethod: Same-lineup history reference
+  blendedHistoryMethod: Member performance and historical win rate
+  memberPerformanceMethod: Member performance model
+  collectionCount: Five-player team matches
+  collectionCountHelp: All available matches are queried until history ends or the query limit is reached.
+  historyQueryLimit: Maximum matches queried per member
+  historyQueryLimitHelp: A higher limit can find older matches, but takes longer and uses more local storage.
+  collectionModeHelp: Choose ranked-related modes or query one specific game mode.
+  rankedModes: Ranked-related modes
+  collectionRecent: 'Latest {{count}} five-player team matches'
+  collectionAll: All available matches
+  publicReferenceHelp: Fetches public champion statistics only; member and match data are not uploaded.
+  confirmCleanupTitle: Confirm local data cleanup
+  firstRunHelp: Configure members, then refresh to get analysis data.
+  retry: Retry
+  errorDisabled: Member analysis is off. Enable it in settings.
+  errorInitializing: Analysis is not ready. Try again shortly.
+  errorSettings: Some settings are missing or invalid. Check member analysis settings.
+  errorAnalysisUnavailable: Analysis is unavailable. Restart the app and try again.
+  errorJobRunning: A refresh is running. Wait for it or cancel it first.
+  errorJobMissing: The refresh has ended. Start a new refresh.
+  errorCancelled: Refresh cancelled. Existing data is unchanged.
+  errorUnavailable: Could not read analysis data. Try again shortly.
+  timelineUnavailable: Timeline data is missing. Refresh the analysis to retrieve it.
+  matchingGames: Matching matches
+  sortDescending: '{{label}}: sort descending'
+  sortAscending: '{{label}}: sort ascending'
+  sortDefault: '{{label}}: restore default order'
+  rankSource: 'Source: League of Legends match service'
+  rankComparisonLimit: Ranks reflect query time, not match-start ranks or skill. Repeated opponents, rank changes and missing data may affect comparisons.
+  predictionIntro: Choose a member for each role to estimate the next-match win rate. Review filters and sample limits above do not apply to prediction.
+  predictionProgress: Win rate calculation progress
+  predictionCalculating: Calculating win rate…
+  predictionMethod: Current method
+  predictionSample: '{{total}} historical matches used · {{validation}} validation matches'
+  predictionNoAdvantage: No more reliable prediction performance than the historical win rate reference has been found.
+  predictionInterval: 95% model estimate interval
+  intervalUnavailable: Interval unavailable
+  predictionDetails: Data and validation
+  hidePredictionDetails: Hide data and validation
+  predictionHistoryScope: Uses each member's latest 20 earlier matches in their role. Blue or red uses that side's history; combined uses both. Matches shorter than 15 minutes are excluded.
+  predictionLimit: Based only on past performance, without the next opponent, champion composition or patch changes. Not a teamwork rating.
+  predictionIntervalLimit: The interval reflects estimation differences under current history and method, not all future changes or a guaranteed next-match result.
+  predictionValidationScope: 'Training: {{trainFrom}}–{{trainTo}} · Validation: {{testFrom}}–{{testTo}}. Validation is a reference, not a guarantee of future performance.'
+  predictionValidation: Historical validation results
+  predictionBaseline: Historical win rate reference
+  historyAverage: Recent per-match average
+  predictionInput: Used for prediction
+  inputUsed: Yes
+  inputUnused: No
   cleanupPreviewFailed: Could not prepare a cleanup preview. Please try again later.
   cleanupFailed: Cleanup did not finish. Generate a new preview and try again.
   closeHelp: Close explanation

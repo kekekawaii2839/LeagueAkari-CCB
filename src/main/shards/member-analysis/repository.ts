@@ -1,10 +1,12 @@
 import {
+  MEMBER_ANALYSIS_MIN_DURATION_SEC,
   type MemberAnalysisCleanupPreview,
   type MemberAnalysisCollectionAudit,
   MemberAnalysisCollectionAuditSchema,
   type MemberAnalysisFilters,
   type MemberAnalysisGame,
   MemberAnalysisGameSchema,
+  type MemberAnalysisMatchDetails,
   type MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
 import { createHash } from 'node:crypto'
@@ -16,7 +18,9 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  readFileSync,
   readdirSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -24,7 +28,9 @@ import {
 } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { gzipSync } from 'node:zlib'
+import { gunzipSync, gzipSync } from 'node:zlib'
+
+import { type GameRankSnapshot, OpponentRankRepository } from './opponent-ranks/repository'
 
 export type CatalogItem = {
   serverId: string
@@ -88,6 +94,7 @@ export class MemberAnalysisRepository {
   readonly catalogPath: string
   readonly currentAnalysisPath: string
   readonly stagingAnalysisPath: string
+  readonly opponentRanks: OpponentRankRepository
 
   private _catalog: DatabaseSync | null = null
   private _cleanupPlan: CleanupPlan | null = null
@@ -101,6 +108,7 @@ export class MemberAnalysisRepository {
     this.catalogPath = join(this.dbRoot, 'catalog.sqlite3')
     this.currentAnalysisPath = join(this.dbRoot, 'analysis.sqlite3')
     this.stagingAnalysisPath = join(this.dbRoot, 'analysis.next.sqlite3')
+    this.opponentRanks = new OpponentRankRepository(join(this.dbRoot, 'opponent-ranks.sqlite3'))
   }
 
   initialize() {
@@ -115,14 +123,17 @@ export class MemberAnalysisRepository {
       if (catalogVersion > 2) throw new Error('Unsupported member analysis catalog version')
       this._catalog.exec(CATALOG_SCHEMA)
       this._migrateAnalysisDatabase()
+      this.opponentRanks.initialize()
     } catch (error) {
       this._catalog?.close()
       this._catalog = null
+      this.opponentRanks.close()
       throw error
     }
   }
 
   close() {
+    this.opponentRanks.close()
     this._catalog?.close()
     this._catalog = null
   }
@@ -164,6 +175,142 @@ export class MemberAnalysisRepository {
           detailsPath: row.details_path
         }
       : null
+  }
+
+  /** Main-only initial prediction source reconciliation; never scans current derived outcomes. */
+  readPredictionSource(gameId: number): { serverId: string; summary: unknown } {
+    if (!Number.isSafeInteger(gameId) || gameId <= 0) throw new Error('Invalid prediction source')
+    const servers = this._db()
+      .prepare('SELECT server_id FROM catalog_games WHERE game_id=? LIMIT 2')
+      .all(gameId) as { server_id: string }[]
+    if (servers.length !== 1) throw new Error('Prediction source is missing or ambiguous')
+    const serverId = servers[0].server_id
+    const item = this.catalogItem(serverId, gameId)!
+    const expected = this.safePath(
+      join('raw', this.safeSegment(serverId), String(gameId), 'summary.json.gz')
+    )
+    if (this.safePath(item.summaryPath) !== expected)
+      throw new Error('Invalid prediction source path')
+    const root = realpathSync(this.dataRoot)
+    let part = this.dataRoot
+    for (const segment of relative(this.dataRoot, expected).split(sep)) {
+      part = join(part, segment)
+      if (lstatSync(part).isSymbolicLink()) throw new Error('Invalid prediction source location')
+    }
+    const actual = realpathSync(expected)
+    if (!actual.startsWith(`${root}${sep}`)) throw new Error('Invalid prediction source location')
+    const sourceStat = lstatSync(actual)
+    if (!sourceStat.isFile() || sourceStat.size > 32 * 1024 * 1024)
+      throw new Error('Invalid prediction source size')
+    const summary = JSON.parse(
+      gunzipSync(readFileSync(actual), { maxOutputLength: 32 * 1024 * 1024 }).toString('utf8')
+    )
+    if (
+      summary?.json?.gameId !== gameId ||
+      !Array.isArray(summary.json.participants) ||
+      !Array.isArray(summary.json.teams)
+    )
+      throw new Error('Invalid prediction source summary')
+    return { serverId, summary }
+  }
+
+  /** Future-only expansion: inspect raw start before loading any derived outcome payload. */
+  readFuturePredictionGames(studyCreatedAtMs: number, cutoffMs: number) {
+    if (
+      !Number.isSafeInteger(studyCreatedAtMs) ||
+      !Number.isSafeInteger(cutoffMs) ||
+      studyCreatedAtMs < 0 ||
+      cutoffMs < studyCreatedAtMs ||
+      cutoffMs > Date.now()
+    )
+      throw new Error('Invalid future prediction window')
+    const catalog = this._db()
+      .prepare(
+        'SELECT game_id FROM catalog_games WHERE fetched_at >= ? ORDER BY fetched_at,server_id,game_id LIMIT 10001'
+      )
+      .all(new Date(studyCreatedAtMs).toISOString()) as { game_id: number }[]
+    if (catalog.length > 10000) throw new Error('Future prediction source budget exceeded')
+    const games: unknown[] = []
+    const queueEntries: [string, number][] = []
+    let database: DatabaseSync | null = null
+    try {
+      for (const item of catalog) {
+        const source = this.readPredictionSource(item.game_id)
+        const raw = (source.summary as { json: Record<string, unknown> }).json
+        const start = raw.gameStartTimestamp || raw.gameCreation
+        if (!Number.isSafeInteger(start)) throw new Error('Missing future source start')
+        if (Number(start) < studyCreatedAtMs || Number(start) >= cutoffMs) continue
+        if (!Number.isSafeInteger(raw.gameEndTimestamp))
+          throw new Error('Missing future source end')
+        if (Number(raw.gameEndTimestamp) >= cutoffMs) continue
+        if (typeof raw.gameDuration !== 'number') throw new Error('Missing future duration')
+        if (raw.gameDuration < 900) continue
+        if (!database) {
+          if (!existsSync(this.currentAnalysisPath)) throw new Error('Future features not ready')
+          database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+        }
+        const row = database
+          .prepare('SELECT payload_json FROM derived_games WHERE server_id=? AND game_id=?')
+          .get(source.serverId, item.game_id) as { payload_json: string } | undefined
+        if (!row) throw new Error('Future features not ready')
+        games.push(JSON.parse(row.payload_json))
+        queueEntries.push([`${start}|${item.game_id}`, Number(raw.queueId)])
+        if (games.length > 167) throw new Error('Future prediction input budget exceeded')
+      }
+    } finally {
+      database?.close()
+    }
+    return { games, queueEntries, studyCreatedAtMs, observedAtMs: Date.now() }
+  }
+
+  readMatchDetails(gameId: number): MemberAnalysisMatchDetails | null {
+    if (!existsSync(this.currentAnalysisPath)) return null
+    const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+    let rows: { server_id: string }[]
+    try {
+      rows = database
+        .prepare(
+          `SELECT server_id FROM derived_games WHERE game_id = ?
+         AND json_extract(payload_json,'$.duration') >= ? LIMIT 2`
+        )
+        .all(gameId, MEMBER_ANALYSIS_MIN_DURATION_SEC) as { server_id: string }[]
+    } finally {
+      database.close()
+    }
+    // Do not guess the region when legacy datasets contain a colliding game ID.
+    if (rows.length !== 1) return null
+    const serverId = rows[0].server_id
+    const item = this.catalogItem(serverId, gameId)
+    if (!item) return null
+    const read = (name: 'summary' | 'details', indexedPath: string) => {
+      const expected = this.safePath(
+        join('raw', this.safeSegment(serverId), String(gameId), `${name}.json.gz`)
+      )
+      if (this.safePath(indexedPath) !== expected) throw new Error('Invalid cached match path')
+      if (!existsSync(expected)) return null
+      const actual = realpathSync(expected)
+      const rawRoot = realpathSync(this.rawRoot)
+      if (!actual.startsWith(`${rawRoot}${sep}`)) throw new Error('Invalid cached match location')
+      return JSON.parse(
+        gunzipSync(readFileSync(actual), { maxOutputLength: 32 * 1024 * 1024 }).toString('utf8')
+      )
+    }
+    const summary = read('summary', item.summaryPath)
+    if (!summary) return null
+    if (
+      summary.json?.gameId !== gameId ||
+      !Array.isArray(summary.json?.participants) ||
+      !Array.isArray(summary.json?.teams)
+    )
+      throw new Error('Invalid cached match summary')
+    const details = read('details', item.detailsPath)
+    if (details && (details.json?.gameId !== gameId || !Array.isArray(details.json?.frames)))
+      throw new Error('Invalid cached match timeline')
+    return {
+      serverId,
+      summary: { source: 'sgp', gameId, data: summary },
+      details: details ? { source: 'sgp', gameId, data: details } : null
+    }
   }
 
   updateRawSummary(item: CatalogItem, summary: unknown) {
@@ -241,7 +388,7 @@ export class MemberAnalysisRepository {
     }
   }
 
-  publishStaging() {
+  publishStaging(rankSnapshots: GameRankSnapshot[] = []) {
     if (!existsSync(this.stagingAnalysisPath)) throw new Error('analysis staging database missing')
     const staging = new DatabaseSync(this.stagingAnalysisPath)
     let count: number
@@ -259,6 +406,7 @@ export class MemberAnalysisRepository {
     }
     const previous = join(this.dbRoot, 'analysis.previous.sqlite3')
     let movedCurrent = false
+    let installedStaging = false
     try {
       this._removeDatabaseFile(previous)
       this._removeSqliteSidecars(this.stagingAnalysisPath)
@@ -268,10 +416,14 @@ export class MemberAnalysisRepository {
         movedCurrent = true
       }
       this._renameWithRetry(this.stagingAnalysisPath, this.currentAnalysisPath)
+      installedStaging = true
+      this.opponentRanks.publishGames(rankSnapshots)
       this._removeDatabaseFile(previous)
     } catch (error) {
-      if (movedCurrent && !existsSync(this.currentAnalysisPath) && existsSync(previous))
+      if (movedCurrent && existsSync(previous)) {
+        this._removeDatabaseFile(this.currentAnalysisPath)
         this._renameWithRetry(previous, this.currentAnalysisPath)
+      } else if (installedStaging) this._removeDatabaseFile(this.currentAnalysisPath)
       throw error
     }
     return count
@@ -353,9 +505,11 @@ export class MemberAnalysisRepository {
       return {
         generatedAt: generatedAt?.value ?? null,
         source: source?.value?.trim() || '来源未知',
-        games: rows
-          .slice(0, pageSize)
-          .map((row) => MemberAnalysisGameSchema.parse(JSON.parse(row.payload_json))),
+        games: rows.slice(0, pageSize).map((row) => {
+          const game = MemberAnalysisGameSchema.parse(JSON.parse(row.payload_json))
+          const ranks = this.opponentRanks.readGame(row.server_id, row.game_id)
+          return ranks ? { ...game, opponentRanks: ranks } : game
+        }),
         total,
         playerCount,
         collectionAudit,
@@ -530,6 +684,8 @@ export class MemberAnalysisRepository {
       clauses.push(sql)
       params.push(...values)
     }
+    // Fixed eligibility is independent of user filters and precedes pagination/counts.
+    add("json_extract(payload_json,'$.duration') >= ?", MEMBER_ANALYSIS_MIN_DURATION_SEC)
     if (filters.outcome !== 'all')
       add("json_extract(payload_json,'$.win') = ?", filters.outcome === 'win' ? 1 : 0)
     if (filters.patch !== 'all') add("json_extract(payload_json,'$.patch') = ?", filters.patch)

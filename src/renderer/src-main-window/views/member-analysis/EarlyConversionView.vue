@@ -1,268 +1,356 @@
 <template>
-  <div class="ma-panel ma-workspace">
-    <header class="ma-view-heading">
-      <div>
-        <h2>经济差与比赛结果</h2>
-      </div>
-      <span>{{ rows.length }} 场含 {{ timing }} 分钟完整经济数据</span>
-    </header>
-    <NRadioGroup v-model:value="timing" size="small"
-      ><NRadioButton value="15">15 分钟</NRadioButton
-      ><NRadioButton value="20">20 分钟</NRadioButton></NRadioGroup
-    >
-    <dl class="conversion-summary">
-      <div v-for="card in summary" :key="card.label">
-        <dt>
-          {{ card.label }} <small>{{ card.note }}</small>
-        </dt>
-        <dd :class="card.tone">{{ card.value }}</dd>
-      </div>
-    </dl>
-    <p class="ma-chart-note">{{ uiText('rateLegend') }} 经济区间含下限、不含上限，单位为金币。</p>
-    <section class="early-table-wrap" aria-label="经济差分档与胜率">
-      <table class="early-table">
+  <div ref="root" class="ma-panel ma-workspace ma-results">
+    <div class="ma-view-toolbar">
+      <NRadioGroup v-model:value="timing" size="small" aria-label="前期经济时刻"
+        ><NRadioButton value="15">15 分钟</NRadioButton
+        ><NRadioButton value="20">20 分钟</NRadioButton></NRadioGroup
+      >
+      <NSelect
+        v-if="compact"
+        v-model:value="group"
+        class="early-group-select"
+        :options="groupOptions"
+        :render-label="renderGroupLabel"
+        aria-label="经济差分组"
+        :consistent-menu-width="false"
+      />
+      <span v-if="!compact" class="ma-view-meta"
+        >完整经济 {{ rows.length }} / {{ games.length }} 场 · 其余不计入分档</span
+      >
+    </div>
+    <div v-if="!compact" class="early-groups" role="group" aria-label="经济差分组">
+      <NButton
+        v-for="item in earlyGroups"
+        :key="item.key"
+        size="small"
+        class="early-group-button"
+        :secondary="group === item.key"
+        :type="group === item.key ? 'primary' : 'default'"
+        :aria-pressed="group === item.key"
+        @click="group = item.key"
+      >
+        {{ item.label }} · {{ groupCount(item.key) }} 场
+        <span v-if="item.boundary" class="ma-view-meta">{{ item.boundary }} 金币</span>
+      </NButton>
+    </div>
+    <p v-if="!rows.length" class="ma-chart-note">{{ uiText('noEarlyGames') }}</p>
+    <section class="ma-result-table-wrap" aria-label="经济差分档与胜率">
+      <table class="ma-result-table early-table">
+        <colgroup>
+          <col />
+          <col />
+          <col />
+          <col />
+        </colgroup>
         <thead>
           <tr>
-            <th>经济差（金币）</th>
-            <th>场数</th>
-            <th>胜 / 负</th>
-            <th>胜率</th>
-            <th>0% — 50% — 100%</th>
+            <th scope="col">五路经济差（金币）</th>
+            <th scope="col">场数</th>
+            <th scope="col">胜 / 负</th>
+            <th scope="col">胜率与 95% 区间<small class="rate-scale">0% — 50% — 100%</small></th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="bucket in buckets"
+            v-for="bucket in visibleBuckets"
             :key="bucket.label"
             :class="{ 'is-selected': selectedBucket === bucket.label }"
           >
             <th scope="row">
               <button
                 type="button"
+                class="early-bucket-button"
                 :aria-pressed="selectedBucket === bucket.label"
-                @click="selectedBucket = selectedBucket === bucket.label ? '' : bucket.label"
+                @click="selectBucket(bucket.label, $event)"
               >
-                {{ bucket.label }}
+                {{ earlyBucketLabel(bucket.label)
+                }}<small v-if="selectedBucket === bucket.label" class="ma-result-selected"
+                  >已选</small
+                >
               </button>
             </th>
             <td>{{ bucket.games }}</td>
             <td>{{ bucket.wins }} / {{ bucket.games - bucket.wins }}</td>
-            <td>{{ formatMetric(bucket.winRate, 'pct') }}</td>
-            <td><WinRateInterval :wins="bucket.wins" :games="bucket.games" /></td>
+            <td>
+              <div class="early-rate">
+                <span
+                  ><MetricHelp
+                    :label="formatMetric(bucket.winRate, 'pct')"
+                    :definition="bucket.intervalNote"
+                  /><small v-if="bucket.games === 1">1 场样本</small></span
+                ><WinRateInterval
+                  :wins="bucket.wins"
+                  :games="bucket.games"
+                  :low="bucket.games === 1"
+                />
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
     </section>
+    <p class="ma-chart-note">{{ uiText('earlyResultNote') }}</p>
     <div class="ma-section-title">
       <strong
-        >逐场精确证据 <template v-if="selectedBucket">· {{ selectedBucket }}</template></strong
-      ><NButton v-if="selectedBucket" size="small" quaternary @click="selectedBucket = ''">
-        {{ uiText('clearSelection') }}
-      </NButton>
+        >{{ uiText('matchingGames')
+        }}<template v-if="selectedBucket">
+          · {{ earlyBucketLabel(selectedBucket) }} 金币</template
+        ></strong
+      >
+      <NButton v-if="selectedBucket" size="small" quaternary @click="clearSelection">{{
+        uiText('clearSelection')
+      }}</NButton>
+      <span v-else class="ma-view-meta"
+        >{{ earlyGroups.find((item) => item.key === group)?.label }} ·
+        {{ evidenceGames.length }} 场</span
+      >
     </div>
-    <MemberAnalysisMetricTable
+    <p v-if="notice" class="ma-chart-note" role="status">{{ notice }}</p>
+    <MemberAnalysisEvidenceTable
+      :games="evidenceGames"
       :columns="gameColumns"
-      :rows="gameRows"
-      :page-size="20"
-      :scroll-x="760"
-    />
+      :context-key="`${timing}|${group}|${selectedBucket}`"
+      :scroll-x="650"
+    >
+      <template #detail="{ game }"
+        ><p class="ma-chart-note">
+          {{ timing }} 分钟五路经济差：{{ formatSigned(earlyGoldDiff(game, timing)) }} 金币
+        </p></template
+      >
+    </MemberAnalysisEvidenceTable>
   </div>
 </template>
 <script setup lang="ts">
-import type { DataTableColumns } from 'naive-ui'
-import { NButton, NRadioButton, NRadioGroup } from 'naive-ui'
-import { computed, ref, watch } from 'vue'
+import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
+import {
+  NButton,
+  NRadioButton,
+  NRadioGroup,
+  NSelect,
+  type SelectOption,
+  type DataTableColumns
+} from 'naive-ui'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { aggregateEarlyBuckets, earlyGoldDiff } from './analytics'
-import { formatMetric } from './metric-defs'
-import MemberAnalysisMetricTable from './MemberAnalysisMetricTable.vue'
+import {
+  earlyBucketLabel,
+  earlyBucketMatches,
+  earlyGroupMatches,
+  earlyGroups,
+  earlyResultRows,
+  type EarlyGroup
+} from './early-results'
+import MemberAnalysisEvidenceTable from './MemberAnalysisEvidenceTable.vue'
 import WinRateInterval from './WinRateInterval.vue'
+import MetricHelp from './MetricHelp.vue'
+import { formatMetric } from './metric-defs'
 import { uiText } from './ui-text'
-import { formatSigned } from './visualization'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
+import { formatSigned, wilsonInterval } from './visualization'
 const { games } = useMemberAnalysisData()
-const selectedBucket = ref('')
-const timing = ref<'15' | '20'>('15')
-const rows = computed(() =>
-  games.value
-    .map((game) => ({ game, diff: earlyGoldDiff(game, timing.value) }))
-    .filter((x): x is { game: (typeof games.value)[number]; diff: number } => x.diff !== null)
-)
-watch(timing, () => {
-  selectedBucket.value = ''
+const root = ref<HTMLElement | null>(null)
+const compact = ref(false)
+let resizeObserver: ResizeObserver | undefined
+onMounted(() => {
+  resizeObserver = new ResizeObserver(([entry]) => {
+    compact.value = entry.contentRect.width > 0 && entry.contentRect.width < 560
+  })
+  if (root.value) resizeObserver.observe(root.value)
 })
-const buckets = computed(() => aggregateEarlyBuckets(rows.value))
-const ahead = computed(() => rows.value.filter((x) => x.diff >= 500))
-const behind = computed(() => rows.value.filter((x) => x.diff < -500))
-const neutral = computed(() => rows.value.filter((x) => x.diff >= -500 && x.diff < 500))
-const rate = (a: typeof rows.value) =>
-  a.length ? a.filter((x) => x.game.win).length / a.length : null
-const aheadWins = computed(() => rate(ahead.value))
-const behindWins = computed(() => rate(behind.value))
-const summary = computed(() => [
-  {
-    label: '领先局取胜',
-    value: formatMetric(aheadWins.value, 'pct'),
-    note: `${ahead.value.length} 场 · ≥ +500 金币`,
-    tone: 'ma-positive'
-  },
-  {
-    label: '接近持平时取胜',
-    value: formatMetric(rate(neutral.value), 'pct'),
-    note: `${neutral.value.length} 场 · −500 至 +500 金币`,
-    tone: ''
-  },
-  {
-    label: '落后翻盘率',
-    value: formatMetric(behindWins.value, 'pct'),
-    note: `${behind.value.length} 场 · < −500 金币`,
-    tone: 'ma-positive'
+onUnmounted(() => resizeObserver?.disconnect())
+const timing = ref<'15' | '20'>('15')
+const group = ref<EarlyGroup>('all')
+const selectedBucket = ref('')
+const notice = ref('')
+let trigger: HTMLElement | null = null
+const rows = computed(() => earlyResultRows(games.value, timing.value))
+const buckets = computed(() =>
+  aggregateEarlyBuckets(rows.value).map((bucket) => {
+    const interval = wilsonInterval(bucket.wins, bucket.games)
+    return {
+      ...bucket,
+      intervalNote: interval
+        ? uiText('rateDescription', {
+            label: uiText('rate'),
+            value: formatMetric(bucket.winRate, 'pct'),
+            wins: bucket.wins,
+            games: bucket.games,
+            low: formatMetric(interval.low, 'pct'),
+            high: formatMetric(interval.high, 'pct')
+          })
+        : uiText('noRate')
+    }
+  })
+)
+const visibleBuckets = computed(() =>
+  buckets.value.filter(
+    (_, index) =>
+      group.value === 'all' ||
+      (group.value === 'behind' ? index < 3 : group.value === 'neutral' ? index === 3 : index > 3)
+  )
+)
+const groupCount = (key: EarlyGroup) =>
+  rows.value.filter((row) => earlyGroupMatches(row.diff, key)).length
+const groupOptions = computed(() =>
+  earlyGroups.map((item) => ({
+    value: item.key,
+    label: `${item.label} · ${groupCount(item.key)} 场${item.boundary ? ` · ${item.boundary} 金币` : ''}`
+  }))
+)
+const renderGroupLabel = (option: SelectOption, selected: boolean) => {
+  if (!selected) return String(option.label)
+  const item = earlyGroups.find((item) => item.key === option.value)
+  return `${item?.label ?? ''}${item?.key === 'all' ? '' : ` ${groupCount(item?.key ?? 'all')} 场`} · 完整 ${rows.value.length}/${games.value.length} 场`
+}
+function selectBucket(label: string, event: MouseEvent) {
+  trigger = event.currentTarget as HTMLElement
+  selectedBucket.value = selectedBucket.value === label ? '' : label
+  notice.value = ''
+}
+async function clearSelection() {
+  selectedBucket.value = ''
+  await nextTick()
+  if (trigger?.isConnected) {
+    trigger.scrollIntoView({ block: 'nearest' })
+    trigger.focus({ preventScroll: true })
   }
-])
-const gameRows = computed(() =>
+}
+watch([timing, group], () => {
+  selectedBucket.value = ''
+  notice.value = ''
+})
+watch(buckets, (next, previous) => {
+  const label = selectedBucket.value
+  if (
+    label &&
+    previous?.find((bucket) => bucket.label === label)?.games &&
+    !next.find((bucket) => bucket.label === label)?.games
+  ) {
+    selectedBucket.value = ''
+    notice.value = uiText('selectionUnavailable')
+  }
+})
+const evidenceRows = computed(() =>
   rows.value
     .filter(
-      (x) =>
-        !selectedBucket.value ||
-        aggregateEarlyBuckets([x]).some(
-          (bucket) => bucket.label === selectedBucket.value && bucket.games > 0
-        )
+      (row) =>
+        earlyGroupMatches(row.diff, group.value) &&
+        (!selectedBucket.value || earlyBucketMatches(row, selectedBucket.value))
     )
-    .map((x) => ({
-      gameId: x.game.gameId,
-      date: x.game.date,
-      side: x.game.side === 'Blue' ? '蓝方' : '红方',
-      result: x.game.win ? '胜利' : '失败',
-      diff: x.diff
-    }))
+    .sort((a, b) => b.game.timestamp - a.game.timestamp)
 )
-const gameColumns: DataTableColumns<Record<string, unknown>> = [
-  { title: '对局', key: 'gameId' },
-  { title: '日期', key: 'date' },
-  { title: '阵营', key: 'side' },
-  { title: '结果', key: 'result' },
+const evidenceGames = computed(() => evidenceRows.value.map((row) => row.game))
+const diffsByGame = computed(
+  () => new Map(evidenceRows.value.map((row) => [row.game.gameId, row.diff]))
+)
+const gameColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
   {
-    title: '五路经济差',
+    title: `${timing.value} 分钟经济差（金币）`,
     key: 'diff',
-    sorter: 'default',
-    render: (r) => formatSigned(r.diff)
+    width: 175,
+    sorter: (a, b) =>
+      (diffsByGame.value.get(a.gameId) ?? 0) - (diffsByGame.value.get(b.gameId) ?? 0),
+    render: (game) => formatSigned(diffsByGame.value.get(game.gameId))
   }
-]
+])
 </script>
 <style scoped>
-.conversion-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: 0;
-  border-top: 1px solid var(--ma-grid);
-  border-bottom: 1px solid var(--ma-grid);
+.early-group-select {
+  flex: 1 1 180px;
+  min-width: 120px;
+  max-width: 100%;
 }
-.conversion-summary > div {
-  padding: 12px 14px;
-  border-right: 1px solid var(--ma-grid);
+.early-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.conversion-summary > div:last-child {
-  border-right: 0;
+.early-group-button {
+  height: auto;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 6px 12px;
 }
-.conversion-summary dt {
-  color: var(--ma-muted);
-  font-size: 12px;
+.early-group-button :deep(.n-button__content) {
+  white-space: normal;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
-.conversion-summary dt small {
-  margin-left: 5px;
-}
-.conversion-summary dd {
-  margin: 5px 0 0;
-  font-size: 22px;
-  font-variant-numeric: tabular-nums;
-}
-.early-table-wrap {
-  overflow-x: auto;
+.early-group-button[aria-pressed='true'] :deep(.n-button__content) {
+  color: var(--la-color-text-primary);
+  font-weight: 500;
 }
 .early-table {
   width: 100%;
-  min-width: 530px;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
 }
-.early-table th,
-.early-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--ma-grid);
-  text-align: right;
-  font-size: 14px;
+.early-table col:first-child {
+  width: 34%;
 }
-.early-table th:first-child {
-  text-align: left;
-  font-weight: 500;
+.early-table col:nth-child(2) {
+  width: 8%;
 }
-.early-table thead th {
-  color: var(--ma-muted);
-  font-size: 12px;
-  font-weight: 500;
-  background: var(--ma-grid);
+.early-table col:nth-child(3) {
+  width: 14%;
 }
-.early-table button {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: inherit;
-  font: inherit;
-  padding: 4px 6px;
-  cursor: pointer;
+.early-table col:last-child {
+  width: 44%;
 }
-.early-table button[aria-pressed='true'] {
-  border-color: var(--la-color-link);
-  background: var(--ma-hover);
-}
-.early-table td:last-child {
-  width: 30%;
-}
-@media (max-width: 760px) {
-  .conversion-summary > div {
-    padding: 8px;
-  }
-  .conversion-summary dt small {
-    display: block;
-    margin: 4px 0 0;
-  }
-  .conversion-summary dd {
-    font-size: 18px;
-  }
-}
-.conversion-summary {
-  border-top: 0;
-  gap: 24px;
-  padding: 8px 0 20px;
-}
-.conversion-summary > div {
-  padding: 0;
-  border: 0;
-}
-.conversion-summary dt small {
+.rate-scale {
   display: block;
-  margin: 5px 0 0;
-  font-size: 12px;
+  margin-top: 4px;
 }
-.conversion-summary dd {
-  margin-top: 12px;
-  font-size: 30px;
-  font-weight: 600;
-  color: var(--la-color-text-primary);
-}
-.early-table thead th {
+.early-bucket-button {
+  max-width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
+  padding: 4px 0;
+  min-height: 32px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
 }
-.early-table tbody tr:hover,
-.early-table tr.is-selected {
-  background: var(--ma-hover);
+.early-bucket-button:focus-visible {
+  outline: 2px solid var(--la-color-text-primary);
+  outline-offset: 3px;
 }
-@media (max-height: 680px) {
-  .conversion-summary {
-    padding-bottom: 10px;
+.early-bucket-button small {
+  display: block;
+}
+.early-rate {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.early-rate :deep(.metric-help) {
+  white-space: nowrap;
+}
+.early-rate small {
+  display: block;
+}
+@container ma-results (max-width: 560px) {
+  .early-table col:nth-child(2) {
+    width: 12%;
   }
-  .conversion-summary dd {
-    font-size: 24px;
-    margin-top: 6px;
+  .early-table col:nth-child(3) {
+    width: 16%;
+  }
+  .early-table col:last-child {
+    width: 38%;
+  }
+}
+@container ma-results (max-width: 760px) {
+  .early-rate {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .early-table th,
+  .early-table td {
+    padding: 8px;
   }
 }
 </style>

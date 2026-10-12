@@ -1,14 +1,14 @@
 ﻿<template>
   <div class="ma-panel ma-workspace match-list">
-    <header class="ma-view-heading">
-      <div>
-        <h2>逐场复盘</h2>
-      </div>
-      <div class="match-list-tools">
-        <span>{{ games.length }} 场 · 最近对局在前</span>
-        <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
-      </div>
-    </header>
+    <div class="ma-view-toolbar">
+      <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
+      <span class="ma-view-meta">{{ games.length }} 场 · 最近对局在前</span>
+    </div>
+    <NCollapse class="rank-overview">
+      <NCollapseItem title="对手段位汇总与统计口径" name="rank-summary">
+        <OpponentRankSummary :games="games" />
+      </NCollapseItem>
+    </NCollapse>
     <article
       v-for="game in games"
       :key="game.gameId"
@@ -47,20 +47,41 @@
           >{{ expanded.has(game.gameId) ? '收起' : '展开' }}</NButton
         >
       </div>
+      <div class="match-ranks" aria-label="本局对手平均段位">
+        <span v-for="queue in rankQueues" :key="queue.key">
+          <b>{{ queue.label }}平均段位</b>
+          {{ averageLabel(game, queue.key) }}
+          <small
+            >已定级可用
+            {{ opponentRankAverage(game.opponentRanks, queue.key)?.count ?? 0 }}/5</small
+          >
+        </span>
+        <small>{{
+          game.opponentRanks?.capture
+            ? '含本局自动采集，逐人来源见展开详情'
+            : game.opponentRanks
+              ? '事后刷新采集'
+              : '尚未采集'
+        }}</small>
+      </div>
       <div v-if="expanded.has(game.gameId)" class="details" :id="`match-detail-${game.gameId}`">
-        <span
-          ><b>20 分钟经济差（金币）</b
-          ><em :class="toneClass(game.gold20Diff)">{{ formatSigned(game.gold20Diff) }}</em></span
-        ><span
-          ><b>20 分钟防御塔差（座）</b><em>{{ formatSigned(game.tower20Diff) }}</em></span
-        ><span
-          ><b>15 分钟资源团净击杀（次）</b
-          ><em>{{ formatSigned(game.objectiveFight15Diff) }}</em></span
-        ><span
-          ><b>击杀兑现</b><em>{{ conversion(game) }}</em></span
-        ><span
-          ><b>死亡代价</b><em>{{ formatMetric(game.eventDecision.deathCostPoints) }}</em></span
-        >
+        <MatchNativeDetails :game-id="game.gameId" />
+        <div class="match-analysis-metrics">
+          <span
+            ><b>20 分钟经济差（金币）</b
+            ><em :class="toneClass(game.gold20Diff)">{{ formatSigned(game.gold20Diff) }}</em></span
+          ><span
+            ><b>20 分钟防御塔差（座）</b><em>{{ formatSigned(game.tower20Diff) }}</em></span
+          ><span
+            ><b>15 分钟资源团净击杀（次）</b
+            ><em>{{ formatSigned(game.objectiveFight15Diff) }}</em></span
+          ><span
+            ><b>击杀兑现</b><em>{{ conversion(game) }}</em></span
+          ><span
+            ><b>死亡代价</b><em>{{ formatMetric(game.eventDecision.deathCostPoints) }}</em></span
+          >
+        </div>
+        <OpponentRankDetails :ranks="game.opponentRanks" />
       </div>
     </article>
     <div v-if="!games.length" class="ma-empty">当前筛选条件下没有固定五人对局。</div>
@@ -68,7 +89,7 @@
 </template>
 <script setup lang="ts">
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
-import { NButton } from 'naive-ui'
+import { NButton, NCollapse, NCollapseItem } from 'naive-ui'
 import { reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
@@ -76,7 +97,23 @@ import { useLeagueClientStore } from '@renderer-shared/shards/league-client/stor
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { formatMetric } from './metric-defs'
 import { finiteOrNull, fixedFiveRoster, formatSigned } from './visualization'
+import {
+  opponentRankAverage,
+  rankLabel,
+  type RankQueue
+} from '@shared/shards/member-analysis/opponent-ranks'
+import MatchNativeDetails from './MatchNativeDetails.vue'
+import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
+import OpponentRankSummary from './opponent-ranks/OpponentRankSummary.vue'
 const { games } = useMemberAnalysisData()
+const rankQueues = [
+  { key: 'solo', label: '单双排' },
+  { key: 'flex', label: '灵活组排' }
+] as const
+const averageLabel = (game: MemberAnalysisGame, queue: RankQueue) => {
+  const average = opponentRankAverage(game.opponentRanks, queue)
+  return average ? rankLabel(average.rank) : game.opponentRanks ? '无可用段位' : '未采集'
+}
 const lcs = useLeagueClientStore()
 const router = useRouter()
 const expanded = reactive(new Set<number>())
@@ -130,12 +167,6 @@ const conversion = (game: MemberAnalysisGame) =>
     : '—'
 </script>
 <style scoped>
-.match-list-tools {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
 .match-card {
   display: grid;
   grid-template-columns: 72px 165px minmax(400px, 1fr) auto;
@@ -155,9 +186,6 @@ const conversion = (game: MemberAnalysisGame) =>
 }
 .match-list {
   gap: 0;
-}
-.match-list > .ma-view-heading {
-  margin-bottom: 14px;
 }
 .result,
 .meta {
@@ -227,6 +255,40 @@ const conversion = (game: MemberAnalysisGame) =>
   padding-top: 10px;
   border-top: 1px solid var(--ma-grid);
 }
+.rank-overview {
+  margin-bottom: 20px;
+}
+.match-ranks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  font-size: 14px;
+}
+.match-ranks > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.match-ranks b,
+.match-ranks small {
+  color: var(--ma-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.match-analysis-metrics {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.details {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  scroll-margin-top: 64px;
+}
 .details span {
   display: flex;
   flex-direction: column;
@@ -281,6 +343,7 @@ const conversion = (game: MemberAnalysisGame) =>
 .details {
   padding: 16px 0 0;
   gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
 }
 .details b {
   color: var(--ma-muted);

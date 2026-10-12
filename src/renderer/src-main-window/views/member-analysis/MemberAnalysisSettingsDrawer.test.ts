@@ -95,7 +95,7 @@ describe('member analysis settings drawer', () => {
     expect(html).toContain('采集范围')
     expect(html).toContain('存储与参考')
     expect(html).toContain('启用成员分析')
-    expect(html).toContain('排位积分类模式')
+    expect(html).toContain('排位相关模式')
     expect(html).toContain('5人排位赛')
     expect(html).not.toContain('所有模式')
     expect(html).toContain('data-drawer-target=".member-analysis-page"')

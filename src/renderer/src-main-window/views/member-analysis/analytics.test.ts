@@ -1,8 +1,13 @@
-﻿import type {
+import type {
   MemberAnalysisFilters,
   MemberAnalysisGame,
   MemberAnalysisPlayerGame
 } from '@shared/shards/member-analysis'
+import { normalizeRankedStats } from '@shared/shards/member-analysis/opponent-ranks'
+import {
+  performanceMetricKeys,
+  playerPerformanceMetrics
+} from '@shared/shards/member-analysis/performance-metrics'
 import { performance } from 'node:perf_hooks'
 import { describe, expect, test } from 'vitest'
 
@@ -20,6 +25,15 @@ import {
   laneGankDeathEvidence,
   selectMemberAnalysisSample
 } from './analytics'
+import {
+  earlyBucketLabel,
+  earlyBucketMatches,
+  earlyGroupMatches,
+  earlyResultRows
+} from './early-results'
+import { eventGameCells, eventMetricCell, eventSections, eventSideGames } from './event-results'
+import { type TeamLineup, buildPredictionDataset } from './prediction/model'
+import { predictionObservations } from './prediction/observations'
 
 const player = (
   name: string,
@@ -122,6 +136,103 @@ const game = (gameId: number, win: boolean, side: 'Blue' | 'Red'): MemberAnalysi
 })
 
 const games = [game(1, true, 'Blue'), game(2, false, 'Red')]
+
+test('query-time opponent ranks never enter historical prediction observations or metrics', () => {
+  const original = game(1, true, 'Blue')
+  const withSnapshot: MemberAnalysisGame = {
+    ...original,
+    opponentRanks: {
+      version: 1,
+      source: 'SGP leagues-ledge (current snapshot)',
+      serverId: 'TEST',
+      opponents: Array.from({ length: 5 }, (_, i) => ({
+        slot: i + 1,
+        role: null,
+        champion: null,
+        snapshot: normalizeRankedStats(
+          {
+            queues: [
+              { queueType: 'RANKED_FLEX_SR', tier: 'CHALLENGER', rank: 'I', leaguePoints: 1000 },
+              { queueType: 'RANKED_SOLO_5x5', tier: 'IRON', rank: 'IV', leaguePoints: -3 }
+            ]
+          },
+          '2026-10-07T12:00:00.000Z'
+        )
+      }))
+    }
+  }
+  const members = original.players.map((row) => row.player)
+  expect(predictionObservations([withSnapshot], members)).toEqual(
+    predictionObservations([original], members)
+  )
+  expect(playerPerformanceMetrics(withSnapshot, withSnapshot.players[0])).toEqual(
+    playerPerformanceMetrics(original, original.players[0])
+  )
+})
+
+test('projects individual match observations with role, member, champion and missingness', async () => {
+  const { matchScatterRows } = await import('./scatter-analysis')
+  const input = [game(1, true, 'Blue'), game(2, false, 'Red')]
+  input[1].players[2].goldShare = null
+  input[1].players[2].gd15 = null
+  input[1].players[2].minutes = 0
+  const rows = matchScatterRows(input, 'MIDDLE')
+  expect(rows).toHaveLength(2)
+  expect(rows[0]).toMatchObject({
+    gameId: 1,
+    player: 'Carol',
+    damageConversion: 1,
+    dpm: 600,
+    gpm: 400,
+    cspm: 7,
+    winRate: 1
+  })
+  expect(rows[1]).toMatchObject({
+    gameId: 2,
+    damageConversion: null,
+    gd15: null,
+    dpm: null,
+    winRate: 0
+  })
+  expect(matchScatterRows(input, 'MIDDLE', 'Alice')).toEqual([])
+  expect(matchScatterRows(input, 'MIDDLE', 'all', 'Gwen')).toEqual([])
+  input[0].players[2].damageShare = 0
+  expect(matchScatterRows(input, 'MIDDLE')[0].damageConversion).toBe(0)
+})
+
+test('all expanded per-game metrics agree with one-game aggregate definitions', () => {
+  const input = game(1, true, 'Blue')
+  const aggregate = aggregateRoles([input])
+  for (const player of input.players) {
+    const projected = playerPerformanceMetrics(input, player)
+    const expected = aggregate.find(
+      (row) => row.player === player.player && row.role === player.role
+    )!
+    for (const key of performanceMetricKeys) {
+      expect(projected[key], `${player.role}: ${key}`).toEqual(expected[key])
+    }
+  }
+})
+test('prediction includes all five role slots but excludes short matches and unknown members', () => {
+  const input = [
+    game(1, true, 'Blue'),
+    { ...game(2, false, 'Blue'), duration: 899 },
+    { ...game(3, true, 'Blue'), duration: 900 }
+  ]
+  const members = input[0].players.map((row) => row.player)
+  const observations = predictionObservations(input, members)
+  expect(observations).toHaveLength(10)
+  expect(new Set(observations.map((row) => row.role)).size).toBe(5)
+  expect(new Set(observations.map((row) => row.gameId))).toEqual(new Set([1, 3]))
+  expect(predictionObservations(input, ['Unknown synthetic member'])).toEqual([])
+  input[0].players[0].teamKills = 0
+  input[0].players[0].teamDeaths = 0
+  input[0].players[0].gold = 0
+  const projected = playerPerformanceMetrics(input[0], input[0].players[0])
+  expect(projected.killShare).toBeNull()
+  expect(projected.deathShare).toBeNull()
+  expect(projected.damagePerGold).toBeNull()
+})
 
 describe('member analysis Phase 4 anonymous golden metrics', () => {
   test('selects the latest sample by timestamp, not region-specific match identifiers', () => {
@@ -485,6 +596,46 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     expect(selectMemberAnalysisSample(large, defaults, 'all', 'all').sample).toHaveLength(150)
   })
 
+  test('excludes games under 15 minutes before recent-N selection, even with relaxed filters', () => {
+    const defaults: MemberAnalysisFilters = {
+      outcome: 'all',
+      patch: 'all',
+      dateFrom: '',
+      dateTo: '',
+      durationMin: 0,
+      durationMax: null,
+      participant: 'all',
+      matchRole: 'all',
+      champion: 'all',
+      query: ''
+    }
+    const eligible = Array.from({ length: 25 }, (_, i) => ({
+      ...game(i + 1, true, 'Blue'),
+      duration: i === 0 ? 900 : 901
+    }))
+    const short = [0, 600, 899, 899.99].map((duration, i) => ({
+      ...game(100 + i, false, 'Blue'),
+      duration
+    }))
+    const selection = selectMemberAnalysisSample([...eligible, ...short], defaults, 'all', 20)
+    expect(selection.globallyFiltered).toHaveLength(25)
+    expect(selection.sample).toHaveLength(20)
+    expect(selection.sample.every((row) => row.duration >= 900)).toBe(true)
+    expect(selection.sample.map((row) => row.gameId)).toEqual(
+      Array.from({ length: 20 }, (_, i) => 25 - i)
+    )
+    expect(
+      filterMemberAnalysisGames([...eligible, ...short], defaults).some(
+        (row) => row.duration === 900
+      )
+    ).toBe(true)
+    expect(filterMemberAnalysisGames(short, defaults)).toEqual([])
+    expect(filterMemberAnalysisGames(eligible, { ...defaults, durationMax: 14 })).toEqual([])
+    expect(filterMemberAnalysisGames(eligible, { ...defaults, durationMin: 15.01 })).toHaveLength(
+      24
+    )
+  })
+
   test('builds a 10k-row search index without a long main-thread task', () => {
     const large = Array.from({ length: 10_000 }, (_, index) => ({
       ...games[index % 2],
@@ -496,5 +647,157 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     expect(index).toHaveLength(10_000)
     expect(index[9999].search).toContain('alice')
     expect(elapsed).toBeLessThan(1000)
+  })
+})
+
+test('prediction side scope applies to profiles, training and exact lineup history; combined keeps both sides', () => {
+  const input = Array.from({ length: 40 }, (_, index) => {
+    const match = game(index + 1, index % 2 === 0, index % 2 === 0 ? 'Blue' : 'Red')
+    match.players.forEach((player) => {
+      player.gold = index % 2 === 0 ? 10000 : 20000
+    })
+    return match
+  })
+  input.push({ ...game(41, true, 'Blue'), duration: 899 })
+  const members = input[0].players.map((player) => player.player)
+  const lineup = Object.fromEntries(
+    input[0].players.map((player) => [player.role, player.player])
+  ) as TeamLineup
+  const combined = predictionObservations(input, members)
+  expect(predictionObservations(input, members, 'all')).toEqual(combined)
+  expect(combined).toHaveLength(200)
+  for (const side of ['Blue', 'Red'] as const) {
+    const scoped = predictionObservations(input, members, side)
+    expect(scoped).toHaveLength(100)
+    expect(
+      scoped.every((row) => input.find((game) => game.gameId === row.gameId)!.side === side)
+    ).toBe(true)
+    const dataset = buildPredictionDataset(scoped, lineup)
+    expect(dataset.lineupHistory).toHaveLength(20)
+    expect(dataset.rows).toHaveLength(15)
+    expect(dataset.rows.every((row) => row.y === Number(side === 'Blue'))).toBe(true)
+    expect(dataset.profiles.every((profile) => profile.history.length === 20)).toBe(true)
+    expect(
+      dataset.profiles.every((profile) =>
+        profile.history.every((row) => row.win === (side === 'Blue'))
+      )
+    ).toBe(true)
+  }
+  expect(buildPredictionDataset(combined, lineup).lineupHistory).toHaveLength(40)
+  expect(buildPredictionDataset(combined, lineup).rows).toHaveLength(35)
+  expect(predictionObservations([input[0]], members, 'Red')).toEqual([])
+})
+
+describe('event result presentation and matching games', () => {
+  const metric = eventSections[0].metrics[0]
+  test('keeps each side denominator and per-match evidence consistent without mutating observations', () => {
+    const sample = [game(401, true, 'Blue'), game(402, false, 'Red'), game(403, true, 'Blue')]
+    const before = structuredClone(sample)
+    const rows = aggregateConversion(sample)
+    for (const row of rows) {
+      const selected = eventSideGames(sample, row.sideLabel)
+      expect(eventMetricCell(metric, row, selected)).toEqual({
+        value: '50.0%',
+        sample: `${selected.length * 2} / ${selected.length * 4} 次`,
+        missing: false
+      })
+      const cells = eventGameCells(metric, selected)
+      expect([...cells.keys()]).toEqual(selected.map((g) => g.gameId))
+      expect([...cells.values()].every((cell) => cell.sample === '2 / 4 次')).toBe(true)
+    }
+    expect(sample).toEqual(before)
+  })
+  test('distinguishes zero results from no event windows and missing observations', () => {
+    const observed = structuredClone(game(404, false, 'Blue'))
+    observed.eventDecision.convertedKillEpisodes = 0
+    expect(eventMetricCell(metric, aggregateConversion([observed])[0], [observed]).value).toBe(
+      '0.0%'
+    )
+    observed.eventDecision.killEpisodes = 0
+    expect(eventMetricCell(metric, aggregateConversion([observed])[0], [observed])).toMatchObject({
+      value: '—',
+      sample: '无击杀窗口',
+      missing: false
+    })
+    // Defensive rendering of legacy/malformed missingness, not a new source contract.
+    const missing = structuredClone(game(405, true, 'Red'))
+    missing.eventDecision.killEpisodes = null as unknown as number
+    const sample = [observed, missing]
+    expect(eventMetricCell(metric, aggregateConversion(sample)[0], sample)).toMatchObject({
+      value: '—',
+      sample: '有效 1/2 场 · 部分未采集',
+      missing: true
+    })
+  })
+  test('delay sample counts come from delay records rather than converted episodes', () => {
+    const sample = structuredClone(game(406, true, 'Blue'))
+    sample.eventDecision.convertedKillEpisodes = 4
+    sample.eventDecision.conversionDelaySamples = 1
+    const delay = eventSections[0].metrics[3]
+    expect(eventMetricCell(delay, aggregateConversion([sample])[0], [sample])).toMatchObject({
+      value: '60.00 秒',
+      sample: '延迟记录 1 次'
+    })
+    sample.eventDecision.conversionDelaySamples = 0
+    expect(eventMetricCell(delay, aggregateConversion([sample])[0], [sample])).toMatchObject({
+      value: '—',
+      sample: '无延迟记录'
+    })
+  })
+  test('preserves signed extreme trade delay and weighted totals', () => {
+    const sample = structuredClone(game(407, true, 'Red'))
+    sample.eventDecision.tradeDelayTotalSec = -123456
+    sample.eventDecision.tradeDelaySamples = 2
+    expect(
+      eventMetricCell(eventSections[3].metrics[1], aggregateConversion([sample])[0], [sample]).value
+    ).toBe('−61728.0 秒')
+  })
+})
+
+describe('early result groups and evidence', () => {
+  test('exact -500 and +500 boundaries retain the original bins and matching games', () => {
+    const diffs = [-3001, -3000, -1500, -500, 0, 499, 500, 1500, 3000]
+    const sample = diffs.map((diff, i) => {
+      const g = structuredClone(game(500 + i, i % 2 === 0, 'Blue'))
+      g.players.forEach((p, j) => (p.gd15 = j === 0 ? diff : 0))
+      return g
+    })
+    const rows = earlyResultRows(sample, '15')
+    expect(rows.filter((r) => earlyGroupMatches(r.diff, 'behind')).map((r) => r.diff)).toEqual([
+      -3001, -3000, -1500
+    ])
+    expect(rows.filter((r) => earlyGroupMatches(r.diff, 'neutral')).map((r) => r.diff)).toEqual([
+      -500, 0, 499
+    ])
+    expect(rows.filter((r) => earlyGroupMatches(r.diff, 'ahead')).map((r) => r.diff)).toEqual([
+      500, 1500, 3000
+    ])
+    for (const bucket of aggregateEarlyBuckets(rows)) {
+      const selected = rows.filter((row) => earlyBucketMatches(row, bucket.label))
+      expect(selected.length).toBe(bucket.games)
+      expect(selected.filter((row) => row.game.win).length).toBe(bucket.wins)
+    }
+    expect(earlyBucketLabel('−500 ~ +500')).toBe('−500 ≤ 差值 < +500')
+  })
+  test('excludes incomplete economy and inapplicable 20-minute observations, not zero economy', () => {
+    const complete = structuredClone(game(601, true, 'Blue'))
+    complete.players.forEach((p) => (p.gd15 = 0))
+    complete.gold20Diff = 0
+    const missing = structuredClone(complete)
+    missing.gameId = 602
+    missing.players[2].gd15 = null
+    missing.gold20Diff = null as unknown as number
+    const short = structuredClone(complete)
+    short.gameId = 603
+    short.duration = 1199
+    expect(earlyResultRows([complete, missing, short], '15').map((r) => r.game.gameId)).toEqual([
+      601, 603
+    ])
+    expect(earlyResultRows([complete, missing, short], '20').map((r) => r.diff)).toEqual([0])
+    expect(
+      aggregateEarlyBuckets(earlyResultRows([complete], '20'))
+        .filter((b) => b.games === 0)
+        .every((b) => b.winRate === null)
+    ).toBe(true)
   })
 })
