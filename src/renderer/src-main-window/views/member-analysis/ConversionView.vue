@@ -95,6 +95,7 @@
           :games="evidenceGames"
           :columns="gameColumns"
           :context-key="`${sectionIndex}|${selection.side}|${selection.key}`"
+          :navigate-to-match="navigateToMatch"
         >
           <template #detail="{ game }"
             ><p class="ma-chart-note">
@@ -115,6 +116,7 @@
 </template>
 <script setup lang="ts">
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
+import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { NButton, NRadioButton, NRadioGroup, type DataTableColumns } from 'naive-ui'
 import { computed, nextTick, ref, watch } from 'vue'
 import { type ConversionAggregate, type SideLabel } from './analytics'
@@ -125,6 +127,13 @@ import { formatMetric } from './metric-defs'
 import { uiText } from './ui-text'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 const { conversion, games } = useMemberAnalysisData()
+const store = useMemberAnalysisStore()
+function navigateToMatch(game: MemberAnalysisGame) {
+  store.navigateToMatch(
+    game.gameId,
+    uiText('matchEventSource', { side: selection.value?.side, metric: selectedMetric.value?.label })
+  )
+}
 const sectionIndex = ref(0)
 const showExtra = ref(false)
 const deathOrder = ref('cost')

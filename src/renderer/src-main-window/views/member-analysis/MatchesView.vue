@@ -1,12 +1,23 @@
 ﻿<template>
-  <div class="ma-panel ma-workspace match-list">
+  <div ref="list" class="ma-panel ma-workspace match-list">
     <div class="ma-view-toolbar">
       <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
       <span class="ma-view-meta">{{ games.length }} 场 · 最近对局在前</span>
     </div>
+    <p
+      v-if="navigationSource || store.matchNavigationFeedback"
+      ref="navigationFeedback"
+      class="ma-chart-note"
+      role="status"
+      tabindex="-1"
+    >
+      <template v-if="navigationSource">{{ navigationSource }} · </template>
+      {{ store.matchNavigationFeedback || uiText('matchNavigationPending') }}
+    </p>
     <article
       v-for="game in games"
       :key="game.gameId"
+      :data-match-id="game.gameId"
       class="match-card"
       :class="game.win ? 'win' : 'loss'"
     >
@@ -54,6 +65,9 @@
           }}</small>
         </span>
       </div>
+      <p v-if="navigationTargetId === game.gameId" class="ma-chart-note match-navigation-context">
+        {{ navigationSource }}
+      </p>
       <div v-if="expanded.has(game.gameId)" class="details" :id="`match-detail-${game.gameId}`">
         <MatchNativeDetails :game-id="game.gameId" />
         <div class="match-analysis-metrics">
@@ -81,7 +95,7 @@
 import { uiText } from './ui-text'
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
 import { NButton } from 'naive-ui'
-import { reactive, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
@@ -95,6 +109,17 @@ import {
 } from '@shared/shards/member-analysis/opponent-ranks'
 import MatchNativeDetails from './MatchNativeDetails.vue'
 import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
+import {
+  useMemberAnalysisStore,
+  type MemberAnalysisMatchNavigation
+} from '@main-window/shards/member-analysis/store'
+import { createMatchNavigation, resolveMatchNavigationTarget } from './match-navigation'
+const props = withDefaults(defineProps<{ active?: boolean }>(), { active: false })
+const store = useMemberAnalysisStore()
+const list = ref<HTMLElement | null>(null)
+const navigationSource = ref('')
+const navigationTargetId = ref<number | null>(null)
+const navigationFeedback = ref<HTMLElement | null>(null)
 const { games } = useMemberAnalysisData()
 const rankQueues = [
   { key: 'solo', label: '单双排' },
@@ -107,6 +132,46 @@ const averageLabel = (game: MemberAnalysisGame, queue: RankQueue) => {
 const lcs = useLeagueClientStore()
 const router = useRouter()
 const expanded = reactive(new Set<number>())
+const navigation = createMatchNavigation<MemberAnalysisMatchNavigation>({
+  current: (request) => props.active && !store.loading && store.matchNavigation === request,
+  resolve: (request) =>
+    resolveMatchNavigationTarget(store.overview?.games ?? [], games.value, request.gameId),
+  rendered: () => nextTick(),
+  expand: (game) => {
+    navigationTargetId.value = game.gameId
+    expanded.add(game.gameId)
+  },
+  feedback: () => navigationFeedback.value,
+  row: (game) => list.value?.querySelector<HTMLElement>(`[data-match-id="${game.gameId}"]`) ?? null,
+  settled: (_request, result) => {
+    const messages = {
+      found: 'matchNavigationPending',
+      located: 'matchNavigationLocated',
+      ambiguous: 'matchNavigationAmbiguous',
+      excluded: 'matchNavigationExcluded',
+      missing: 'matchNavigationMissing',
+      unavailable: 'matchNavigationUnavailable'
+    } as const
+    store.matchNavigationFeedback = uiText(messages[result])
+  }
+})
+watch(
+  [() => props.active, () => store.matchNavigation],
+  ([active, request]) => {
+    navigation.cancel()
+    if (!request) {
+      navigationSource.value = ''
+      navigationTargetId.value = null
+    }
+    if (!active || !request || store.loading) return
+    navigationSource.value = request.source
+    navigationTargetId.value = null
+    void navigation.locate(request)
+  },
+  { immediate: true, flush: 'post' }
+)
+onDeactivated(() => navigation.cancel())
+onBeforeUnmount(() => navigation.cancel())
 watch(games, (value) => {
   const ids = new Set(value.map((game) => game.gameId))
   for (const id of expanded) if (!ids.has(id)) expanded.delete(id)
@@ -158,6 +223,7 @@ const conversion = (game: MemberAnalysisGame) =>
 </script>
 <style scoped>
 .match-card {
+  scroll-margin-top: 12px;
   display: grid;
   grid-template-columns: 72px 165px minmax(400px, 1fr) auto;
   align-items: center;
@@ -176,6 +242,10 @@ const conversion = (game: MemberAnalysisGame) =>
 }
 .match-list {
   gap: 0;
+}
+.match-navigation-context {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 .result,
 .meta {

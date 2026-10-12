@@ -56,6 +56,7 @@ const props = withDefaults(
     columns: DataTableColumns<MemberAnalysisGame>
     contextKey: string
     scrollX?: number
+    navigateToMatch?: (game: MemberAnalysisGame) => void
   }>(),
   { scrollX: 720 }
 )
@@ -126,7 +127,11 @@ const tableColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
           'aria-label': `查看对局 ${game.gameId}`,
           'aria-expanded': selectedId.value === game.gameId,
           onClick: (event: MouseEvent) =>
-            selectedId.value === game.gameId ? closeDetail() : openDetail(game, event)
+            props.navigateToMatch
+              ? props.navigateToMatch(game)
+              : selectedId.value === game.gameId
+                ? closeDetail()
+                : openDetail(game, event)
         },
         { default: () => (selectedId.value === game.gameId ? '收起对局' : '查看对局') }
       )

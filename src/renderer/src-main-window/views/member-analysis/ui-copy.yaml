@@ -1,4 +1,12 @@
 zh-CN:
+  matchEventSource: '来源：事件结果 · {{side}} · {{metric}}'
+  matchNavigationPending: '正在定位对局，筛选保持不变。'
+  matchNavigationLocated: '已定位并展开目标对局；原始战绩可用性以下方详情为准。'
+  matchNavigationAmbiguous: '当前数据中有相同对局编号，无法唯一确认区服；未展开任何目标。'
+  matchNavigationExcluded: '目标不在当前筛选或样本范围内；筛选未更改，请返回证据重新选择。'
+  matchNavigationMissing: '当前数据中已找不到目标对局，请返回证据重新选择。'
+  matchNavigationUnavailable: '目标行暂不可定位，请返回证据重试。'
+  matchNavigationScopeChanged: '数据或筛选范围已变化，已取消定位；请从当前证据重新选择。'
   combinationEvidencePlaceholder: '组合详情'
   combinationSelectMembers: '选择左侧成员组合，查看个人基线、样本覆盖与共同对局。未选择时不显示结果。'
   combinationSelectRoles: '选择左侧分路组合，查看详细指标、蓝红样本和该分路搭配的英雄统计。'
@@ -310,6 +318,14 @@ zh-CN:
   membersRequired: 启用后至少需要五名成员，并填写每名成员的服务器、名称和 Tag。
   percentagePoints: '{{value}} 个百分点'
 en:
+  matchEventSource: 'Source: event results · {{side}} · {{metric}}'
+  matchNavigationPending: 'Locating the match without changing filters.'
+  matchNavigationLocated: 'Target match located and expanded. See the details below for raw match availability.'
+  matchNavigationAmbiguous: 'This dataset contains duplicate match numbers; the platform cannot be uniquely identified. No target was expanded.'
+  matchNavigationExcluded: 'The target is outside the current filters or sample. Filters are unchanged; return to the evidence and select again.'
+  matchNavigationMissing: 'The target is no longer in this dataset. Return to the evidence and select again.'
+  matchNavigationUnavailable: 'The target row could not be located. Return to the evidence and retry.'
+  matchNavigationScopeChanged: 'The data or filters changed, so navigation was cancelled. Select again from the current evidence.'
   combinationEvidencePlaceholder: 'Pair details'
   combinationSelectMembers: 'Select a member pair on the left to inspect personal baselines, sample coverage and shared matches. No result is shown before selection.'
   combinationSelectRoles: 'Select a role pair on the left to inspect metrics, side coverage and hero usage within that role pairing.'

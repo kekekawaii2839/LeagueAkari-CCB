@@ -15,6 +15,12 @@ import { computed, reactive, ref } from 'vue'
 export type MemberAnalysisViewState =
   'feature-disabled' | 'first-run' | 'loading' | 'empty' | 'error' | 'ready'
 
+export interface MemberAnalysisMatchNavigation {
+  sequence: number
+  gameId: number
+  source: string
+}
+
 export function resolveMemberAnalysisViewState(input: {
   loading: boolean
   settings: MemberAnalysisSettings | null
@@ -42,6 +48,17 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
   const sampleSize = ref<20 | 50 | 100 | 'all'>(50)
   const analysisSide = ref<'all' | 'Blue' | 'Red'>('all')
   const sideBreakdown = ref(false)
+  const matchNavigation = ref<MemberAnalysisMatchNavigation | null>(null)
+  const matchNavigationFeedback = ref('')
+  let matchNavigationSequence = 0
+  function navigateToMatch(gameId: number, source: string) {
+    matchNavigationFeedback.value = ''
+    matchNavigation.value = { sequence: ++matchNavigationSequence, gameId, source }
+  }
+  function cancelMatchNavigation() {
+    matchNavigation.value = null
+    matchNavigationFeedback.value = ''
+  }
   // Session-only controls; no player data or view choices are written to disk.
   const scatterViewState = reactive({
     matchMode: false,
@@ -111,6 +128,10 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     sampleSize,
     analysisSide,
     sideBreakdown,
+    matchNavigation,
+    matchNavigationFeedback,
+    navigateToMatch,
+    cancelMatchNavigation,
     scatterViewState,
     predictionViewState,
     championViewState,

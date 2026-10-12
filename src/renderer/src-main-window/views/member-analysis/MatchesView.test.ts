@@ -16,6 +16,9 @@ const fixture = vi.hoisted(() => ({ games: [] as MemberAnalysisGame[] }))
 vi.mock('./useMemberAnalysisData', () => ({
   useMemberAnalysisData: () => ({ games: ref(fixture.games) })
 }))
+vi.mock('@main-window/shards/member-analysis/store', () => ({
+  useMemberAnalysisStore: () => ({ loading: false, matchNavigation: null })
+}))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@renderer-shared/shards/league-client/store', () => ({
   useLeagueClientStore: () => ({ gameData: { champions: {} } })

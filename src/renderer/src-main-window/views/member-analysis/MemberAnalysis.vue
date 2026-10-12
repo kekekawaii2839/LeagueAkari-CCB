@@ -110,6 +110,10 @@
                   :context-note="collectionStatus"
                   @update:view="activateCombination"
                 />
+                <MatchesView
+                  v-else-if="section.key === 'matches'"
+                  :active="primarySection === 'matches'"
+                />
                 <component v-else :is="section.component" />
               </div>
             </NTabPane>
@@ -139,7 +143,7 @@
 import { useInstance } from '@renderer-shared/shards'
 import { useMediaQuery } from '@vueuse/core'
 import { NAlert, NButton, NEmpty, NProgress, NResult, NSpin, NTabPane, NTabs } from 'naive-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
@@ -204,6 +208,33 @@ const primarySection = computed({
     activeSection.value = section === 'pairs' ? combinationSection.value : section
   }
 })
+watch(
+  () => store.matchNavigation,
+  (request) => {
+    if (!request) return
+    activeSection.value = 'matches'
+  },
+  { flush: 'sync' }
+)
+watch(activeSection, (section) => {
+  if (section !== 'matches') store.cancelMatchNavigation()
+})
+watch(
+  [
+    () => store.overview,
+    () => store.loading,
+    () => JSON.stringify([store.filters, store.sampleSize, store.analysisSide]),
+    () => store.job?.status
+  ],
+  () => {
+    if (!store.matchNavigation) return
+    store.cancelMatchNavigation()
+    store.matchNavigationFeedback = uiText('matchNavigationScopeChanged')
+  },
+  { flush: 'sync' }
+)
+onDeactivated(() => store.cancelMatchNavigation())
+onBeforeUnmount(() => store.cancelMatchNavigation())
 function activateCombination(section: 'pairs' | 'synergy') {
   combinationSection.value = section
   activeSection.value = section
