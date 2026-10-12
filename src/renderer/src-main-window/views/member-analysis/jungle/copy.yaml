@@ -1,0 +1,156 @@
+zh-CN:
+  members: '{{members}} 名打野 · {{games}} 场分路样本'
+  sideToggle: 蓝红方拆分
+  memberHeader: 成员 / 打野样本
+  ownership: 开野归属 · 0–100%
+  campHeader: 首营地 × 归属 · 场数 / 比例
+  gankLevel: 3 / 4 级发生率 · 各自 0–100%
+  zones: 活动区域构成 · 0–100%
+  lanes: 分路抓人 · 次/场
+  dragon: 首龙结果
+  resources: 资源控制 · 场均
+  early: 15 分钟前差值
+  gold: 经济对位 · 金币
+  xp: 经验对位 · 经验
+  efficiency: 发育效率
+  own: 己方
+  enemy: 敌方
+  unknown: 归属未知
+  invade: 入侵
+  blue: 蓝方
+  red: 红方
+  total: 总计
+  campOwner: 营地归属
+  camp0: 红BUFF
+  camp1: 蓝BUFF
+  camp2: 魔沼蛙
+  camp3: F6
+  camp4: 三狼
+  camp5: 石甲虫
+  top: 上半区
+  mid: 中路
+  bot: 下半区
+  sample: '{{games}} 场 · {{wins}} 胜 / {{losses}} 负'
+  valid: '有效 {{valid}}/{{total}} 场'
+  missing: '缺失 {{count}} 场'
+  unknownCamps: '营地未知 {{count}} 场未计入'
+  campValid: '首营地可识别 {{valid}}/{{total}} 场'
+  ownerValid: '归属可判定 {{valid}}/{{total}} 场'
+  noOwner: 无归属可判定样本
+  unknownCount: '归属未知 {{count}} 场'
+  noCamp: 归属未知 —（无可识别营地）
+  unknownDetail: 营地见完整数据
+  denominator: '统一分母：首营地可识别 {{valid}}/{{total}} 场'
+  ratio: '各格比例 = 格内场数 / {{total}} 场。'
+  incomplete: 己方 + 敌方不足 100%；归属未知的营地见完整数据。
+  noRecords: 无有效营地记录，场数和比例均显示 —。
+  count: '{{count}} 场'
+  open: 展开完整数据
+  close: 收起完整数据
+  closeButton: 关闭
+  details: '{{member}} · 完整打野数据'
+  campDetails: 首营地完整构成（含归属未知）
+  sideDetails: '{{side}} · 首营地完整构成'
+  winRate: '胜率 {{rate}}'
+  interval: 'Wilson 95% 区间 {{low}}–{{high}}'
+  lowSample: 少量样本 · 请谨慎比较
+  regionSamples: '权重分母 {{weight}} · {{valid}}/{{total}} 场有区域观察'
+  minutes: '总时长 {{minutes}} 分钟'
+  help: 指标口径
+  hideHelp: 收起口径
+  definitions: 指标口径与限制
+  scroll: 五成员打野比较，可横向滚动
+  empty: 当前样本没有打野时间线数据。
+  footer: 成员按设置顺序 · — 表示无有效观察，不等于零 · 每项有效分母就近显示 · 窄窗口可在比较区横向滚动
+  selectionGone: 当前范围已没有所选成员，详情已清空。
+  source: '来源：对局详情 / 时间线。不同指标的有效样本可能不同。'
+  openingNote: 开野归属按归属可判定场次；首营地联合构成按营地可识别场次。归属未知的营地可展开查看。
+  gankNote: 3 / 4 级可能同场发生，分别显示，不组成100%。分路抓人只计14分钟内参与的分路击杀 / 助攻，不代表所有尝试。
+  objectivesNote: 首龙控制率按可判定场次；我方首龙时间按有时间记录的场次。场均资源与15分钟前差值不是同一口径。
+  developmentNote: 10 / 15 分钟为两个独立快照，不是完整走势。经济差和经验差相对敌方打野；分均指标按总量 / 总时长。
+  goldScale: '共同比较尺度：经济差 ±{{gold}} 金币；经验差 ±{{xp}} 经验；中线为零。10分钟为空心点，15分钟为实心点，不连线。'
+  gankScale: '分路抓人共同尺度：0–{{maximum}} 次/场。活动区域：上半区 / 中路 / 下半区。'
+  objectiveScale: '差值零线居中，共同尺度：小龙 ±{{dragon}} 条；巢虫 ±{{grub}} 只；资源团净击杀 ±{{fight}} 次。'
+  methodOpening: 联合构成按营地与归属同时计数；每格比例统一除以首营地可识别场次，不在己方或敌方内部重新归一化。营地已识别但归属未知的保留在完整数据；营地本身未知的排除并显示未计入场次。蓝红拆分各用自己的分母。
+  methodGank: 3 / 4 级发生率沿用已有时间线识别规则，不是全部该等级抓人尝试。3分钟快照需为3级、补刀12–19且有英雄伤害或前3分钟参与击杀；4分钟识别还需英雄伤害增长或3–4分钟参与击杀。活动区域按前14分钟位置观察加参与击杀权重计算（每次权重5），以累积权重为分母。
+  methodResources: 小龙、独控小龙、巢虫、先锋、大龙为场均值。15分钟前小龙差、巢虫差、资源团净击杀分别使用条、只、次。
+  methodDevelopment: 10 / 15分钟经济差与15分钟经验差排除缺失快照；现有数据没有10分钟经验差。分均补刀、经济和目标伤害按总量 / 总分钟数计算。
+  uncertainty: 少量样本不作稳定结论。只有胜率展示Wilson区间，不为均值、构成或差值补造区间；样本不一致时谨慎比较。
+en:
+  members: '{{members}} junglers · {{games}} role games'
+  sideToggle: Blue/red breakdown
+  memberHeader: Member / jungle sample
+  ownership: Opening ownership · 0–100%
+  campHeader: First camp × ownership · games / share
+  gankLevel: Level 3 / 4 occurrence · independent 0–100%
+  zones: Activity zones · 0–100%
+  lanes: Lane ganks · events/game
+  dragon: First dragon
+  resources: Objectives · per game
+  early: Differences before 15 minutes
+  gold: Gold matchup · gold
+  xp: XP matchup · XP
+  efficiency: Farming efficiency
+  own: Own
+  enemy: Enemy
+  unknown: Unknown ownership
+  invade: Invade
+  blue: Blue side
+  red: Red side
+  total: Total
+  campOwner: Ownership
+  camp0: Red buff
+  camp1: Blue buff
+  camp2: Gromp
+  camp3: Raptors
+  camp4: Wolves
+  camp5: Krugs
+  top: Upper
+  mid: Middle
+  bot: Lower
+  sample: '{{games}} games · {{wins}} wins / {{losses}} losses'
+  valid: '{{valid}}/{{total}} valid games'
+  missing: '{{count}} missing games'
+  unknownCamps: '{{count}} unidentified camps excluded'
+  campValid: '{{valid}}/{{total}} games with identified first camps'
+  ownerValid: '{{valid}}/{{total}} identified camps with known ownership'
+  noOwner: No identifiable ownership sample
+  unknownCount: '{{count}} camps with unknown ownership'
+  noCamp: Unknown ownership — (no identified camps)
+  unknownDetail: Camp types in full data
+  denominator: 'Shared denominator: {{valid}}/{{total}} games with identified camps'
+  ratio: 'Each share = cell count / {{total}} games.'
+  incomplete: Own + enemy shares are below 100%; unknown camp types are in full data.
+  noRecords: No identified camps; counts and shares are shown as —.
+  count: '{{count}} games'
+  open: Expand full data
+  close: Collapse full data
+  closeButton: Close
+  details: '{{member}} · full jungle data'
+  campDetails: Full first-camp distribution (including unknown ownership)
+  sideDetails: '{{side}} · full first-camp distribution'
+  winRate: 'Win rate {{rate}}'
+  interval: 'Wilson 95% interval {{low}}–{{high}}'
+  lowSample: Small sample · compare cautiously
+  regionSamples: 'Weight denominator {{weight}} · {{valid}}/{{total}} games with zone observations'
+  minutes: '{{minutes}} total minutes'
+  help: Definitions
+  hideHelp: Hide definitions
+  definitions: Definitions and limitations
+  scroll: Jungle member comparison; horizontally scrollable
+  empty: No jungle timeline data in the current sample.
+  footer: Members follow settings order · — means no valid observation, not zero · valid denominators are shown nearby · scroll only the comparison region on narrow windows
+  selectionGone: The selected member is no longer in this sample; details have been cleared.
+  source: 'Source: match details / timeline. Valid samples may differ by metric.'
+  openingNote: Ownership rates use camps with known ownership; joint camp shares use all identified camps. Expand full data for unknown ownership camp types.
+  gankNote: Level 3 / 4 events may occur in the same game and do not sum to 100%. Lane counts include jungle kills / assists in a lane within 14 minutes, not all attempts.
+  objectivesNote: First-dragon control uses determinable games; first allied dragon time uses available time records. Objective averages and pre-15-minute differences have different definitions.
+  developmentNote: 10 / 15 minutes are two snapshots, not a continuous trend. Gold and XP differences are relative to the enemy jungler; per-minute metrics use totals / total minutes.
+  goldScale: 'Shared scale: gold ±{{gold}}; XP ±{{xp}}; center is zero. Hollow dots: 10 minutes; filled dots: 15 minutes; not connected.'
+  gankScale: 'Shared lane-gank scale: 0–{{maximum}} events/game. Zones: upper / middle / lower.'
+  objectiveScale: 'Zero-centered shared scales: dragons ±{{dragon}}; grubs ±{{grub}}; objective-fight net kills ±{{fight}}.'
+  methodOpening: Camp types and ownership are counted jointly. Each share uses all identified first camps, without renormalizing within own/enemy camps. Unknown ownership remains in full data; unidentified camps are excluded with counts shown. Blue/red sides use their own denominators.
+  methodGank: Level 3 / 4 uses the existing timeline heuristic, not all actual attempts at those levels. The 3-minute snapshot requires level 3, 12–19 CS and champion damage or a kill involvement before 3 minutes; the 4-minute rule also requires increased damage or involvement at 3–4 minutes. Zone shares combine position observations and weighted kill involvement within 14 minutes (weight 5 each), divided by total weight.
+  methodResources: Dragons, solo dragons, grubs, heralds and barons are per-game averages. Pre-15-minute dragon / grub / objective-fight differences use objective counts / net kills.
+  methodDevelopment: Gold differences at 10 / 15 minutes and XP at 15 minutes exclude missing snapshots. No XP-at-10 field exists. Farming, gold and objective damage per minute use totals / total minutes.
+  uncertainty: Small samples do not establish stable conclusions. Wilson intervals apply only to win rate, not means, compositions or differences. Compare cautiously when samples differ.

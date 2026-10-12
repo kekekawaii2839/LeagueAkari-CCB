@@ -13,3 +13,8 @@ vi.mock('./ui-copy.yaml', async () => {
   const { parse } = await import('yaml')
   return { default: parse(readFileSync(new URL('./ui-copy.yaml', import.meta.url), 'utf8')) }
 })
+vi.mock('./jungle/copy.yaml', async () => {
+  const { readFileSync } = await import('node:fs')
+  const { parse } = await import('yaml')
+  return { default: parse(readFileSync(new URL('./jungle/copy.yaml', import.meta.url), 'utf8')) }
+})

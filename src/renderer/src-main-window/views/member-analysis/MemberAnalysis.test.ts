@@ -2,9 +2,11 @@
 // Register locale mocks before importing renderer components.
 import './test-i18n'
 
+import I18nextVue from 'i18next-vue'
+import { i18next } from '@renderer-shared/i18n'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { createSSRApp, defineComponent, h } from 'vue'
+import { createSSRApp, defineComponent, h, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
@@ -41,6 +43,8 @@ vi.mock('./MemberAnalysisSettingsDrawer.vue', () => ({
   default: { setup: () => () => null }
 }))
 vi.mock('./ChampionView.vue', () => ({ default: { setup: () => () => null } }))
+// The upstream match-card graph is outside this page-shell test's boundary.
+vi.mock('@renderer-shared/components/match-card/MatchCard.vue', () => ({ default: () => null }))
 vi.mock('./MatchesView.vue', () => ({ default: { setup: () => () => null } }))
 vi.mock('naive-ui', () => {
   const Stub = (props: Record<string, unknown>, { slots }: { slots: Record<string, Function> }) => [
@@ -55,7 +59,7 @@ vi.mock('naive-ui', () => {
     NIcon: Stub,
     NButton: Stub,
     NPagination: Stub,
-    useThemeVars: () => ({ value: { primaryColor: '#587c66' } }),
+    useThemeVars: () => ref({ fontFamily: 'system-ui', primaryColor: '#587c66' }),
     NDataTable: Stub,
     NEmpty: Stub,
     NProgress: Stub,
@@ -141,7 +145,7 @@ async function renderState(
     render: () =>
       h('div', { 'data-theme': theme.mode, 'data-theme-id': theme.id }, h(MemberAnalysis))
   })
-  app.use(pinia)
+  app.use(pinia).use(I18nextVue, { i18next })
   return renderToString(app)
 }
 
