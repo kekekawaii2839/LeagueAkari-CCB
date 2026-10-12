@@ -4,11 +4,6 @@
       <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
       <span class="ma-view-meta">{{ games.length }} 场 · 最近对局在前</span>
     </div>
-    <NCollapse class="rank-overview">
-      <NCollapseItem title="对手段位汇总与统计口径" name="rank-summary">
-        <OpponentRankSummary :games="games" />
-      </NCollapseItem>
-    </NCollapse>
     <article
       v-for="game in games"
       :key="game.gameId"
@@ -48,21 +43,16 @@
         >
       </div>
       <div class="match-ranks" aria-label="本局对手平均段位">
+        <small>{{ uiText('rankMatchContext') }}</small>
         <span v-for="queue in rankQueues" :key="queue.key">
-          <b>{{ queue.label }}平均段位</b>
+          <b>{{ queue.label }}</b>
           {{ averageLabel(game, queue.key) }}
-          <small
-            >已定级可用
-            {{ opponentRankAverage(game.opponentRanks, queue.key)?.count ?? 0 }}/5</small
-          >
+          <small>{{
+            uiText('rankUsableOpponents', {
+              count: opponentRankAverage(game.opponentRanks, queue.key)?.count ?? 0
+            })
+          }}</small>
         </span>
-        <small>{{
-          game.opponentRanks?.capture
-            ? '含本局自动采集，逐人来源见展开详情'
-            : game.opponentRanks
-              ? '事后刷新采集'
-              : '尚未采集'
-        }}</small>
       </div>
       <div v-if="expanded.has(game.gameId)" class="details" :id="`match-detail-${game.gameId}`">
         <MatchNativeDetails :game-id="game.gameId" />
@@ -88,8 +78,9 @@
   </div>
 </template>
 <script setup lang="ts">
+import { uiText } from './ui-text'
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
-import { NButton, NCollapse, NCollapseItem } from 'naive-ui'
+import { NButton } from 'naive-ui'
 import { reactive, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
@@ -104,7 +95,6 @@ import {
 } from '@shared/shards/member-analysis/opponent-ranks'
 import MatchNativeDetails from './MatchNativeDetails.vue'
 import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
-import OpponentRankSummary from './opponent-ranks/OpponentRankSummary.vue'
 const { games } = useMemberAnalysisData()
 const rankQueues = [
   { key: 'solo', label: '单双排' },
@@ -255,16 +245,16 @@ const conversion = (game: MemberAnalysisGame) =>
   padding-top: 10px;
   border-top: 1px solid var(--ma-grid);
 }
-.rank-overview {
-  margin-bottom: 20px;
-}
 .match-ranks {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 24px;
+  gap: 8px 16px;
   font-size: 14px;
+  line-height: 21px;
+  color: var(--la-color-text-primary);
+  font-variant-numeric: tabular-nums;
 }
 .match-ranks > span {
   display: flex;
@@ -275,8 +265,11 @@ const conversion = (game: MemberAnalysisGame) =>
 .match-ranks b,
 .match-ranks small {
   color: var(--ma-muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
+}
+.match-ranks > span > small {
+  color: var(--la-color-text-primary);
 }
 .match-analysis-metrics {
   grid-column: 1 / -1;

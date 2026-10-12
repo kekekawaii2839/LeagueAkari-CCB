@@ -54,6 +54,8 @@ vi.mock('naive-ui', () => {
     NAlert: Stub,
     NIcon: Stub,
     NButton: Stub,
+    NPagination: Stub,
+    useThemeVars: () => ({ value: { primaryColor: '#587c66' } }),
     NDataTable: Stub,
     NEmpty: Stub,
     NProgress: Stub,
@@ -203,16 +205,15 @@ describe('member analysis native page', () => {
     expect(renderer.replace).not.toHaveBeenCalled()
   })
 
-  test('maps the retired rank-list address to the single match list', async () => {
+  test('opens the rank summary as an independent page without redirecting to matches', async () => {
     renderer.route.params.section = 'opponent-ranks'
-    await renderState('ready')
-    expect(renderer.replace).toHaveBeenCalledWith({
-      name: 'member-analysis',
-      params: { section: 'matches' }
-    })
+    const html = await renderState('ready')
+    expect(renderer.activeTab).toBe('opponent-ranks')
+    expect(renderer.replace).not.toHaveBeenCalled()
+    expect(html).toContain('查询时段位（非比赛当时）')
   })
 
-  test.each(['roles', 'prediction', 'matches'])(
+  test.each(['roles', 'prediction', 'matches', 'opponent-ranks'])(
     'preserves the toolbar and range on %s',
     async (section) => {
       renderer.route.params.section = section

@@ -68,13 +68,19 @@ const roleNames = { TOP: '上路', JUNGLE: '打野', MIDDLE: '中路', BOTTOM: '
   min-width: 0;
   border-top: 1px solid var(--ma-grid);
   padding-top: 16px;
+  color: var(--la-color-text-primary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
 }
 h4 {
   font-size: 14px;
-  margin: 0 0 12px;
+  font-weight: 600;
+  line-height: 22px;
+  margin: 0 0 8px;
 }
 p {
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.6;
   color: var(--ma-muted);
   margin: 8px 0 0;
@@ -101,10 +107,12 @@ td {
 }
 thead th {
   color: var(--ma-muted);
+  font-weight: 500;
 }
 small {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 20px;
   color: var(--ma-muted);
   margin-top: 4px;
 }

@@ -142,6 +142,7 @@ import ConversionView from './ConversionView.vue'
 import EarlyConversionView from './EarlyConversionView.vue'
 import JungleView from './JungleView.vue'
 import MatchesView from './MatchesView.vue'
+import OpponentRanksView from './opponent-ranks/OpponentRanksView.vue'
 import MemberRoleView from './MemberRoleView.vue'
 import PairView from './PairView.vue'
 import ScatterView from './ScatterView.vue'
@@ -160,6 +161,12 @@ const allSections = [
   { key: 'synergy', label: '同队偏差', description: '', component: SynergyView },
   { key: 'scatter', label: '指标对比', description: '', component: ScatterView },
   { key: 'prediction', label: '阵容胜率预测', description: '', component: WinPrediction },
+  {
+    key: 'opponent-ranks',
+    label: uiText('rankTabTitle'),
+    description: '',
+    component: OpponentRanksView
+  },
   { key: 'matches', label: '对局列表', description: '', component: MatchesView }
 ] as const
 
@@ -173,8 +180,7 @@ const sections = computed(() =>
 const memberAnalysis = useInstance(MemberAnalysisRenderer)
 const route = useRoute()
 const router = useRouter()
-const requestedSection =
-  route.params.section === 'opponent-ranks' ? 'matches' : String(route.params.section ?? '')
+const requestedSection = String(route.params.section ?? '')
 const activeSection = ref(
   sections.value.some((section) => section.key === requestedSection) ? requestedSection : 'roles'
 )
@@ -265,9 +271,6 @@ const friendlyJobError = computed(() => {
 watch(activeSection, (section) => {
   void router.replace({ name: 'member-analysis', params: { section } })
 })
-if (route.params.section === 'opponent-ranks') {
-  void router.replace({ name: 'member-analysis', params: { section: 'matches' } })
-}
 
 watch(
   [
@@ -278,10 +281,7 @@ watch(
   ([section]) => {
     // Wait for persisted settings before rejecting an opted-in prediction deep link.
     if (store.loading) return
-    const next = section === 'opponent-ranks' ? 'matches' : String(section ?? '')
-    if (section === 'opponent-ranks') {
-      void router.replace({ name: 'member-analysis', params: { section: 'matches' } })
-    }
+    const next = String(section ?? '')
     if (next === 'prediction' && store.settings?.experimentalPredictionEnabled !== true) {
       activeSection.value = 'roles'
       void router.replace({ name: 'member-analysis', params: { section: 'roles' } })
