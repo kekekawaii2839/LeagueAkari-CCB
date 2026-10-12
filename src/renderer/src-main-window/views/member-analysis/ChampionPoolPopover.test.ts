@@ -18,7 +18,13 @@ vi.mock('naive-ui', () => ({
       () =>
         h('button', attrs, slots.default?.())
   },
-  NIcon: () => null
+  NIcon: () => null,
+  NScrollbar: {
+    setup:
+      (_: unknown, { slots }: any) =>
+      () =>
+        h('div', slots.default?.())
+  }
 }))
 
 const row: ChampionAggregate = {

@@ -7,103 +7,114 @@
     @keydown.esc="onEscape"
     @keydown.tab="trapTab"
   >
-    <header class="popover-header">
-      <div>
-        <strong>{{ short(pool.player) }} · {{ roleLabel }}</strong
-        ><span>{{ uiText('poolGames', { count: pool.games }) }}</span>
-      </div>
-      <NButton
-        ref="closeButton"
-        size="small"
-        quaternary
-        :aria-label="uiText('poolClose')"
-        @click="$emit('close')"
-        >×</NButton
-      >
-    </header>
-    <p v-if="pool.unidentifiedGames" class="pool-missing">
-      {{ uiText('poolMissing', { count: pool.unidentifiedGames }) }}
-    </p>
-    <div class="popover-heroes">
-      <button
-        v-for="row in pool.rows"
-        :key="row.champion"
-        type="button"
-        class="popover-hero"
-        :class="{ selected: selected?.champion === row.champion }"
-        :aria-pressed="selected?.champion === row.champion"
-        :aria-expanded="selected?.champion === row.champion"
-        :aria-controls="detailId"
-        @click="select(row.champion)"
-      >
-        <ChampionIcon class="popover-portrait" :champion-id="championId(row.champion)" />
-        <span class="popover-identity"
-          ><strong>{{ championName(row.champion) }}</strong
-          ><small>{{ uiText('poolRecord', { wins: row.wins, games: row.games }) }}</small></span
-        >
-        <span class="popover-rates"
-          ><strong>{{ uiText('poolWinRate') }} {{ formatMetric(row.winRate, 'pct') }}</strong
-          ><small>{{ uiText('poolPickRate') }} {{ formatMetric(row.pickRate, 'pct') }}</small></span
-        >
-      </button>
-    </div>
-    <section v-if="selected" :id="detailId" ref="detail" class="popover-detail">
-      <div class="detail-heading">
-        <h3>{{ championName(selected.champion) }} · {{ uiText('poolHeroDetails') }}</h3>
-        <NButton
-          class="detail-collapse"
-          size="small"
-          tertiary
-          :theme-overrides="{ heightSmall: '32px', fontSizeSmall: '14px' }"
-          :aria-expanded="true"
-          :aria-controls="detailId"
-          @click="collapseDetail"
-        >
-          <template #icon><NIcon :component="UpOutlined" aria-hidden="true" /></template>
-          {{ uiText('poolCancelHero') }}
-        </NButton>
-      </div>
-      <p>{{ uiText('poolInterval') }} {{ intervalText(selected.wins, selected.games) }}</p>
-      <div class="detail-sides">
-        <span class="ma-blue">{{
-          uiText('poolBlue', {
-            rate: sideRate(selected.blueWins, selected.blueGames),
-            count: selected.blueGames
-          })
-        }}</span
-        ><span class="ma-red">{{
-          uiText('poolRed', {
-            rate: sideRate(selected.redWins, selected.redGames),
-            count: selected.redGames
-          })
-        }}</span>
-      </div>
-      <dl class="detail-metrics">
-        <div v-for="metric in displayedMetrics" :key="metric.key">
-          <dt>
-            <MetricHelp
-              v-if="metric.description"
-              :label="metric.label"
-              :definition="metric.description"
-            />
-            <span v-else>{{ metric.label }}</span>
-          </dt>
-          <dd :class="metric.signed ? toneClass(selected.performance[metric.key]) : ''">
-            <span class="metric-value">{{ metric.value }}</span>
-            <span v-if="metric.unit" class="metric-unit"> {{ metric.unit }}</span>
-          </dd>
+    <NScrollbar
+      ref="scrollbar"
+      class="pool-scroll"
+      trigger="none"
+      :content-style="{ paddingRight: '20px' }"
+    >
+      <header class="popover-header">
+        <div>
+          <strong>{{ short(pool.player) }} · {{ roleLabel }}</strong
+          ><span>{{ uiText('poolGames', { count: pool.games }) }}</span>
         </div>
-      </dl>
-    </section>
-    <div class="popover-help">
-      <MetricHelp :label="uiText('poolHelp')" :definition="uiText('poolInterpretation')" />
-    </div>
+        <NButton
+          ref="closeButton"
+          size="small"
+          quaternary
+          :aria-label="uiText('poolClose')"
+          @click="$emit('close')"
+          >×</NButton
+        >
+      </header>
+      <p v-if="pool.unidentifiedGames" class="pool-missing">
+        {{ uiText('poolMissing', { count: pool.unidentifiedGames }) }}
+      </p>
+      <div class="popover-heroes">
+        <button
+          v-for="row in pool.rows"
+          :key="row.champion"
+          type="button"
+          class="popover-hero"
+          :class="{ selected: selected?.champion === row.champion }"
+          :aria-pressed="selected?.champion === row.champion"
+          :aria-expanded="selected?.champion === row.champion"
+          :aria-controls="detailId"
+          @click="select(row.champion)"
+        >
+          <ChampionIcon class="popover-portrait" :champion-id="championId(row.champion)" />
+          <span class="popover-identity"
+            ><strong>{{ championName(row.champion) }}</strong
+            ><small>{{ uiText('poolRecord', { wins: row.wins, games: row.games }) }}</small></span
+          >
+          <span class="popover-rates"
+            ><strong>{{ uiText('poolWinRate') }} {{ formatMetric(row.winRate, 'pct') }}</strong
+            ><small
+              >{{ uiText('poolPickRate') }} {{ formatMetric(row.pickRate, 'pct') }}</small
+            ></span
+          >
+        </button>
+      </div>
+      <section v-if="selected" :id="detailId" ref="detail" class="popover-detail">
+        <div class="detail-heading">
+          <h3>{{ championName(selected.champion) }} · {{ uiText('poolHeroDetails') }}</h3>
+          <NButton
+            class="detail-collapse"
+            size="small"
+            tertiary
+            :theme-overrides="{ heightSmall: '32px', fontSizeSmall: '14px' }"
+            :aria-expanded="true"
+            :aria-controls="detailId"
+            @click="collapseDetail"
+          >
+            <template #icon>
+              <NIcon :size="16" :component="ChevronUp20Regular" aria-hidden="true" />
+            </template>
+            {{ uiText('poolCancelHero') }}
+          </NButton>
+        </div>
+        <p>{{ uiText('poolInterval') }} {{ intervalText(selected.wins, selected.games) }}</p>
+        <div class="detail-sides">
+          <span class="ma-blue">{{
+            uiText('poolBlue', {
+              rate: sideRate(selected.blueWins, selected.blueGames),
+              count: selected.blueGames
+            })
+          }}</span
+          ><span class="ma-red">{{
+            uiText('poolRed', {
+              rate: sideRate(selected.redWins, selected.redGames),
+              count: selected.redGames
+            })
+          }}</span>
+        </div>
+        <dl class="detail-metrics">
+          <div v-for="metric in displayedMetrics" :key="metric.key">
+            <dt>
+              <MetricHelp
+                v-if="metric.description"
+                :label="metric.label"
+                :definition="metric.description"
+              />
+              <span v-else>{{ metric.label }}</span>
+            </dt>
+            <dd :class="metric.signed ? toneClass(selected.performance[metric.key]) : ''">
+              <span class="metric-value">{{ metric.value }}</span>
+              <span v-if="metric.unit" class="metric-unit"> {{ metric.unit }}</span>
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <div class="popover-help">
+        <MetricHelp :label="uiText('poolHelp')" :definition="uiText('poolInterpretation')" />
+      </div>
+    </NScrollbar>
   </section>
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, useId, watch } from 'vue'
-import { NButton, NIcon } from 'naive-ui'
-import { UpOutlined } from '@vicons/antd'
+import { NButton, NIcon, NScrollbar } from 'naive-ui'
+import ChevronUp20Regular from '@vicons/fluent/es/ChevronUp20Regular'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import type { ChampionPool } from './champion-pools'
 import MetricHelp from './MetricHelp.vue'
@@ -120,6 +131,7 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>()
 const panel = ref<HTMLElement | null>(null)
 const detail = ref<HTMLElement | null>(null)
+const scrollbar = ref<InstanceType<typeof NScrollbar> | null>(null)
 const closeButton = ref<InstanceType<typeof NButton> | null>(null)
 const detailId = useId()
 const selectedChampion = ref(props.initialChampion)
@@ -133,7 +145,7 @@ watch(
     await nextTick()
     if (selected.value && detail.value) {
       scrollToDetail()
-    } else if (panel.value) panel.value.scrollTop = 0
+    } else scrollbar.value?.scrollTo({ top: 0 })
   }
 )
 async function select(champion: string) {
@@ -149,18 +161,20 @@ async function collapseDetail() {
   await nextTick()
   // Focus without scrolling the parent page (which could dismiss the anchored pool).
   trigger?.focus({ preventScroll: true })
-  if (trigger && panel.value) {
+  const scroller = scrollbar.value?.scrollbarInstRef?.containerRef
+  if (trigger && panel.value && scroller) {
     const headerBottom = panel.value.querySelector('header')?.getBoundingClientRect().bottom ?? 0
     const bounds = trigger.getBoundingClientRect()
-    if (bounds.top < headerBottom + 8) panel.value.scrollTop += bounds.top - headerBottom - 8
+    if (bounds.top < headerBottom + 8) scroller.scrollTop += bounds.top - headerBottom - 8
     else if (bounds.bottom > panel.value.getBoundingClientRect().bottom)
-      panel.value.scrollTop += bounds.bottom - panel.value.getBoundingClientRect().bottom
+      scroller.scrollTop += bounds.bottom - panel.value.getBoundingClientRect().bottom
   }
 }
 function scrollToDetail() {
-  if (!panel.value || !detail.value) return
+  const scroller = scrollbar.value?.scrollbarInstRef?.containerRef
+  if (!panel.value || !detail.value || !scroller) return
   const headerHeight = panel.value.querySelector('header')?.getBoundingClientRect().height ?? 0
-  panel.value.scrollTop +=
+  scroller.scrollTop +=
     detail.value.getBoundingClientRect().top -
     panel.value.getBoundingClientRect().top -
     headerHeight -
@@ -272,15 +286,23 @@ const displayedMetrics = computed(() =>
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  width: 100%;
+  /* Move only the rail into 8px of the popover's existing right padding.
+     Matching content padding preserves the text width and column positions. */
+  width: calc(100% + 8px);
   max-height: min(520px, var(--pool-panel-max-height, calc(100vh - 56px)));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+  overflow: hidden;
   font-size: 14px;
   color: var(--la-color-text-primary);
   font-variant-numeric: tabular-nums;
   container-type: inline-size;
+}
+.pool-popover :deep(.pool-scroll) {
+  height: auto;
+  max-height: inherit;
+}
+.pool-popover :deep(.n-scrollbar-container) {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 .popover-header {
   position: sticky;
@@ -454,7 +476,7 @@ const displayedMetrics = computed(() =>
   font-size: 12px;
   color: var(--ma-muted);
 }
-@container (max-width: 430px) {
+@container (max-width: 438px) {
   .popover-heroes {
     grid-template-columns: minmax(0, 1fr);
   }
