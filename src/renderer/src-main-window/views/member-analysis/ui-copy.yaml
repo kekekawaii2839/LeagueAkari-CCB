@@ -38,7 +38,7 @@ zh-CN:
   sortDefault: '{{label}}：恢复默认顺序'
   rankSource: 来源：英雄联盟对局服务
   rankComparisonLimit: 段位以查询时间为准，不代表比赛开始时的段位或实际实力；重复对手、段位变化和缺失数据可能影响比较。
-  predictionIntro: 选择五个分路的成员，估计下一场胜率。顶部复盘筛选及范围不用于预测。
+  predictionIntro: 顶部复盘筛选及范围不用于预测。
   predictionProgress: 胜率计算进度
   predictionCalculating: 正在计算胜率…
   predictionMethod: 当前方法
@@ -46,10 +46,16 @@ zh-CN:
   predictionNoAdvantage: 尚未发现比历史胜率参考更可靠的预测表现。
   predictionInterval: 95% 模型估计区间
   intervalUnavailable: 无法估计区间
-  predictionDetails: 数据与验证
-  hidePredictionDetails: 收起数据与验证
+  predictionDetails: 使用说明与数据详情
+  predictionHelp: 使用说明
+  predictionHistoryMissing: 可在设置中扩大采集范围并刷新，补充对应分路和方位的历史。
+  predictionResultLimit: 仅供历史估计；区间不涵盖全部未来变化，不保证下一场结果。
+  predictionReferenceLimit: 整体历史参考，不代表这套阵容优于其他阵容。
+  predictionLineupMissing: 相同阵容暂无历史对局，缺少直接样本。
+  predictionLineupHistoryLimit: 历史描述，不是下一场预测。
+  hidePredictionDetails: 收起说明
   predictionHistoryScope: 每位成员使用对应分路最近最多 20 场先前对局；蓝方或红方仅使用对应方历史，红蓝综合使用两方历史。排除不足 15 分钟的对局。
-  predictionLimit: 仅根据历史表现估计，未考虑下一场对手、英雄阵容和版本变化；不是配合能力评分。
+  predictionLimit: 根据已加载的成员对局历史估计，未考虑下一场对手、英雄阵容和版本变化；不是阵容专属的真实胜率，也不是配合能力评分。
   predictionIntervalLimit: 区间只反映当前历史与方法下的估计差异，不覆盖全部未来变化，也不保证下一场结果。
   predictionValidationScope: '训练：{{trainFrom}}–{{trainTo}} · 验证：{{testFrom}}–{{testTo}}。验证结果只供参考，不保证未来表现。'
   predictionValidation: 历史验证结果
@@ -120,7 +126,7 @@ en:
   sortDefault: '{{label}}: restore default order'
   rankSource: 'Source: League of Legends match service'
   rankComparisonLimit: Ranks reflect query time, not match-start ranks or skill. Repeated opponents, rank changes and missing data may affect comparisons.
-  predictionIntro: Choose a member for each role to estimate the next-match win rate. Review filters and sample limits above do not apply to prediction.
+  predictionIntro: Review filters and sample limits above do not apply to prediction.
   predictionProgress: Win rate calculation progress
   predictionCalculating: Calculating win rate…
   predictionMethod: Current method
@@ -128,10 +134,16 @@ en:
   predictionNoAdvantage: No more reliable prediction performance than the historical win rate reference has been found.
   predictionInterval: 95% model estimate interval
   intervalUnavailable: Interval unavailable
-  predictionDetails: Data and validation
-  hidePredictionDetails: Hide data and validation
+  predictionDetails: Help and data details
+  predictionHelp: How to use
+  predictionHistoryMissing: Expand collection in settings and refresh to add history for the selected roles and side.
+  predictionResultLimit: Historical estimate only. The interval does not cover all future changes or guarantee the next result.
+  predictionReferenceLimit: Overall historical reference, not evidence that this lineup outperforms others.
+  predictionLineupMissing: No same-lineup matches available; direct historical evidence is missing.
+  predictionLineupHistoryLimit: Describes past results, not a next-match prediction.
+  hidePredictionDetails: Hide help
   predictionHistoryScope: Uses each member's latest 20 earlier matches in their role. Blue or red uses that side's history; combined uses both. Matches shorter than 15 minutes are excluded.
-  predictionLimit: Based only on past performance, without the next opponent, champion composition or patch changes. Not a teamwork rating.
+  predictionLimit: Estimated from loaded member match history, without the next opponent, champion composition or patch changes. Not a lineup-specific true win rate or a teamwork rating.
   predictionIntervalLimit: The interval reflects estimation differences under current history and method, not all future changes or a guaranteed next-match result.
   predictionValidationScope: 'Training: {{trainFrom}}–{{trainTo}} · Validation: {{testFrom}}–{{testTo}}. Validation is a reference, not a guarantee of future performance.'
   predictionValidation: Historical validation results

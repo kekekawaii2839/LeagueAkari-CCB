@@ -22,7 +22,7 @@
           <NSelect v-model:value="side" :options="sideOptions" aria-label="预测方位" />
         </label>
         <NButton :disabled="!completeLineup || running" type="primary" @click="start"
-          >回测并计算胜率</NButton
+          >计算胜率</NButton
         >
         <NButton v-if="running" @click="cancel">取消计算</NButton>
         <span v-if="!completeLineup">请为五个分路选择不同成员。</span>
@@ -39,8 +39,7 @@
         暂不能预测：{{ result.reason }}
       </p>
       <p v-if="result?.status === 'unavailable'">
-        若对应方位历史不足，可在成员分析设置中扩大采集历史并刷新；其他页面的“最近 N
-        场”筛选不会增加训练数据。
+        {{ uiText('predictionHistoryMissing') }}
       </p>
       <section v-if="overallReference" aria-label="未完成预测时的总体历史参考">
         <h4>{{ sideLabel }} · 总体历史参考（不是阵容预测）</h4>
@@ -64,18 +63,6 @@
         aria-live="polite"
       >
         <h4>所选五排阵容 · {{ sideLabel }} · 下一场团队预测</h4>
-        <ul>
-          <li v-for="profile in result.profiles" :key="profile.role">
-            {{ roleLabel(profile.role) }}：{{ profile.member }} · 近期样本
-            {{ profile.games }} 场（蓝方 {{ profile.blueGames }} / 红方 {{ profile.redGames }}；{{
-              profile.from
-            }}–{{ profile.to }}）
-          </li>
-        </ul>
-        <p>{{ uiText('predictionMethod') }}：{{ predictionMethodName }}</p>
-        <p v-if="result.estimateKind === 'reference'">
-          此为当前历史范围的整体胜率参考，不是这套阵容优于其他阵容的证据。
-        </p>
         <p>
           <strong
             >{{ result.estimateKind === 'reference' ? '整体胜率参考' : '下一场团队获胜概率' }}
@@ -87,16 +74,11 @@
               : uiText('intervalUnavailable')
           }}</strong>
         </p>
-        <p v-if="result.lineupHistoryGames">
-          {{ sideLabel }} · 相同五人、相同分路的历史实际胜率：{{ result.lineupHistoryWins }} /
-          {{ result.lineupHistoryGames }} 场 =
-          {{ percent(result.lineupHistoryWins / result.lineupHistoryGames) }}，Wilson 95% 区间
-          {{ historyInterval }}。此为历史描述，不是模型预测。
-        </p>
-        <p v-else>
-          当前方位范围内没有相同五人、相同分路的历史对局；当前结果不是这套阵容的实测胜率，缺少该阵容的直接历史依据。
-        </p>
+        <p class="prediction-note">{{ uiText('predictionResultLimit') }}</p>
+        <p v-if="result.estimateKind === 'reference'">{{ uiText('predictionReferenceLimit') }}</p>
+        <p v-if="!result.lineupHistoryGames">{{ uiText('predictionLineupMissing') }}</p>
         <p>
+          {{ predictionMethodName }} ·
           {{
             uiText('predictionSample', { total: result.totalGames, validation: result.testGames })
           }}
@@ -110,18 +92,43 @@
         >
           {{ uiText('predictionNoAdvantage') }}
         </p>
-        <NButton
-          size="small"
-          quaternary
-          :aria-expanded="details"
-          aria-controls="prediction-method"
-          @click="details = !details"
-          >{{ uiText(details ? 'hidePredictionDetails' : 'predictionDetails') }}</NButton
-        >
-        <div v-if="details" id="prediction-method">
-          <p>{{ uiText('predictionHistoryScope') }}</p>
-          <p>{{ uiText('predictionLimit') }}</p>
-          <p>{{ uiText('predictionIntervalLimit') }}</p>
+      </section>
+      <NButton
+        size="small"
+        quaternary
+        :aria-expanded="details"
+        aria-controls="prediction-method"
+        @click="details = !details"
+        >{{
+          uiText(
+            details
+              ? 'hidePredictionDetails'
+              : result?.status === 'available'
+                ? 'predictionDetails'
+                : 'predictionHelp'
+          )
+        }}</NButton
+      >
+      <div v-if="details" id="prediction-method">
+        <p>{{ uiText('predictionHistoryScope') }}</p>
+        <p>{{ uiText('predictionLimit') }}</p>
+        <p>{{ uiText('predictionIntervalLimit') }}</p>
+        <template v-if="result?.status === 'available'">
+          <ul>
+            <li v-for="profile in result.profiles" :key="profile.role">
+              {{ roleLabel(profile.role) }}：{{ profile.member }} · {{ profile.games }} 场 （蓝方
+              {{ profile.blueGames }} / 红方 {{ profile.redGames }}；{{ profile.from }}–{{
+                profile.to
+              }}）
+            </li>
+          </ul>
+          <p v-if="result.lineupHistoryGames">
+            {{ sideLabel }} · 相同阵容历史：{{ result.lineupHistoryWins }} 胜 /
+            {{ result.lineupHistoryGames }} 场，
+            {{ percent(result.lineupHistoryWins / result.lineupHistoryGames) }}；Wilson 95% 区间
+            {{ historyInterval }}。
+            {{ uiText('predictionLineupHistoryLimit') }}
+          </p>
           <p>
             {{
               uiText('predictionValidationScope', {
@@ -170,8 +177,8 @@
             "
             :scroll-x="580"
           />
-        </div>
-      </section>
+        </template>
+      </div>
     </div>
   </section>
 </template>
