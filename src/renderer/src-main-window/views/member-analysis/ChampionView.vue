@@ -83,7 +83,10 @@
               <td
                 v-for="role in championPoolRoles"
                 :key="role"
-                :class="{ 'pool-active': activePool?.key === member.pools[role]?.key }"
+                :class="{
+                  'pool-active': !!activePool && activePool.key === member.pools[role]?.key,
+                  'pool-unplayed': !member.pools[role]
+                }"
               >
                 <template v-if="member.pools[role]">
                   <div class="pool-cell-heading">
@@ -525,15 +528,25 @@ const championName = (name: string) => {
   border-bottom: 1px solid var(--ma-grid);
   padding: 10px 8px;
 }
+.pool-matrix tr > :nth-child(n + 3) {
+  box-shadow: inset 1px 0 0 var(--ma-grid);
+}
 .pool-matrix th {
   font-weight: 600;
 }
 .pool-matrix td {
+  padding: 12px;
   vertical-align: top;
+}
+.pool-matrix td.pool-unplayed {
+  vertical-align: middle;
 }
 .pool-matrix thead th {
   padding-block: 8px;
   background: var(--la-color-bg-primary);
+}
+.pool-matrix thead th:not(.member-heading) {
+  padding-inline: 12px;
 }
 .pool-matrix thead {
   position: relative;
@@ -646,9 +659,10 @@ const championName = (name: string) => {
 }
 .pool-cell-empty {
   display: block;
-  padding: 12px 0;
+  text-align: center;
   color: var(--ma-muted);
   font-size: 12px;
+  line-height: 1.5;
 }
 .pool-missing {
   margin: 4px 0;
