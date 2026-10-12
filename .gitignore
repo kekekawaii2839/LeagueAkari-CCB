@@ -78,3 +78,6 @@ CLAUDE.md
 
 # Private local prompt; never publish this file.
 /docs/fork/prompts/event-results-ui-redesign.txt
+
+# Private local product design guidance.
+/docs/fork/design-spec.md
