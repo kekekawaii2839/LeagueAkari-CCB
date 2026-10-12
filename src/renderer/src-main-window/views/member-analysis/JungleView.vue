@@ -484,6 +484,8 @@ watch(
   align-items: flex-start;
 }
 .member-badge {
+  display: grid;
+  place-items: center;
   flex: none;
   width: 24px;
   height: 24px;
