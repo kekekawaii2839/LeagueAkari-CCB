@@ -64,3 +64,10 @@ __pycache__/
 
 # Compiled research code only; all private datasets/results live in userData.
 packages/prediction-lab/.runtime/
+
+# Private local AI guidance; do not publish these project Skills.
+/.agents/skills/league-akari-data-visualization/
+/.agents/skills/league-akari-mcp-debug/
+/.agents/skills/league-akari-sgp-data-source/
+/.agents/skills/league-akari-shard-development/
+/.agents/skills/league-akari-ui-components/
