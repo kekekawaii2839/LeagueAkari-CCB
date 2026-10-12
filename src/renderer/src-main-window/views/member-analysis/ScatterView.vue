@@ -137,9 +137,9 @@
           role="button"
           :aria-label="`${group.rows.length} 条记录，${group.rows[0].player}，${label(xMetric)} ${formatMetric(group.rows[0][xMetric], roleMetricMeta[xMetric].fmt)}，${label(yMetric)} ${formatMetric(group.rows[0][yMetric], roleMetricMeta[yMetric].fmt)}，选择查看详情`"
           :aria-pressed="selectedIndex === index"
-          @click="selectPoint(index)"
-          @keydown.enter.prevent="selectPoint(index)"
-          @keydown.space.prevent="selectPoint(index)"
+          @click="selectPoint(index, $event)"
+          @keydown.enter.prevent="selectPoint(index, $event)"
+          @keydown.space.prevent="selectPoint(index, $event)"
         >
           <circle
             v-for="(player, colorIndex) in pointMembers(group.rows)"
@@ -235,14 +235,46 @@
             {{ row.result }}</template
           >
           · {{ label(xMetric) }} {{ displayValue(row[xMetric], xMetric) }} · {{ label(yMetric) }}
-          {{ displayValue(row[yMetric], yMetric) }} · {{ row.games }} 场
+          {{ displayValue(row[yMetric], yMetric) }}
+          <NButton
+            v-if="row.gameId !== null"
+            size="small"
+            quaternary
+            :aria-expanded="selectedGameId === row.gameId"
+            :aria-controls="matchDetailId"
+            @click="toggleMatch(row.gameId, $event)"
+            >{{ selectedGameId === row.gameId ? '收起对局' : '查看对局' }}</NButton
+          >
         </li>
       </ul>
     </section>
-    <div class="ma-section-title">
-      <strong>{{ uiText('allValues') }}</strong>
-    </div>
-    <MemberAnalysisMetricTable :columns="columns" :rows="tableRows" :scroll-x="650" />
+    <section
+      v-if="selectedGameId !== null"
+      :id="matchDetailId"
+      ref="matchDetail"
+      tabindex="-1"
+      class="ma-selected-detail"
+      :aria-label="`对局 ${selectedGameId} 详情`"
+      @keydown.esc.prevent.stop="closeMatch"
+    >
+      <header>
+        <strong>对局 #{{ selectedGameId }}</strong>
+        <NButton size="small" quaternary @click="closeMatch">收起对局</NButton>
+      </header>
+      <MatchNativeDetails :key="selectedGameId" :game-id="selectedGameId" />
+    </section>
+    <details class="scatter-values">
+      <summary>查看全部精确值（{{ tableRows.length }} 条）</summary>
+      <MemberAnalysisMetricTable
+        :columns="columns"
+        :rows="tableRows"
+        :row-key="tableRowKey"
+        :row-class-name="
+          (row: Record<string, unknown>) => (isSelectedRow(row) ? 'scatter-selected-row' : '')
+        "
+        :scroll-x="650"
+      />
+    </details>
   </div>
 </template>
 <script setup lang="ts">
@@ -259,10 +291,11 @@ import { uiText } from './ui-text'
 import { groupScatterPoints } from './visualization'
 import type { DataTableColumns } from 'naive-ui'
 import { NButton, NCheckbox, NSelect, NSwitch } from 'naive-ui'
-import { computed, nextTick, ref, toRefs, watch } from 'vue'
+import { computed, h, nextTick, ref, toRefs, useId, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { roleMetricMeta, formatMetric } from './metric-defs'
 import MemberAnalysisMetricTable from './MemberAnalysisMetricTable.vue'
+import MatchNativeDetails from './MatchNativeDetails.vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { finiteOrNull, scatterDomain, scatterPosition } from './visualization'
 const compactHeight = useMediaQuery('(max-height: 680px)')
@@ -425,8 +458,28 @@ const pointGroups = computed(() => groupScatterPoints(points.value))
 const selectedIndex = ref<number | null>(null)
 const scatterRoot = ref<HTMLElement | null>(null)
 const pointDetail = ref<HTMLElement | null>(null)
-async function selectPoint(index: number) {
+let selectionTrigger: HTMLElement | SVGElement | null = null
+const selectedGameId = ref<number | null>(null)
+const matchDetail = ref<HTMLElement | null>(null)
+const matchDetailId = useId()
+let matchTrigger: HTMLElement | null = null
+async function toggleMatch(gameId: number, event: MouseEvent) {
+  if (selectedGameId.value === gameId) return closeMatch()
+  matchTrigger = event.currentTarget as HTMLElement
+  selectedGameId.value = gameId
+  await nextTick()
+  matchDetail.value?.scrollIntoView({ block: 'nearest' })
+  matchDetail.value?.focus({ preventScroll: true })
+}
+async function closeMatch() {
+  selectedGameId.value = null
+  await nextTick()
+  if (matchTrigger?.isConnected) matchTrigger.focus({ preventScroll: true })
+}
+async function selectPoint(index: number, event: Event) {
   if (selectedIndex.value === index) return clearPoint()
+  selectionTrigger = event.currentTarget as SVGElement
+  selectedGameId.value = null
   selectedIndex.value = index
   await nextTick()
   pointDetail.value?.scrollIntoView({ block: 'nearest' })
@@ -435,14 +488,21 @@ async function selectPoint(index: number) {
 async function clearPoint() {
   const index = selectedIndex.value
   selectedIndex.value = null
+  selectedGameId.value = null
   await nextTick()
-  if (index !== null) scatterRoot.value?.querySelectorAll<SVGGElement>('.point')[index]?.focus()
+  const disclosure = selectionTrigger?.closest('details')
+  if (disclosure && !disclosure.open)
+    disclosure.querySelector('summary')?.focus({ preventScroll: true })
+  else if (selectionTrigger?.isConnected) selectionTrigger.focus({ preventScroll: true })
+  else if (index !== null)
+    scatterRoot.value?.querySelectorAll<SVGGElement>('.point')[index]?.focus()
 }
 const selectedGroup = computed(() =>
   selectedIndex.value === null ? null : pointGroups.value[selectedIndex.value]
 )
 watch(pointGroups, () => {
   selectedIndex.value = null
+  selectedGameId.value = null
 })
 const labelAnchor = (x: number, index: number) =>
   x > 690 ? 'end' : x < 250 ? 'start' : index % 2 ? 'start' : 'end'
@@ -484,6 +544,7 @@ const roleLegend = computed(() =>
 )
 const tableRows = computed(() =>
   observations.value.map((row) => ({
+    roleKey: row.role,
     gameId: row.gameId,
     date: row.date,
     champion: row.champion,
@@ -495,8 +556,47 @@ const tableRows = computed(() =>
     y: row[yMetric.value]
   }))
 )
+const tableRowKey = (row: Record<string, unknown>) =>
+  JSON.stringify([row.player, row.roleKey ?? row.role, row.gameId])
+const isSelectedRow = (row: Record<string, unknown>) =>
+  selectedGroup.value?.rows.some((point) => tableRowKey(point) === tableRowKey(row)) ?? false
+function selectTableRow(row: Record<string, unknown>, event: MouseEvent) {
+  const index = pointGroups.value.findIndex((group) =>
+    group.rows.some((point) => tableRowKey(point) === tableRowKey(row))
+  )
+  if (index < 0) return
+  selectionTrigger = event.currentTarget as HTMLElement
+  selectedIndex.value = selectedIndex.value === index ? null : index
+  selectedGameId.value = null
+}
 const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
-  { title: '成员', key: 'player' },
+  {
+    title: '成员',
+    key: 'player',
+    render: (row) => {
+      const available = finiteOrNull(row.x) !== null && finiteOrNull(row.y) !== null
+      return available
+        ? h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              class: 'scatter-member-control',
+              themeOverrides: {
+                textColor: 'var(--la-color-text-primary)',
+                textColorHover: 'var(--la-color-text-primary)',
+                textColorPressed: 'var(--la-color-text-primary)',
+                textColorFocus: 'var(--la-color-text-primary)'
+              },
+              'aria-pressed': isSelectedRow(row),
+              'aria-label': `${row.player}，${row.role}${row.gameId === null ? '' : `，对局 ${row.gameId}`}，${isSelectedRow(row) ? '取消选择' : '选择对应散点'}`,
+              onClick: (event: MouseEvent) => selectTableRow(row, event)
+            },
+            { default: () => `${row.player}${isSelectedRow(row) ? ' · 已选' : ''}` }
+          )
+        : String(row.player)
+    }
+  },
   { title: '分路', key: 'role' },
   ...(matchMode.value
     ? [
@@ -521,6 +621,32 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
 <style scoped>
 .ma-workspace {
   color-scheme: light;
+}
+.scatter-values summary {
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 6px 0;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--la-color-text-primary);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.scatter-values summary:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.scatter-values :deep(.scatter-member-control) {
+  color: var(--la-color-text-primary);
+}
+.scatter-values :deep(.scatter-selected-row .n-data-table-td) {
+  background: var(--ma-hover);
+  box-shadow:
+    inset 0 1px var(--ma-grid-strong),
+    inset 0 -1px var(--ma-grid-strong);
 }
 :global([data-theme='dark'] .scatter-workspace) {
   color-scheme: dark;
