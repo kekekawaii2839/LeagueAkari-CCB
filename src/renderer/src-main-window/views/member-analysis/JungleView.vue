@@ -14,8 +14,8 @@
       /></label>
     </div>
     <div class="group-note">
-      <span>{{ jungleText(`${state.group}Note`) }}</span
-      ><NButton
+      <span>{{ jungleText(`${state.group}Note`) }}</span>
+      <NButton
         secondary
         :aria-expanded="state.method"
         aria-controls="jungle-method"
@@ -53,6 +53,7 @@
     </p>
     <div
       v-if="totals.length"
+      ref="comparison"
       class="jungle-scroll"
       role="region"
       tabindex="0"
@@ -85,7 +86,7 @@
                     class="member-trigger"
                     :aria-expanded="state.selected === row.player"
                     aria-controls="jungle-details"
-                    @click="toggle(row.player)"
+                    @click="toggle(row.player, $event)"
                   >
                     {{ short(row.player) }}
                   </button>
@@ -109,7 +110,7 @@
                   class="member-expand"
                   :aria-expanded="state.selected === row.player"
                   aria-controls="jungle-details"
-                  @click="toggle(row.player)"
+                  @click="toggle(row.player, $event)"
                 >
                   {{ jungleText(state.selected === row.player ? 'close' : 'open') }}
                 </button>
@@ -148,16 +149,19 @@
       </table>
     </div>
     <div v-else class="ma-empty">{{ jungleText('empty') }}</div>
-    <p v-if="totals.length" class="jungle-footer">{{ jungleText('footer') }}</p>
     <section
       v-if="selected"
       id="jungle-details"
+      ref="details"
       class="jungle-details"
+      aria-labelledby="jungle-details-heading"
       tabindex="-1"
       @keydown.esc.prevent.stop="closeDetails"
     >
       <header>
-        <h3>{{ jungleText('details', { member: selected.player }) }}</h3>
+        <h3 id="jungle-details-heading">
+          {{ jungleText('details', { member: selected.player }) }}
+        </h3>
         <NButton secondary @click="closeDetails">{{ jungleText('closeButton') }}</NButton>
       </header>
       <p>
@@ -287,8 +291,11 @@ const state =
   sessions.get(store) ?? reactive({ group: 'opening' as JungleGroup, selected: '', method: false })
 sessions.set(store, state)
 const root = ref<HTMLElement | null>(null)
+const comparison = ref<HTMLElement | null>(null)
+const details = ref<HTMLElement | null>(null)
 const selectionGone = ref(false)
 const triggers = new Map<string, HTMLElement>()
+let detailTrigger: HTMLElement | null = null
 const setTrigger = (player: string, el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) triggers.set(player, el)
   else triggers.delete(player)
@@ -355,15 +362,37 @@ const campColors = [
   'var(--ma-series-6)',
   'var(--ma-series-5)'
 ]
-function toggle(player: string) {
+async function toggle(player: string, event: MouseEvent) {
   selectionGone.value = false
-  state.selected = state.selected === player ? '' : player
+  if (state.selected === player) {
+    await closeDetails()
+    return
+  }
+  detailTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
+  state.selected = player
+  await nextTick()
+  if (state.selected !== player) return
+  if (event.detail === 0) details.value?.focus({ preventScroll: true })
+  details.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
 }
 async function closeDetails() {
   const player = state.selected
+  const trigger = detailTrigger?.isConnected ? detailTrigger : triggers.get(player)
+  detailTrigger = null
   state.selected = ''
   await nextTick()
-  triggers.get(player)?.focus()
+  if (state.selected || !root.value?.isConnected) return
+  trigger?.focus({ preventScroll: true })
+  trigger?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
+  comparison.value?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+  // Native nearest scrolling does not account for the table's sticky header.
+  if (trigger && comparison.value) {
+    const box = comparison.value.getBoundingClientRect()
+    const headerHeight =
+      comparison.value.querySelector('thead')?.getBoundingClientRect().height ?? 0
+    const obscured = box.top + headerHeight + 8 - trigger.getBoundingClientRect().top
+    if (obscured > 0) comparison.value.scrollTop -= obscured
+  }
 }
 function escape(event: KeyboardEvent) {
   if (event.key === 'Escape' && state.selected && root.value?.contains(event.target as Node)) {
@@ -378,6 +407,7 @@ watch(
   (names) => {
     if (state.selected && !names.includes(state.selected)) {
       state.selected = ''
+      detailTrigger = null
       selectionGone.value = true
     }
   },
@@ -426,15 +456,16 @@ watch(
   height: 8px;
   margin-right: 5px;
 }
-.scale-note,
-.jungle-footer {
+.scale-note {
   color: var(--ma-muted);
   font-size: 12px;
   line-height: 1.5;
   margin: 0;
 }
 .jungle-scroll {
-  overflow-x: auto;
+  /* One local scroller for both axes; short lists retain their natural height. */
+  max-height: 55dvh;
+  overflow: auto;
   max-width: 100%;
   border-top: 1px solid var(--ma-grid-strong);
   border-bottom: 1px solid var(--ma-grid-strong);
@@ -457,12 +488,19 @@ watch(
   width: 250px;
 }
 .jungle-comparison thead th {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--la-color-bg-primary);
   font-size: 13px;
   color: var(--ma-muted);
   font-weight: 500;
   text-align: left;
   padding: 12px 16px;
   border-bottom: 1px solid var(--ma-grid-strong);
+}
+.jungle-comparison thead .identity {
+  z-index: 5;
 }
 .identity {
   position: sticky;
@@ -545,6 +583,7 @@ watch(
   border-top: 1px solid var(--ma-grid-strong);
 }
 .jungle-details {
+  scroll-margin-top: 12px;
   --jungle-sticky-width: 0px;
 }
 .jungle-details header {

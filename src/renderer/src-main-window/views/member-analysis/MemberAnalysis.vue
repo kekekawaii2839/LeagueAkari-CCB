@@ -16,7 +16,7 @@
       <MemberAnalysisFilters
         v-if="store.settings?.enabled"
         :disabled="activeSection === 'prediction'"
-        :compact="primarySection === 'pairs' && compactHeight"
+        :compact="(primarySection === 'pairs' || primarySection === 'jungle') && compactHeight"
       />
 
       <p
