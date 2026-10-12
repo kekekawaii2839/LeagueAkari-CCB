@@ -297,7 +297,7 @@ import { roleMetricMeta, formatMetric } from './metric-defs'
 import MemberAnalysisMetricTable from './MemberAnalysisMetricTable.vue'
 import MatchNativeDetails from './MatchNativeDetails.vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { finiteOrNull, scatterDomain, scatterPosition } from './visualization'
+import { finiteOrNull, scatterDomain, scatterPosition, scatterWinRateDomain } from './visualization'
 const compactHeight = useMediaQuery('(max-height: 680px)')
 const plotHeight = computed(() => (compactHeight.value ? 140 : 240))
 const { roles, games } = useMemberAnalysisData()
@@ -405,7 +405,9 @@ const binaryOutcome = computed(() => matchMode.value && isBinary(yMetric.value))
 const yDomain = computed(() =>
   binaryOutcome.value
     ? { min: 0, max: 1 }
-    : scatterDomain(comparableRoles.value.map((x) => x[yMetric.value]))
+    : yMetric.value === 'winRate'
+      ? scatterWinRateDomain(comparableRoles.value.map((x) => x.winRate))
+      : scatterDomain(comparableRoles.value.map((x) => x[yMetric.value]))
 )
 const points = computed(() => {
   const positioned = comparableRoles.value.map((row) => ({

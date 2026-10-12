@@ -13,10 +13,48 @@ import {
   reliabilityLabel,
   scatterDomain,
   scatterPosition,
+  scatterWinRateDomain,
   wilsonInterval
 } from './visualization'
 
 describe('member analysis visualization semantics', () => {
+  test.each([
+    [0],
+    [1],
+    [0, 0],
+    [1, 1],
+    [0.5],
+    [0.5, 0.5],
+    [0.001, 0.01],
+    [0.99, 0.999],
+    [0, 0.5, 1],
+    [],
+    [null, undefined, NaN, Infinity, -Infinity],
+    [-2, -1],
+    [2, 3]
+  ])('keeps win-rate display domains finite, ordered and within 0–1: %j', (...values) => {
+    const domain = scatterWinRateDomain(values)
+    expect(Number.isFinite(domain.min)).toBe(true)
+    expect(Number.isFinite(domain.max)).toBe(true)
+    expect(domain.min).toBeGreaterThanOrEqual(0)
+    expect(domain.max).toBeLessThanOrEqual(1)
+    expect(domain.min).toBeLessThan(domain.max)
+    for (const value of values) {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) continue
+      expect(scatterPosition(value, domain, 35, 240, true)).toBeGreaterThanOrEqual(35)
+      expect(scatterPosition(value, domain, 35, 240, true)).toBeLessThanOrEqual(275)
+    }
+  })
+  test('retains interior automatic padding and leaves raw out-of-range values unrepaired', () => {
+    const values = [0.4, 0.6]
+    expect(scatterWinRateDomain(values)).toEqual(scatterDomain(values))
+    expect(values).toEqual([0.4, 0.6])
+    const domain = scatterWinRateDomain([-0.2, 0.5, 1.2])
+    expect(domain).toEqual({ min: 0, max: 1 })
+    expect(scatterPosition(-0.2, domain, 35, 240, true)).toBeGreaterThan(275)
+    expect(scatterPosition(1.2, domain, 35, 240, true)).toBeLessThan(35)
+    expect(scatterDomain([0, 1])).toEqual({ min: -0.08, max: 1.08 })
+  })
   test('keeps every coincident scatter member without inventing distinct coordinates', () => {
     const points = [
       { x: 10, y: 20, name: 'A' },

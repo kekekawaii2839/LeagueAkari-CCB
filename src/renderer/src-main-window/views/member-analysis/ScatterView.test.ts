@@ -125,3 +125,67 @@ test('zero observations retain a keyboard disclosure and an explicit empty state
   expect(data.table.rows).toHaveLength(0)
   expect(html).not.toContain('aria-pressed="true"')
 })
+
+const yAxisLabels = (html: string) =>
+  [...html.matchAll(/<text x="74"[^>]*>(.*?)<\/text>/gs)].map((match) => match[1].trim())
+
+test.each([[0], [1], [0, 0], [1, 1], [0.5], [0.001, 0.01], [0.99, 0.999], [0, 0.5, 1]])(
+  'aggregate win-rate Y ticks and endpoint marks stay in the probability display range: %j',
+  async (...values) => {
+    data.roles.value = values.map((y, index) => row(`合成成员${index}`, index, y))
+    const html = await render()
+    const labels = yAxisLabels(html)
+    expect(labels).toHaveLength(5)
+    for (const label of labels) {
+      expect(label).toMatch(/%$/)
+      expect(parseFloat(label)).toBeGreaterThanOrEqual(0)
+      expect(parseFloat(label)).toBeLessThanOrEqual(100)
+    }
+    for (const match of html.matchAll(/<circle[^>]* cy="([^"]+)"/g)) {
+      expect(Number(match[1])).toBeGreaterThanOrEqual(35)
+      expect(Number(match[1])).toBeLessThanOrEqual(275)
+    }
+    expect(data.table.rows.map((r: any) => r.y)).toEqual(values)
+  }
+)
+
+test.each([[0], [1], [0, 0], [1, 1], [0, 1]])(
+  'match win outcomes retain full probability ticks and unchanged exact 0/1 values: %j',
+  async (...values) => {
+    useMemberAnalysisStore().scatterViewState.matchMode = true
+    data.matches = values.map((y, index) => ({
+      ...row(`合成成员${index}`, index, y),
+      gameId: index
+    }))
+    const html = await render()
+    expect(yAxisLabels(html)).toEqual(['0%', '25%', '50%', '75%', '100%'])
+    expect(data.table.rows.map((r: any) => r.y)).toEqual(values)
+  }
+)
+
+test('only win-rate Y is bounded; changing metric restores ordinary negative/wide domains', async () => {
+  const state = useMemberAnalysisStore().scatterViewState
+  data.roles.value = [
+    { ...row('合成甲', -10, 0), gd15: -10 },
+    { ...row('合成乙', 20, 1), gd15: 20 }
+  ]
+  expect(yAxisLabels(await render())).toEqual(['0.0%', '25.0%', '50.0%', '75.0%', '100.0%'])
+  state.xMetric = 'winRate'
+  state.yMetric = 'gd15'
+  const labels = yAxisLabels(await render())
+  expect(parseFloat(labels[0])).toBeLessThan(-10)
+  expect(parseFloat(labels[4])).toBeGreaterThan(20)
+  expect(labels.every((label) => !label.includes('%'))).toBe(true)
+})
+
+test('missing/nonfinite win rates remain omitted, never endpoint zeros', async () => {
+  data.roles.value = [null, undefined, NaN, Infinity, -Infinity].map((y, index) => ({
+    ...row(`缺失合成${index}`, index),
+    winRate: y
+  }))
+  const html = await render()
+  expect(yAxisLabels(html)).toEqual([])
+  expect(html).toContain('当前范围没有可比较的数据。')
+  expect(data.table.rows).toHaveLength(5)
+  expect(data.table.rows.map((r: any) => r.y)).toEqual([null, undefined, NaN, Infinity, -Infinity])
+})

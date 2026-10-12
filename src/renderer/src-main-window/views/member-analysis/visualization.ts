@@ -58,6 +58,16 @@ export const scatterDomain = (values: unknown[]) => {
   return { min: min - padding, max: max + padding }
 }
 
+// Win rates are fractions. Bound only the display domain, never the observations.
+// Retain scatter padding inside [0, 1]; wholly out-of-range input must not
+// create an inverted/zero-span axis or be repaired into valid endpoint points.
+export const scatterWinRateDomain = (values: unknown[]) => {
+  const domain = scatterDomain(values)
+  const min = Math.max(0, domain.min)
+  const max = Math.min(1, domain.max)
+  return min < max ? { min, max } : { min: 0, max: 1 }
+}
+
 export const scatterPosition = (
   value: unknown,
   domain: { min: number; max: number },
