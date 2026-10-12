@@ -310,16 +310,7 @@ const label = (key: Metric) => {
   if (matchMode.value && key === 'winRate') return '单局胜负（胜 1 / 负 0）'
   if (matchMode.value && isBinary(key))
     return `${roleMetricMeta[key].label.replace('率', '')}（是 1 / 否 0）`
-  return (
-    (
-      {
-        dpm: '分均英雄伤害（伤害/分钟）',
-        gpm: '分均经济（金币/分钟）',
-        cspm: '分均补刀（刀/分钟）',
-        vspm: '分均视野（分/分钟）'
-      } as Partial<Record<Metric, string>>
-    )[key] ?? roleMetricMeta[key].label
-  )
+  return roleMetricMeta[key].label
 }
 const options = computed(() => metricKeys.map((value) => ({ label: label(value), value })))
 watch(matchMode, (enabled) => {

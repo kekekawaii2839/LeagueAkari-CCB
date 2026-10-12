@@ -51,9 +51,13 @@
           </dt>
           <dd :class="metric.signed ? toneClass(selected.performance[metric.key]) : ''">
             {{
-              metric.signed
-                ? formatSigned(selected.performance[metric.key], 1)
-                : formatMetric(selected.performance[metric.key], metric.fmt)
+              roleMetricDetail(
+                metric.key,
+                selected.performance[metric.key],
+                metric.signed
+                  ? formatSigned(selected.performance[metric.key], 1)
+                  : formatMetric(selected.performance[metric.key], metric.fmt)
+              )
             }}
           </dd>
         </div>
@@ -172,7 +176,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric, roleMetricMeta } from './metric-defs'
+import { formatMetric, roleMetricMeta, roleMetricName, roleMetricDetail } from './metric-defs'
 import { finiteOrNull, formatSigned, wilsonInterval } from './visualization'
 
 const { champions } = useMemberAnalysisData()
@@ -329,42 +333,42 @@ const toneClass = (value: unknown) => {
 const detailMetrics = [
   {
     key: 'kda',
-    label: 'KDA',
+    label: roleMetricName('kda'),
     fmt: 'num',
     signed: false,
     description: roleMetricMeta.kda.description
   },
   {
     key: 'dpm',
-    label: '每分钟伤害',
+    label: roleMetricName('dpm'),
     fmt: 'num',
     signed: false,
     description: roleMetricMeta.dpm.description
   },
   {
     key: 'gpm',
-    label: '每分钟金币',
+    label: roleMetricName('gpm'),
     fmt: 'num',
     signed: false,
     description: roleMetricMeta.gpm.description
   },
   {
     key: 'kp',
-    label: '参团率',
+    label: roleMetricName('kp'),
     fmt: 'pct',
     signed: false,
     description: roleMetricMeta.kp.description
   },
   {
     key: 'damageConversion',
-    label: '伤害转化率',
+    label: roleMetricName('damageConversion'),
     fmt: 'pct',
     signed: false,
     description: roleMetricMeta.damageConversion.description
   },
   {
     key: 'gd15',
-    label: '15 分钟经济差',
+    label: roleMetricName('gd15'),
     fmt: 'num',
     signed: true,
     description: roleMetricMeta.gd15.description

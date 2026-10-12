@@ -132,7 +132,7 @@
               :label="metric.short"
               :value="number(row[metric.key])"
               :maximum="gankMaximum"
-              suffix="/场"
+              suffix=" 次/场"
             />
             <SideValues
               v-if="showSideBreakdown"
@@ -196,9 +196,9 @@
             <MetricLabel class="compact-metric-help" label="经济对位" :definition="economyHelp" />
             <div class="trajectory-values">
               <span
-                >@10 <b :class="toneClass(row.gd10)">{{ formatSigned(row.gd10, 0) }}</b></span
+                >10 分钟 <b :class="toneClass(row.gd10)">{{ formatSigned(row.gd10, 0) }}</b></span
               ><span
-                >@15 <b :class="toneClass(row.gd15)">{{ formatSigned(row.gd15, 0) }}</b></span
+                >15 分钟 <b :class="toneClass(row.gd15)">{{ formatSigned(row.gd15, 0) }}</b></span
               >
             </div>
             <TrajectoryPlot
@@ -208,8 +208,24 @@
             />
             <SideValues
               v-if="showSideBreakdown"
-              :blue="sideComposition(row, '蓝方', ['gd10', 'gd15'], ['@10', '@15'], 'signed0')"
-              :red="sideComposition(row, '红方', ['gd10', 'gd15'], ['@10', '@15'], 'signed0')"
+              :blue="
+                sideComposition(
+                  row,
+                  '蓝方',
+                  ['gd10', 'gd15'],
+                  ['10 分钟经济差（金币）', '15 分钟经济差（金币）'],
+                  'signed0'
+                )
+              "
+              :red="
+                sideComposition(
+                  row,
+                  '红方',
+                  ['gd10', 'gd15'],
+                  ['10 分钟经济差（金币）', '15 分钟经济差（金币）'],
+                  'signed0'
+                )
+              "
             />
           </div>
           <div class="analysis-cell single-metric has-compact-help" data-label="15 分钟经验差">
@@ -228,25 +244,41 @@
           </div>
           <div class="analysis-cell efficiency-cell" data-label="发育效率">
             <span
-              ><MetricLabel label="补刀 / 分" definition="每分钟补刀数。" /><b>{{
+              ><MetricLabel label="分均补刀（个/分钟）" definition="每分钟补刀数。" /><b>{{
                 decimal(row.cspm)
               }}</b></span
             >
             <span
-              ><MetricLabel label="金币 / 分" definition="每分钟获得经济。" /><b>{{
+              ><MetricLabel label="分均经济（金币/分钟）" definition="每分钟获得经济。" /><b>{{
                 decimal(row.gpm)
               }}</b></span
             >
             <span
               ><MetricLabel
-                label="目标伤害/分"
+                label="分均目标伤害（伤害/分钟）"
                 definition="对史诗野怪与防御塔造成的每分钟伤害。"
               /><b>{{ decimal(row.objectiveDamagePM) }}</b></span
             >
             <SideValues
               v-if="showSideBreakdown"
-              :blue="sideComposition(row, '蓝方', efficiencyKeys, ['CS', 'G', '目标'], 'num')"
-              :red="sideComposition(row, '红方', efficiencyKeys, ['CS', 'G', '目标'], 'num')"
+              :blue="
+                sideComposition(
+                  row,
+                  '蓝方',
+                  efficiencyKeys,
+                  ['分均补刀（个/分钟）', '分均经济（金币/分钟）', '分均目标伤害（伤害/分钟）'],
+                  'num'
+                )
+              "
+              :red="
+                sideComposition(
+                  row,
+                  '红方',
+                  efficiencyKeys,
+                  ['分均补刀（个/分钟）', '分均经济（金币/分钟）', '分均目标伤害（伤害/分钟）'],
+                  'num'
+                )
+              "
             />
           </div>
         </template>
@@ -351,7 +383,7 @@ const TrajectoryPlot = defineComponent({
       {
         class: 'trajectory',
         role: 'img',
-        'aria-label': `10分钟经济差 ${props.start ?? '无数据'}，15分钟经济差 ${props.end ?? '无数据'}，单位金币`
+        'aria-label': `10 分钟经济差 ${props.start ?? '无数据'}，15 分钟经济差 ${props.end ?? '无数据'}，单位金币`
       },
       [
         h('i', { class: 'zero' }),

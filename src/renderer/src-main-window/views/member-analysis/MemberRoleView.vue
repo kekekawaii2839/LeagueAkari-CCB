@@ -50,7 +50,10 @@
                           :aria-label="sortActionLabel(column.key, column.label)"
                           @click="toggleSort(column.key)"
                         >
-                          {{ column.label }}
+                          <span>{{ column.displayName }}</span>
+                          <span v-if="column.unit" class="metric-heading-unit"
+                            >（{{ column.unit }}）</span
+                          >
                           <span aria-hidden="true">{{
                             currentSort?.key === column.key
                               ? currentSort.direction === 'descending'
@@ -254,16 +257,20 @@ const visualColumns = computed(() =>
     .map((key) => ({
       key,
       label: roleMetricMeta[key].label,
+      displayName: roleMetricMeta[key].unit
+        ? roleMetricMeta[key].label.replace(`（${roleMetricMeta[key].unit}）`, '')
+        : roleMetricMeta[key].label,
+      unit: roleMetricMeta[key].unit,
       description: roleMetricMeta[key].description,
       signed: signed.has(key)
     }))
 )
 const tableColumns = computed(() => [
-  { key: 'player', label: '成员', description: '' },
-  { key: 'games', label: '样本', description: '' },
+  { key: 'player', label: '成员', displayName: '成员', unit: undefined, description: '' },
+  { key: 'games', label: '样本', displayName: '样本', unit: undefined, description: '' },
   ...visualColumns.value
 ])
-const tableMinWidth = computed(() => 268 + visualColumns.value.length * 108)
+const tableMinWidth = computed(() => 268 + visualColumns.value.length * 184)
 const showSideBreakdown = computed(() => store.analysisSide === 'all' && store.sideBreakdown)
 const sideRows = computed(() => {
   const map = new Map<string, (typeof rows.value)[number]>()
@@ -310,7 +317,10 @@ const sideDisplay = (
 }
 const display = (key: string, value: unknown) =>
   signed.has(key)
-    ? formatSigned(value, key === 'counter' ? 3 : 1)
+    ? formatSigned(
+        key === 'counter' && finiteOrNull(value) !== null ? Number(value) * 100 : value,
+        key === 'counter' ? 3 : 1
+      )
     : formatMetric(value, roleMetricMeta[key].fmt)
 const toneClass = (value: unknown) => {
   const number = finiteOrNull(value)
@@ -550,6 +560,10 @@ const formatEventTime = (seconds: number) =>
   text-align: inherit;
   white-space: normal;
   cursor: pointer;
+}
+.metric-heading-unit {
+  display: inline-block;
+  white-space: nowrap;
 }
 .sort-button:hover {
   color: var(--la-color-link);

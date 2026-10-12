@@ -155,8 +155,8 @@
           </dd>
         </div>
         <div>
-          <dt>每分钟伤害</dt>
-          <dd>{{ formatMetric(selectedRow.dpm, 'num') }}</dd>
+          <dt>分均英雄伤害</dt>
+          <dd>{{ roleMetricDetail('dpm', selectedRow.dpm) }}</dd>
         </div>
       </dl>
     </section>
@@ -169,7 +169,7 @@ import PositionIcon from '@renderer-shared/components/icons/position-icons/Posit
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { aggregateRolesBySide, type RoleAggregate } from './analytics'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric } from './metric-defs'
+import { formatMetric, roleMetricDetail } from './metric-defs'
 import { formatSigned, memberOrder } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
 import './member-analysis-visuals.css'

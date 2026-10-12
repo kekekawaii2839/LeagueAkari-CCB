@@ -1,4 +1,4 @@
-export type MetricFormat = 'num' | 'pct' | 'int' | 'text' | 'time'
+export type MetricFormat = 'num' | 'pct' | 'pp' | 'int' | 'text' | 'time'
 export const formatMetric = (value: unknown, format: MetricFormat = 'num') => {
   if (format === 'text')
     return value === null || value === undefined || value === '' ? '—' : String(value)
@@ -6,6 +6,7 @@ export const formatMetric = (value: unknown, format: MetricFormat = 'num') => {
   const number = Number(value)
   if (!Number.isFinite(number)) return '—'
   if (format === 'pct') return `${(number * 100).toFixed(1)}%`
+  if (format === 'pp') return (number * 100).toFixed(1)
   if (format === 'int') return Math.round(number).toLocaleString('zh-CN')
   if (format === 'time') {
     const seconds = Math.round(number)
@@ -90,7 +91,7 @@ export const roleMetricGroups = {
 
 export const roleMetricMeta: Record<
   string,
-  { label: string; fmt: MetricFormat; description?: string }
+  { label: string; fmt: MetricFormat; description?: string; unit?: string }
 > = {
   games: { label: '场次', fmt: 'int' },
   winRate: {
@@ -105,13 +106,23 @@ export const roleMetricMeta: Record<
   assistsPG: { label: '场均助攻', fmt: 'num' },
   killShare: { label: '击杀占比', fmt: 'pct', description: '个人击杀数 ÷ 团队击杀数' },
   deathShare: { label: '死亡占比', fmt: 'pct', description: '个人死亡数 ÷ 团队死亡数' },
-  dpm: { label: 'DPM', fmt: 'num', description: 'Damage Per Minute：每分钟对英雄造成的伤害' },
+  dpm: {
+    label: '分均英雄伤害（伤害/分钟）',
+    unit: '伤害/分钟',
+    fmt: 'num',
+    description: 'Damage Per Minute：每分钟对英雄造成的伤害'
+  },
   damageShare: {
     label: '伤害占比',
     fmt: 'pct',
     description: '个人英雄伤害 ÷ 团队英雄伤害，按对局平均'
   },
-  gpm: { label: 'GPM', fmt: 'num', description: 'Gold Per Minute：每分钟获得经济' },
+  gpm: {
+    label: '分均经济（金币/分钟）',
+    unit: '金币/分钟',
+    fmt: 'num',
+    description: 'Gold Per Minute：每分钟获得经济'
+  },
   goldShare: { label: '经济占比', fmt: 'pct', description: '个人经济 ÷ 团队经济，按对局平均' },
   damageConversion: {
     label: '伤害转化率',
@@ -119,12 +130,33 @@ export const roleMetricMeta: Record<
     description: '伤害占比 ÷ 经济占比；100% 表示伤害占比与经济占比相同'
   },
   damagePerGold: { label: '单位经济伤害', fmt: 'num', description: '对英雄造成的伤害 ÷ 获得经济' },
-  cspm: { label: 'CSPM', fmt: 'num', description: 'Creep Score Per Minute：每分钟补刀数' },
-  vspm: { label: 'VSPM', fmt: 'num', description: 'Vision Score Per Minute：每分钟视野得分' },
-  wpm: { label: 'WPM', fmt: 'num', description: 'Wards Placed Per Minute：每分钟放置守卫数' },
-  wcpm: { label: 'WCPM', fmt: 'num', description: 'Wards Cleared Per Minute：每分钟排除守卫数' },
+  cspm: {
+    label: '分均补刀（个/分钟）',
+    unit: '个/分钟',
+    fmt: 'num',
+    description: 'Creep Score Per Minute：每分钟补刀数'
+  },
+  vspm: {
+    label: '分均视野得分（分/分钟）',
+    unit: '分/分钟',
+    fmt: 'num',
+    description: 'Vision Score Per Minute：每分钟视野得分'
+  },
+  wpm: {
+    label: '分均放置守卫（个/分钟）',
+    unit: '个/分钟',
+    fmt: 'num',
+    description: 'Wards Placed Per Minute：每分钟放置守卫数'
+  },
+  wcpm: {
+    label: '分均排除守卫（个/分钟）',
+    unit: '个/分钟',
+    fmt: 'num',
+    description: 'Wards Cleared Per Minute：每分钟排除守卫数'
+  },
   cwpm: {
-    label: 'CWPM',
+    label: '分均购买控制守卫（个/分钟）',
+    unit: '个/分钟',
     fmt: 'num',
     description: 'Control Wards Per Minute：每分钟购买控制守卫数'
   },
@@ -133,63 +165,78 @@ export const roleMetricMeta: Record<
     fmt: 'pct',
     description: '个人承受伤害 ÷ 团队承受伤害，按对局平均'
   },
-  damageTakenPM: { label: '分均承伤', fmt: 'num' },
-  mitigatedPM: { label: '分均减伤', fmt: 'num' },
-  objectiveDamagePM: { label: '分均目标伤害', fmt: 'num' },
-  turretDamagePM: { label: '分均塔伤', fmt: 'num' },
-  healPM: { label: '分均队友治疗', fmt: 'num' },
-  shieldPM: { label: '分均队友护盾', fmt: 'num' },
-  ccPM: { label: '分均控制秒数', fmt: 'num', description: '每分钟对敌方英雄造成的控制时长' },
+  damageTakenPM: { label: '分均承伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
+  mitigatedPM: { label: '分均减伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
+  objectiveDamagePM: { label: '分均目标伤害（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
+  turretDamagePM: { label: '分均塔伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
+  healPM: { label: '分均队友治疗（生命值/分钟）', unit: '生命值/分钟', fmt: 'num' },
+  shieldPM: { label: '分均队友护盾（护盾值/分钟）', unit: '护盾值/分钟', fmt: 'num' },
+  ccPM: {
+    label: '分均控制时长（秒/分钟）',
+    unit: '秒/分钟',
+    fmt: 'num',
+    description: '每分钟对敌方英雄造成的控制时长'
+  },
   soloKillsPG: { label: '场均单杀', fmt: 'num' },
   fbRate: { label: '一血参与率', fmt: 'pct', description: '参与本方一血击杀的对局占比' },
   ftRate: { label: '一塔参与率', fmt: 'pct', description: '参与摧毁本方第一座防御塔的对局占比' },
   gd10: {
     label: '10 分钟经济差（金币）',
+    unit: '金币',
     fmt: 'num',
     description: 'Gold Difference at 10：10 分钟相对同位置对手的经济差'
   },
   gd15: {
     label: '15 分钟经济差（金币）',
+    unit: '金币',
     fmt: 'num',
     description: 'Gold Difference at 15：15 分钟相对同位置对手的经济差'
   },
   csd15: {
-    label: '15 分钟补刀差',
+    label: '15 分钟补刀差（个）',
+    unit: '个',
     fmt: 'num',
     description: 'Creep Score Difference at 15：15 分钟相对同位置对手的补刀差'
   },
   xpd15: {
-    label: '15 分钟经验差',
+    label: '15 分钟经验差（经验）',
+    unit: '经验',
     fmt: 'num',
     description: 'Experience Difference at 15：15 分钟相对同位置对手的经验差'
   },
   damageDiff15: {
-    label: '伤害差@15',
+    label: '15 分钟英雄伤害差（伤害）',
+    unit: '伤害',
     fmt: 'num',
     description: '15 分钟前对英雄伤害相对同位置对手的差值'
   },
   soloDiff15: {
-    label: '单杀差@15',
+    label: '15 分钟单杀差（次）',
+    unit: '次',
     fmt: 'num',
     description: '15 分钟前对同位置对手的单杀数减去被单杀数'
   },
   counter: {
-    label: 'OP.GG线杀率优势',
-    fmt: 'pct',
+    label: 'OP.GG 线杀率差（百分点）',
+    unit: '百分点',
+    fmt: 'pp',
     description: '基于 OP.GG 对位数据的线杀率差；数据不可用时显示 —'
   },
   dragon15: {
-    label: '小龙差@15',
+    label: '15 分钟小龙差（条）',
+    unit: '条',
     fmt: 'num',
     description: '15 分钟前本方取得的小龙数减去对方小龙数'
   },
   grub15: {
-    label: '巢虫差@15',
+    label: '15 分钟巢虫差（只）',
+    unit: '只',
     fmt: 'num',
     description: '15 分钟前本方取得的虚空巢虫数减去对方巢虫数'
   },
   objectiveFight15: {
-    label: '资源团净击杀@15',
+    label: '15 分钟资源团净击杀（次）',
+    unit: '次',
     fmt: 'num',
     description: '15 分钟前资源事件附近本方击杀数减去死亡数'
   },
@@ -287,7 +334,7 @@ export const jungleGroups = {
     columns: ['games', 'winRate', 'gd10', 'gd15', 'xpd15', 'cspm', 'gpm', 'objectiveDamagePM']
   }
 } as const
-export const jungleMeta: Record<string, { label: string; fmt: MetricFormat }> = {
+export const jungleMeta: Record<string, { label: string; fmt: MetricFormat; unit?: string }> = {
   games: { label: '场次', fmt: 'int' },
   winRate: { label: '胜率', fmt: 'pct' },
   startDistribution: { label: '开野分布', fmt: 'text' },
@@ -301,9 +348,9 @@ export const jungleMeta: Record<string, { label: string; fmt: MetricFormat }> = 
   krugsStartRate: { label: '石甲虫开率', fmt: 'pct' },
   level3GankRate: { label: '3级抓人率', fmt: 'pct' },
   level4GankRate: { label: '4级抓人率', fmt: 'pct' },
-  topGanksPG: { label: '场均上路抓人', fmt: 'num' },
-  midGanksPG: { label: '场均中路抓人', fmt: 'num' },
-  botGanksPG: { label: '场均下路抓人', fmt: 'num' },
+  topGanksPG: { label: '场均上路抓人（次/场）', unit: '次/场', fmt: 'num' },
+  midGanksPG: { label: '场均中路抓人（次/场）', unit: '次/场', fmt: 'num' },
+  botGanksPG: { label: '场均下路抓人（次/场）', unit: '次/场', fmt: 'num' },
   topZoneRate: { label: '上半区亲和度', fmt: 'pct' },
   midZoneRate: { label: '中路亲和度', fmt: 'pct' },
   botZoneRate: { label: '下半区亲和度', fmt: 'pct' },
@@ -314,13 +361,27 @@ export const jungleMeta: Record<string, { label: string; fmt: MetricFormat }> = 
   voidgrubsPG: { label: '场均巢虫', fmt: 'num' },
   heraldsPG: { label: '场均先锋', fmt: 'num' },
   baronsPG: { label: '场均大龙', fmt: 'num' },
-  dragon15: { label: '小龙差@15', fmt: 'num' },
-  grub15: { label: '巢虫差@15', fmt: 'num' },
-  objectiveFight15: { label: '资源团净击杀@15', fmt: 'num' },
-  gd10: { label: '10 分钟经济差（金币）', fmt: 'num' },
-  gd15: { label: '15 分钟经济差（金币）', fmt: 'num' },
-  xpd15: { label: '15 分钟经验差', fmt: 'num' },
-  cspm: { label: 'CSPM', fmt: 'num' },
-  gpm: { label: 'GPM', fmt: 'num' },
-  objectiveDamagePM: { label: '分均目标伤害', fmt: 'num' }
+  dragon15: { label: '15 分钟小龙差（条）', unit: '条', fmt: 'num' },
+  grub15: { label: '15 分钟巢虫差（只）', unit: '只', fmt: 'num' },
+  objectiveFight15: { label: '15 分钟资源团净击杀（次）', unit: '次', fmt: 'num' },
+  gd10: { label: '10 分钟经济差（金币）', unit: '金币', fmt: 'num' },
+  gd15: { label: '15 分钟经济差（金币）', unit: '金币', fmt: 'num' },
+  xpd15: { label: '15 分钟经验差（经验）', unit: '经验', fmt: 'num' },
+  cspm: { label: '分均补刀（个/分钟）', unit: '个/分钟', fmt: 'num' },
+  gpm: { label: '分均经济（金币/分钟）', unit: '金币/分钟', fmt: 'num' },
+  objectiveDamagePM: { label: '分均目标伤害（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' }
+}
+
+/** Compact names for detail rows; table/axis titles retain the unit. */
+export const roleMetricName = (key: string) => {
+  const meta = roleMetricMeta[key]
+  return meta.unit ? meta.label.replace('（' + meta.unit + '）', '') : meta.label
+}
+
+/** The unit accompanies isolated values without turning missing values into zero. */
+export const roleMetricDetail = (key: string, value: unknown, formatted?: string) => {
+  const meta = roleMetricMeta[key]
+  const result = formatted ?? formatMetric(value, meta.fmt)
+  if (result === '—' || !meta.unit) return result
+  return result + ' ' + meta.unit
 }
