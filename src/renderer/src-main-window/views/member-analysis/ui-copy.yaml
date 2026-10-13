@@ -353,6 +353,10 @@ zh-CN:
   championEmptyHelp: '试试调整条件或重置筛选。'
   resetFilterConditions: '重置筛选条件'
   recentFirst: '最近对局在前'
+  roleMembers: '{{count}} 位成员'
+  roleMetricHelp: '比较指标'
+  roleGoldHelp: '15 分钟时，相对敌方同分路的经济差；单位为金币。'
+  roleKpHelp: '逐场参团率的平均值；单位为百分比。'
 en:
   matchEventSource: 'Source: event results · {{side}} · {{metric}}'
   matchNavigationPending: 'Locating the match without changing filters.'
@@ -709,3 +713,8 @@ en:
   championEmptyHelp: 'Try adjusting or resetting the filters.'
   resetFilterConditions: 'Reset filter conditions'
   recentFirst: 'Newest matches first'
+
+  roleMembers: '{{count}} members'
+  roleMetricHelp: 'Comparison metric definition'
+  roleGoldHelp: 'Gold difference from the opposing player in the same role at 15 minutes, in gold.'
+  roleKpHelp: 'Mean of per-match kill participation, as a percentage.'

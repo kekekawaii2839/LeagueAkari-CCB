@@ -1,11 +1,7 @@
 <template>
   <div ref="comparisonRoot" class="role-comparison-chart">
-    <section class="comparison-surface" :aria-labelledby="`${id}-comparison-title`">
-      <div class="comparison-heading">
-        <div>
-          <h2 :id="`${id}-comparison-title`">{{ roleName }}表现</h2>
-          <p>同分路比较 <span class="heading-separator">/</span> {{ rows.length }} 位成员</p>
-        </div>
+    <section class="comparison-surface" :aria-label="`${roleName} · ${metricInfo.label}`">
+      <div class="comparison-toolbar">
         <div class="role-switch" role="group" aria-label="比较分路">
           <NButton
             v-for="(label, key) in roles"
@@ -17,18 +13,23 @@
             ><template #icon><PositionIcon :position="key" /></template>{{ label }}</NButton
           >
         </div>
-      </div>
-      <div class="metric-heading">
-        <div>
-          <h3>{{ metricInfo.label }}</h3>
-          <span>{{ metricInfo.description }}</span>
+        <span class="comparison-member-count">{{
+          uiText('roleMembers', { count: rows.length })
+        }}</span>
+        <div class="comparison-metric-controls">
+          <NSelect
+            v-model:value="metric"
+            aria-label="比较指标"
+            :options="metricOptions"
+            class="metric-select"
+          />
+          <span class="comparison-unit">{{ metric === 'gd15' ? '金币' : '%' }}</span>
+          <MetricHelp
+            :label="uiText('roleMetricHelp')"
+            :definition="uiText(metric === 'gd15' ? 'roleGoldHelp' : 'roleKpHelp')"
+            icon-only
+          />
         </div>
-        <NSelect
-          v-model:value="metric"
-          aria-label="比较指标"
-          :options="metricOptions"
-          class="metric-select"
-        />
       </div>
       <div
         v-if="rows.length"
@@ -172,6 +173,8 @@ import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { formatMetric, roleMetricDetail } from './metric-defs'
 import { formatSigned, memberOrder } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
+import MetricHelp from './MetricHelp.vue'
+import { uiText } from './ui-text'
 import './member-analysis-visuals.css'
 
 const store = useMemberAnalysisStore()
@@ -291,66 +294,56 @@ async function closeDetail() {
   font-variant-numeric: tabular-nums;
   --comparison-muted: var(--ma-muted);
 }
-.comparison-heading,
-.metric-heading,
-.role-switch {
-  display: flex;
-  align-items: center;
-}
 .comparison-surface {
   background: var(--la-card-surface-95);
   border-radius: 8px;
   padding: 16px 28px 12px;
 }
-.comparison-heading {
-  justify-content: space-between;
-  gap: 20px;
-}
-h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-.comparison-heading p {
-  margin: 6px 0 0;
-  color: var(--comparison-muted);
-  font-size: 12px;
-}
-.heading-separator {
-  padding: 0 8px;
+.comparison-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .role-switch {
-  gap: 4px;
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 4px;
 }
 .role-switch :deep([aria-pressed='true']) {
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 5px;
 }
-.metric-heading {
-  justify-content: space-between;
-  gap: 20px;
-  padding: 20px 0 8px;
+.comparison-member-count {
+  border-left: 1px solid var(--ma-grid);
+  padding-left: 12px;
+  color: var(--comparison-muted);
+  font-size: 12px;
+}
+.comparison-metric-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.comparison-unit {
+  font-size: 12px;
+  color: var(--comparison-muted);
+}
+.metric-select {
+  width: 210px;
 }
 h3 {
   font-size: 14px;
   font-weight: 600;
   margin: 0;
 }
-.metric-heading > div:first-child {
-  display: flex;
-  gap: 16px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-.metric-heading span {
-  font-size: 12px;
-  color: var(--comparison-muted);
-}
-.metric-select {
-  width: 180px;
-  flex-shrink: 0;
+@media (max-width: 900px) {
+  .comparison-metric-controls {
+    margin-left: 0;
+  }
 }
 .comparison-scroll {
   overflow-x: auto;
@@ -602,13 +595,7 @@ summary:focus-visible,
   .comparison-surface {
     padding: 20px 16px 16px;
   }
-  .comparison-heading {
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-  .metric-heading {
-    padding-top: 20px;
-  }
+
   .plot {
     height: 144px;
   }
@@ -616,29 +603,12 @@ summary:focus-visible,
     padding: 0 12px;
   }
 }
-@media (max-width: 600px) {
-  .comparison-heading {
-    align-items: flex-start;
-  }
-  .metric-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .metric-heading > div:first-child {
-    gap: 6px;
-  }
-}
+
 @media (max-height: 680px) {
   .comparison-surface {
     padding-top: 12px;
   }
-  .comparison-heading p {
-    margin-top: 3px;
-  }
-  .metric-heading {
-    padding-top: 12px;
-  }
+
   .comparison-scroll {
     padding-top: 80px;
   }

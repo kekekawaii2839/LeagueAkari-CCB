@@ -106,7 +106,7 @@
                       <template v-if="column.key === 'winRate'">
                         <div class="rate-value">
                           <strong>{{ display(column.key, row[column.key]) }}</strong>
-                          <small>{{ row.wins }}胜 {{ row.games - row.wins }}负</small>
+                          <small>{{ row.wins }} 胜 / {{ row.games - row.wins }} 负</small>
                         </div>
                         <WinRateInterval
                           class="rate-axis"
@@ -700,16 +700,21 @@ const formatEventTime = (seconds: number) =>
 }
 .rate-value {
   display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 5px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 .rate-value strong {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  color: inherit;
 }
 .rate-value small {
   color: var(--ma-muted);
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 400;
 }
 .rate-axis {
   margin-top: 4px;
