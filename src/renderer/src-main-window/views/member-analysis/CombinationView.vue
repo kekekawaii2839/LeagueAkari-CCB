@@ -1,10 +1,23 @@
 <template>
   <section ref="root" class="combination-workspace" :aria-label="uiText('combinationWorkspace')">
     <div class="combination-selector">
-      <NRadioGroup :value="view" :aria-label="uiText('combinationView')" @update:value="changeView">
-        <NRadioButton value="pairs">{{ uiText('combinationRoles') }}</NRadioButton>
-        <NRadioButton value="synergy">{{ uiText('combinationMembers') }}</NRadioButton>
-      </NRadioGroup>
+      <div class="combination-switch">
+        <span
+          ref="switchIndicator"
+          class="combination-switch-indicator"
+          aria-hidden="true"
+          :style="{ transform: view === 'synergy' ? 'translateX(100%)' : 'translateX(0)' }"
+        />
+        <NRadioGroup
+          class="combination-switch-options"
+          :value="view"
+          :aria-label="uiText('combinationView')"
+          @update:value="changeView"
+        >
+          <NRadioButton value="pairs">{{ uiText('combinationRoles') }}</NRadioButton>
+          <NRadioButton value="synergy">{{ uiText('combinationMembers') }}</NRadioButton>
+        </NRadioGroup>
+      </div>
       <span class="combination-scope">{{
         uiText(view === 'pairs' ? 'combinationRoleScope' : 'combinationMemberScope')
       }}</span>
@@ -72,7 +85,9 @@
 
 <script setup lang="ts">
 import { NButton, NPopover, NRadioButton, NRadioGroup } from 'naive-ui'
-import { computed, nextTick, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, useId, watch } from 'vue'
+import { useDocumentVisibility, useElementVisibility, useMediaQuery } from '@vueuse/core'
+import { createCombinationMotion } from './combination-motion'
 import PairView from './PairView.vue'
 import SynergyView from './SynergyView.vue'
 import {
@@ -99,6 +114,24 @@ async function closeScopeHelp() {
 }
 const roleView = ref<InstanceType<typeof PairView> | null>(null)
 const memberView = ref<InstanceType<typeof SynergyView> | null>(null)
+const switchIndicator = ref<HTMLElement | null>(null)
+const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+const visible = useElementVisibility(root)
+const documentVisibility = useDocumentVisibility()
+const childMotion = createCombinationMotion({
+  active: () => props.view,
+  indicator: () => switchIndicator.value,
+  reduced: () => reducedMotion.value,
+  visible: () => visible.value && documentVisibility.value === 'visible',
+  rendered: nextTick
+})
+watch(
+  () => props.view,
+  (view) => void childMotion.changed(view)
+)
+watch([reducedMotion, visible, documentVisibility], () => childMotion.cancel())
+onDeactivated(childMotion.cancel)
+onBeforeUnmount(childMotion.cancel)
 const linkedMembers = ref<CombinationMembers | null>(null)
 const roleContext = ref<RolePairLink | null>(null)
 const origin = ref<{ view: View; trigger: HTMLElement | null } | null>(null)
@@ -173,7 +206,8 @@ watch(
   }
 )
 function changeView(value: string | number | boolean) {
-  if (value === 'pairs' || value === 'synergy') emit('update:view', value)
+  if (value === 'pairs' || value === 'synergy')
+    childMotion.request(value, () => emit('update:view', value))
 }
 async function openSynergy(link: RolePairLink) {
   origin.value = { view: 'pairs', trigger: document.activeElement as HTMLElement | null }
@@ -207,6 +241,7 @@ function clearLink() {
   origin.value = null
 }
 watch([pairs, synergy], () => {
+  childMotion.cancel()
   if (
     linkedMembers.value &&
     !relatedSynergy(synergy.value, linkedMembers.value) &&
@@ -219,6 +254,52 @@ watch([pairs, synergy], () => {
 <style scoped>
 .combination-workspace {
   min-width: 0;
+}
+.combination-switch {
+  position: relative;
+  padding: 3px;
+  max-width: 100%;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--la-card-muted-surface) 72%, transparent);
+}
+.combination-switch-indicator {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 4px;
+  background: var(--la-card-surface-95);
+  box-shadow: inset 0 0 0 1px var(--ma-grid);
+  pointer-events: none;
+}
+.combination-switch-options {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.combination-switch-options :deep(.n-radio-button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ma-muted);
+}
+.combination-switch-options :deep(.n-radio-button--checked) {
+  color: var(--la-color-text-primary);
+  font-weight: 600;
+}
+.combination-switch-options :deep(.n-radio-button__state-border) {
+  display: none;
+}
+.combination-switch-options :deep(.n-radio-button:has(input:focus-visible)) {
+  outline: 1px solid var(--la-color-link);
+  outline-offset: -2px;
 }
 .combination-selector,
 .combination-link {
