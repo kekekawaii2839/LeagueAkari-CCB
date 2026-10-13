@@ -181,32 +181,11 @@
         </g>
       </svg>
     </section>
-    <ul
+    <ScatterFitSummary
       v-if="matchMode && models.length"
-      class="model-summary"
-      aria-label="回归结果"
-      aria-live="polite"
-    >
-      <li v-for="model in models" :key="model.player">
-        <span class="member-swatch" :style="{ background: model.color }" aria-hidden="true" />
-        <strong>{{ model.player }}</strong> · 有效 {{ model.n }} 条 / 缺失 {{ model.missing }} 条
-        <template v-if="model.logistic?.status === 'available'">
-          · {{ model.logistic.wins }} {{ yMetric === 'winRate' ? '胜' : '是' }} /
-          {{ model.logistic.losses }} {{ yMetric === 'winRate' ? '负' : '否' }} · McFadden 伪 R² =
-          {{ model.logistic.pseudoRSquared.toFixed(3) }}</template
-        >
-        <template v-else-if="model.logistic?.status === 'unavailable'">
-          · 无法拟合：{{ model.logistic.reason }}</template
-        >
-        <template v-else-if="model.linear">
-          · Pearson r =
-          {{ model.linear.r === null ? '—（纵轴恒定）' : model.linear.r.toFixed(3) }} · R² =
-          {{ model.linear.rSquared === null ? '—' : model.linear.rSquared.toFixed(3) }}</template
-        >
-        <template v-else> · 无法拟合：至少需要 2 个有效观测且横轴不能恒定</template>
-        <span v-if="model.n < 10"> · 样本较少</span>
-      </li>
-    </ul>
+      :models="models"
+      :win-outcome="yMetric === 'winRate'"
+    />
     <section
       v-if="selectedGroup"
       ref="pointDetail"
@@ -292,6 +271,7 @@ import { useMediaQuery } from '@vueuse/core'
 import { roleMetricMeta, formatMetric } from './metric-defs'
 import MemberAnalysisMetricTable from './MemberAnalysisMetricTable.vue'
 import MatchNativeDetails from './MatchNativeDetails.vue'
+import ScatterFitSummary from './ScatterFitSummary.vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { finiteOrNull, scatterDomain, scatterPosition, scatterWinRateDomain } from './visualization'
 const compactHeight = useMediaQuery('(max-height: 680px)')

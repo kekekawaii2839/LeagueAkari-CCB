@@ -137,10 +137,39 @@ zh-CN:
   synergySelectPair: '选择 {{a}} 与 {{b}}，共同 {{count}} 场，收缩后偏差 {{value}} 个百分点'
   synergyClearPair: '取消选择 {{a}} 与 {{b}}'
   synergyRateDescription: '共同胜率 {{rate}}，个人基线 {{baseline}}，共同胜率 95% 区间 {{interval}}'
+  experimentalPredictionGroup: '实验性功能'
+  experimentalPredictionLabel: '阵容胜率预测（实验性）'
+  experimentalPredictionHelp: '功能尚不完善，默认关闭。开启并保存后显示预测页，不保证下一场结果。'
   synergyLimit: '描述性差异，不代表配合带来的因果收益。'
   synergyEvidence: '同队偏差证据'
   synergySharedGames: '共同 {{count}} 场'
   synergyClose: '取消选择'
+  statBrier: '概率误差（Brier）'
+  statBrierHelp: '预测概率与实际结果（胜为 1，负为 0）的平方误差平均值。同一验证集上越低越好，0 表示概率与结果完全一致；不是预测命中率。'
+  statLogLoss: '概率损失（Log loss）'
+  statLogLossHelp: '衡量预测概率与实际结果的差异，对很有把握却预测错误的情况惩罚更重。同一验证集上越低越好；不是预测命中率。'
+  statPearson: '线性相关系数（Pearson r）'
+  statPearsonHelp: '正负表示两个指标的线性关联方向，绝对值越接近 1，线性关联越强。0 不代表完全没有关系；纵轴恒定时不可计算。相关不代表因果。'
+  statRSquared: '线性拟合 R²'
+  statRSquaredHelp: '描述当前样本在线性拟合下的变化解释程度。不是预测命中率，也不表示下一场预测效果；纵轴恒定时不可计算。'
+  statMcFadden: 'Logistic 拟合：McFadden 伪 R²'
+  statMcFaddenHelp: '比较当前 Logistic 模型与仅含截距模型的拟合改善。仅用于同一批有效样本的拟合比较，不能按普通 R² 解读，也不是预测命中率。'
+  statFitSummary: '拟合结果'
+  statCoverage: '有效 {{valid}} 条 / 缺失 {{missing}} 条'
+  statFitUnavailable: '无法拟合：{{reason}}'
+  statLinearUnavailable: '至少需要 2 个有效观测且横轴不能恒定'
+  statConstantOutcome: '纵轴恒定，相关系数与 R² 不可计算'
+  statLowSample: '样本较少'
+  statFitLimit: '相关和拟合仅描述当前样本，不代表因果关系或下一场预测效果。'
+  statFitDetails: '拟合详情'
+  statLinearFit: '线性拟合'
+  statLogisticFit: 'Logistic 拟合'
+  statBinaryWins: '{{wins}} 胜 / {{losses}} 负'
+  statBinaryEvents: '{{wins}} 是 / {{losses}} 否'
+  roleMembers: '{{count}} 位成员'
+  roleMetricHelp: '比较指标'
+  roleGoldHelp: '15 分钟时，相对敌方同分路的经济差；单位为金币。'
+  roleKpHelp: '逐场参团率的平均值；单位为百分比。'
   poolTopHeroes: '常用英雄（前三）'
   poolLegend: '外环：选用率 · 数字：胜率'
   poolMatrix: '成员分路英雄池，可横向滚动'
@@ -176,9 +205,6 @@ zh-CN:
   poolRed: '红方 {{rate}} · {{count}} 场'
   poolInterpretation: '选用率是该成员在此分路的选用占比。胜率按当前范围内该英雄的对局统计，不等同于熟练度或因果效果。'
   poolHelp: '英雄池指标说明'
-  experimentalPredictionGroup: '实验性功能'
-  experimentalPredictionLabel: '阵容胜率预测（实验性）'
-  experimentalPredictionHelp: '功能尚不完善，默认关闭。开启并保存后显示预测页，不保证下一场结果。'
   eventWindowNote: 比例按事件窗口统计，不等于对局胜率，也不代表因果。
   eventGameNote: 按对局展示相关汇总，不代表逐事件关联
   noEventSelection: 选择指标数值查看对应对局。
@@ -216,26 +242,28 @@ zh-CN:
   sortDescending: '{{label}}：按降序排序'
   sortAscending: '{{label}}：按升序排序'
   sortDefault: '{{label}}：恢复默认顺序'
-  rankSnapshotTitle: '查询时段位（非比赛当时）'
-  rankTabTitle: '对手段位'
-  rankTableTitle: '段位分布与分组历史胜率'
-  rankMatchContext: '对手查询时平均段位'
-  rankUsableOpponents: '可用 {{count}}/5'
-  rankEmptyMatches: '当前筛选范围内没有符合条件的对局，请调整顶部筛选。'
-  rankAppearanceCoverage: '已定级对手 {{count}}/{{total}} 条出场记录'
-  rankGameCoverage: '分组胜率纳入 {{count}}/{{total}} 场'
-  rankPartialCoverage: '纳入对局中 {{count}} 场不足五名可用对手'
-  rankStatusCounts: '异常对手出场记录数'
-  rankAllStatusCounts: '全部对手出场记录状态'
-  rankRankedCount: '已定级'
-  rankUnrankedCount: '未定级'
-  rankProvisionalCount: '定级中'
-  rankMissingCount: '缺失/失败'
-  rankPausedCount: '暂未查询'
-  rankStaleCount: '旧快照'
-  rankNotLoadedCount: '未采集'
-  rankMethodTitle: '统计口径'
-  rankShortLimit: '段位变化、重复对手和缺失可能影响比较。'
+  rankSource: 来源：英雄联盟对局服务
+  rankSnapshotTitle: 查询时段位（非比赛当时）
+  rankTabTitle: 对手段位
+  rankTableTitle: 段位分布与分组历史胜率
+  rankMatchContext: 对手查询时平均段位
+  rankUsableOpponents: 可用 {{count}}/5
+  rankEmptyMatches: 当前筛选范围内没有符合条件的对局，请调整顶部筛选。
+  rankAppearanceCoverage: 已定级对手 {{count}}/{{total}} 条出场记录
+  rankGameCoverage: 分组胜率纳入 {{count}}/{{total}} 场
+  rankPartialCoverage: 纳入对局中 {{count}} 场不足五名可用对手
+  rankStatusCounts: 异常对手出场记录数
+  rankAllStatusCounts: 全部对手出场记录状态
+  rankRankedCount: 已定级
+  rankUnrankedCount: 未定级
+  rankProvisionalCount: 定级中
+  rankMissingCount: 缺失/失败
+  rankPausedCount: 暂未查询
+  rankStaleCount: 旧快照
+  rankNotLoadedCount: 未采集
+  rankMethodTitle: 统计口径
+  rankShortLimit: 段位变化、重复对手和缺失可能影响比较。
+  rankComparisonLimit: 段位以查询时间为准，不代表比赛开始时的段位或实际实力；重复对手、段位变化和缺失数据可能影响比较。
   rankQueue: '对手段位排位队列'
   rankFlex: '灵活组排'
   rankSolo: '单双排'
@@ -267,8 +295,6 @@ zh-CN:
   rankRecovery: '尚无成功段位快照。请连接对应区服客户端后使用页面顶部“刷新”；旧数据不会自动补成段位。'
   rankRowDescription: '{{tier}}，对手出场 {{appearances}} 次，分组 {{games}} 场、胜 {{wins}} 场，历史胜率 {{rate}}，Wilson 95% 区间 {{interval}}；选择以查看精确值。'
   rankQueryTimeSingle: '查询时间（本地）：{{to}}'
-  rankSource: 来源：英雄联盟对局服务
-  rankComparisonLimit: 段位以查询时间为准，不代表比赛开始时的段位或实际实力；重复对手、段位变化和缺失数据可能影响比较。
   predictionIntro: 顶部复盘筛选及范围不用于预测。
   predictionProgress: 胜率计算进度
   predictionCalculating: 正在计算胜率…
@@ -353,10 +379,6 @@ zh-CN:
   championEmptyHelp: '试试调整条件或重置筛选。'
   resetFilterConditions: '重置筛选条件'
   recentFirst: '最近对局在前'
-  roleMembers: '{{count}} 位成员'
-  roleMetricHelp: '比较指标'
-  roleGoldHelp: '15 分钟时，相对敌方同分路的经济差；单位为金币。'
-  roleKpHelp: '逐场参团率的平均值；单位为百分比。'
 en:
   matchEventSource: 'Source: event results · {{side}} · {{metric}}'
   matchNavigationPending: 'Locating the match without changing filters.'
@@ -496,10 +518,39 @@ en:
   synergySelectPair: 'Select {{a}} and {{b}}, {{count}} shared matches, shrunken difference {{value}} percentage points'
   synergyClearPair: 'Clear selection of {{a}} and {{b}}'
   synergyRateDescription: 'Shared win rate {{rate}}, personal baseline {{baseline}}, shared win rate 95% interval {{interval}}'
+  experimentalPredictionGroup: 'Experimental features'
+  experimentalPredictionLabel: 'Lineup win prediction (experimental)'
+  experimentalPredictionHelp: 'This feature is incomplete and off by default. Enable and save to show the prediction page; it does not guarantee the next result.'
   synergyLimit: 'Descriptive differences do not establish a causal benefit from playing together.'
   synergyEvidence: 'Same-team difference evidence'
   synergySharedGames: '{{count}} shared matches'
   synergyClose: 'Clear selection'
+  statBrier: 'Probability error (Brier)'
+  statBrierHelp: 'Mean squared error between predicted probability and outcome (win = 1, loss = 0). Lower is better on the same validation set; 0 means probabilities exactly match outcomes. This is not prediction accuracy.'
+  statLogLoss: 'Probability loss (Log loss)'
+  statLogLossHelp: 'Measures differences between predicted probabilities and outcomes, penalizing confident wrong predictions more heavily. Lower is better on the same validation set. This is not prediction accuracy.'
+  statPearson: 'Linear correlation (Pearson r)'
+  statPearsonHelp: 'The sign indicates the direction of linear association; magnitude closer to 1 indicates stronger linear association. Zero does not rule out other relationships. Undefined for constant outcomes. Correlation is not causation.'
+  statRSquared: 'Linear fit R²'
+  statRSquaredHelp: 'Describes variation explained by the linear fit in the current sample. It is not prediction accuracy or evidence of next-match performance. Undefined for constant outcomes.'
+  statMcFadden: 'Logistic fit: McFadden pseudo-R²'
+  statMcFaddenHelp: 'Compares the current Logistic fit with an intercept-only model on the same valid observations. It must not be interpreted as ordinary R² or prediction accuracy.'
+  statFitSummary: 'Fit results'
+  statCoverage: '{{valid}} valid / {{missing}} missing observations'
+  statFitUnavailable: 'Fit unavailable: {{reason}}'
+  statLinearUnavailable: 'At least 2 valid observations and a nonconstant predictor are required'
+  statConstantOutcome: 'Constant outcome: correlation and R² cannot be calculated'
+  statLowSample: 'Small sample'
+  statFitLimit: 'Correlation and fits describe only the current sample, not causation or next-match performance.'
+  statFitDetails: 'Fit details'
+  statLinearFit: 'Linear fit'
+  statLogisticFit: 'Logistic fit'
+  statBinaryWins: '{{wins}} wins / {{losses}} losses'
+  statBinaryEvents: '{{wins}} yes / {{losses}} no'
+  roleMembers: '{{count}} members'
+  roleMetricHelp: 'Comparison metric definition'
+  roleGoldHelp: 'Gold difference from the opposing player in the same role at 15 minutes, in gold.'
+  roleKpHelp: 'Mean of per-match kill participation, as a percentage.'
   poolTopHeroes: 'Most-played champions (top three)'
   poolLegend: 'Ring: pick share · Number: win rate'
   poolMatrix: 'Member champion pools by role, scroll horizontally'
@@ -535,9 +586,6 @@ en:
   poolRed: 'Red {{rate}} · {{count}} games'
   poolInterpretation: 'Pick share is this member’s champion selection share within this role. Win rate uses this champion’s games in the current sample; it does not measure mastery or a causal effect.'
   poolHelp: 'Champion pool metric definitions'
-  experimentalPredictionGroup: 'Experimental features'
-  experimentalPredictionLabel: 'Lineup win prediction (experimental)'
-  experimentalPredictionHelp: 'This feature is incomplete and off by default. Enable and save to show the prediction page; it does not guarantee the next result.'
   eventWindowNote: Rates use event windows, not independent matches, and do not imply causation.
   eventGameNote: Match-level summaries, not individual event links
   noEventSelection: Select a metric value to see matching games.
@@ -575,26 +623,28 @@ en:
   sortDescending: '{{label}}: sort descending'
   sortAscending: '{{label}}: sort ascending'
   sortDefault: '{{label}}: restore default order'
-  rankSnapshotTitle: 'Rank at query time (not at match time)'
-  rankTabTitle: 'Opponent ranks'
-  rankTableTitle: 'Rank distribution and grouped historical win rates'
-  rankMatchContext: 'Opponents’ average rank at query time'
+  rankSource: 'Source: League of Legends match service'
+  rankSnapshotTitle: Rank at query time (not at match time)
+  rankTabTitle: Opponent ranks
+  rankTableTitle: Rank distribution and grouped historical win rates
+  rankMatchContext: Opponents’ average rank at query time
   rankUsableOpponents: '{{count}}/5 usable'
-  rankEmptyMatches: 'No eligible matches in the current filtered range. Adjust the filters above.'
+  rankEmptyMatches: No eligible matches in the current filtered range. Adjust the filters above.
   rankAppearanceCoverage: 'Ranked opponents: {{count}}/{{total}} appearance records'
   rankGameCoverage: 'Grouped win rates include {{count}}/{{total}} matches'
   rankPartialCoverage: '{{count}} included matches have fewer than five usable opponents'
-  rankStatusCounts: 'Unavailable opponent appearance counts'
-  rankAllStatusCounts: 'All opponent appearance statuses'
-  rankRankedCount: 'Ranked'
-  rankUnrankedCount: 'Unranked'
-  rankProvisionalCount: 'Provisional'
-  rankMissingCount: 'Missing/failed'
-  rankPausedCount: 'Not queried yet'
-  rankStaleCount: 'Stale snapshot'
-  rankNotLoadedCount: 'Not collected'
-  rankMethodTitle: 'Statistical definitions'
-  rankShortLimit: 'Rank changes, repeated opponents and missing data may affect comparisons.'
+  rankStatusCounts: Unavailable opponent appearance counts
+  rankAllStatusCounts: All opponent appearance statuses
+  rankRankedCount: Ranked
+  rankUnrankedCount: Unranked
+  rankProvisionalCount: Provisional
+  rankMissingCount: Missing/failed
+  rankPausedCount: Not queried yet
+  rankStaleCount: Stale snapshot
+  rankNotLoadedCount: Not collected
+  rankMethodTitle: Statistical definitions
+  rankShortLimit: Rank changes, repeated opponents and missing data may affect comparisons.
+  rankComparisonLimit: Ranks reflect query time, not match-start ranks or skill. Repeated opponents, rank changes and missing data may affect comparisons.
   rankQueue: 'Opponent rank queue'
   rankFlex: 'Ranked flex'
   rankSolo: 'Ranked solo/duo'
@@ -626,8 +676,6 @@ en:
   rankRecovery: 'No successful rank snapshots. Connect the client for the corresponding region and use Refresh above; legacy data is not automatically filled with ranks.'
   rankRowDescription: '{{tier}}, {{appearances}} opponent appearances, {{games}} grouped matches, {{wins}} wins, historical win rate {{rate}}, Wilson 95% interval {{interval}}. Select to view exact values.'
   rankQueryTimeSingle: 'Queried (local): {{to}}'
-  rankSource: 'Source: League of Legends match service'
-  rankComparisonLimit: Ranks reflect query time, not match-start ranks or skill. Repeated opponents, rank changes and missing data may affect comparisons.
   predictionIntro: Review filters and sample limits above do not apply to prediction.
   predictionProgress: Win rate calculation progress
   predictionCalculating: Calculating win rate…
@@ -713,8 +761,3 @@ en:
   championEmptyHelp: 'Try adjusting or resetting the filters.'
   resetFilterConditions: 'Reset filter conditions'
   recentFirst: 'Newest matches first'
-
-  roleMembers: '{{count}} members'
-  roleMetricHelp: 'Comparison metric definition'
-  roleGoldHelp: 'Gold difference from the opposing player in the same role at 15 minutes, in gold.'
-  roleKpHelp: 'Mean of per-match kill participation, as a percentage.'

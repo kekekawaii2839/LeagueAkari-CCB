@@ -248,12 +248,13 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { NButton, NProgress, NSelect, type DataTableColumns } from 'naive-ui'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { formatMetric, roleMetricMeta } from '../metric-defs'
 import { wilsonInterval } from '../visualization'
 import MemberAnalysisMetricTable from '../MemberAnalysisMetricTable.vue'
+import MetricHelp from '../MetricHelp.vue'
 import PredictionWorker from './prediction.worker?worker'
 import type { AdaptiveWinPredictionResult } from './adaptive'
 import { predictionObservations } from './observations'
@@ -385,8 +386,17 @@ const validationRows = computed(() => {
 })
 const validationColumns: DataTableColumns = [
   { title: uiText('predictionMethod'), key: 'method' },
-  { title: 'Brier', key: 'brier', render: (row) => Number(row.brier).toFixed(3) },
-  { title: 'Log loss', key: 'logLoss', render: (row) => Number(row.logLoss).toFixed(3) }
+  {
+    title: () => h(MetricHelp, { label: uiText('statBrier'), definition: uiText('statBrierHelp') }),
+    key: 'brier',
+    render: (row) => Number(row.brier).toFixed(3)
+  },
+  {
+    title: () =>
+      h(MetricHelp, { label: uiText('statLogLoss'), definition: uiText('statLogLossHelp') }),
+    key: 'logLoss',
+    render: (row) => Number(row.logLoss).toFixed(3)
+  }
 ]
 function dispose() {
   generation++
