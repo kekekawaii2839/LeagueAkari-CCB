@@ -4,6 +4,7 @@
       <p id="member-analysis-prediction-filter-note" class="prediction-note">
         {{ uiText('predictionIntro') }}
       </p>
+      <p class="prediction-note">{{ uiText('predictionContinuesAway') }}</p>
       <div class="lineup-inputs" role="group" aria-label="五排成员 ID 与分路">
         <label v-for="option in roleOptions" :key="option.value">
           <span>{{ option.label }}</span>
@@ -35,7 +36,7 @@
         :show-indicator="false"
         :aria-label="uiText('predictionProgress')"
       />
-      <p v-if="result?.status === 'unavailable'" ref="feedbackElement" tabindex="-1" role="status">
+      <p v-if="result?.status === 'unavailable'" tabindex="-1" role="status">
         {{
           uiText(
             predictionFailure === 'sample'
@@ -84,7 +85,6 @@
       </section>
       <section
         v-if="result?.status === 'available'"
-        ref="resultElement"
         tabindex="-1"
         class="prediction-result"
         :aria-label="
@@ -248,8 +248,15 @@
   </section>
 </template>
 <script setup lang="ts">
-import { computed, h, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { NButton, NProgress, NSelect, type DataTableColumns } from 'naive-ui'
+import { computed, h, nextTick, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
+import {
+  NButton,
+  NProgress,
+  NSelect,
+  useMessage,
+  type DataTableColumns,
+  type MessageReactive
+} from 'naive-ui'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { formatMetric, roleMetricMeta } from '../metric-defs'
 import { wilsonInterval } from '../visualization'
@@ -261,6 +268,16 @@ import { predictionObservations } from './observations'
 import { predictionFeatures, predictionRoles, type PredictionRole } from './model'
 import { uiText } from '../ui-text'
 const store = useMemberAnalysisStore()
+const props = withDefaults(defineProps<{ active?: boolean }>(), { active: true })
+const nativeMessage = useMessage()
+const routeActive = ref(true)
+const predictionVisible = computed(() => props.active && routeActive.value)
+onActivated(() => {
+  routeActive.value = true
+})
+onDeactivated(() => {
+  routeActive.value = false
+})
 const lineup = computed(() => store.predictionViewState.lineup)
 const side = computed({
   get: () => store.predictionViewState.side,
@@ -308,10 +325,41 @@ const predictionMethodName = computed(() => {
 const message = ref('')
 const running = ref(false)
 const progress = ref(0)
-const resultElement = ref<HTMLElement | null>(null)
-const feedbackElement = ref<HTMLElement | null>(null)
 let worker: Worker | null = null
 let generation = 0
+let backgroundAnnounced = false
+let taskMessage: MessageReactive | null = null
+function clearTaskMessage() {
+  taskMessage?.destroy()
+  taskMessage = null
+}
+function notifyBackground(type: 'info' | 'success' | 'warning' | 'error') {
+  if (
+    predictionVisible.value ||
+    !store.settings?.enabled ||
+    !store.settings.experimentalPredictionEnabled
+  )
+    return
+  const keys = {
+    info: 'predictionBackgroundRunning',
+    success: 'predictionBackgroundCompleted',
+    warning: 'predictionBackgroundUnavailable',
+    error: 'predictionBackgroundFailed'
+  } as const
+  clearTaskMessage()
+  taskMessage = nativeMessage[type](() => uiText(keys[type]), { closable: true, duration: 3500 })
+}
+watch(
+  predictionVisible,
+  (visible) => {
+    if (visible) clearTaskMessage()
+    else if (running.value && !backgroundAnnounced) {
+      backgroundAnnounced = true
+      notifyBackground('info')
+    }
+  },
+  { flush: 'sync' }
+)
 const roleOptions: { label: string; value: PredictionRole }[] = [
   { label: '上路', value: 'TOP' },
   { label: '打野', value: 'JUNGLE' },
@@ -399,29 +447,56 @@ const validationColumns: DataTableColumns = [
   }
 ]
 function dispose() {
+  if (!worker && !running.value) return
   generation++
   worker?.terminate()
   worker = null
   running.value = false
 }
 function cancel() {
+  clearTaskMessage()
   dispose()
+  store.predictionTaskStatus = 'idle'
   result.value = null
   message.value = '计算已取消，未保留未完成结果。'
 }
 function invalidate() {
+  clearTaskMessage()
   const hadResult = running.value || result.value !== null
   dispose()
+  store.predictionTaskStatus = 'idle'
   result.value = null
   details.value = false
   message.value = hadResult ? '成员、分路、方位或数据已改变，请重新计算。' : ''
 }
 watch(() => ({ ...lineup.value }), invalidate)
 watch(side, invalidate)
-watch([() => store.overview, () => store.settings], invalidate)
-onBeforeUnmount(dispose)
-function start() {
+watch(
+  [
+    () => store.overview,
+    () => store.settings,
+    () => store.settings?.enabled,
+    () => store.settings?.experimentalPredictionEnabled
+  ],
+  invalidate
+)
+// show:lazy and route KeepAlive retain the task. Only real unmount cleans it up.
+onBeforeUnmount(() => {
+  clearTaskMessage()
   dispose()
+  store.predictionTaskStatus = 'idle'
+})
+function start() {
+  if (
+    running.value ||
+    !completeLineup.value ||
+    !store.settings?.enabled ||
+    store.settings.experimentalPredictionEnabled !== true
+  )
+    return
+  dispose()
+  clearTaskMessage()
+  backgroundAnnounced = false
   result.value = null
   details.value = false
   progress.value = 0
@@ -434,6 +509,7 @@ function start() {
   try {
     worker = new PredictionWorker()
     running.value = true
+    store.predictionTaskStatus = 'running'
     worker.onmessage = ({ data }) => {
       if (generation !== current) return
       if (data.type === 'progress') {
@@ -443,27 +519,27 @@ function start() {
       }
       if (data.type === 'done') {
         result.value = data.result
-        message.value = ''
         dispose()
-        const finished = generation
-        void nextTick(() => {
-          const element = resultElement.value ?? feedbackElement.value
-          if (generation !== finished || !element?.offsetParent) return
-          element.focus({ preventScroll: true })
-          element.scrollIntoView({ block: 'start' })
-        })
+        store.predictionTaskStatus =
+          data.result.status === 'available' ? 'completed' : 'unavailable'
+        message.value = data.result.status === 'available' ? uiText('predictionTaskCompleted') : ''
+        notifyBackground(data.result.status === 'available' ? 'success' : 'warning')
       }
     }
     worker.onerror = () => {
       if (generation === current) {
         dispose()
+        store.predictionTaskStatus = 'failed'
         message.value = '本地预测计算失败，请重试。'
+        notifyBackground('error')
       }
     }
     worker.postMessage({ observations, lineup: { ...lineup.value }, side: side.value })
   } catch {
     dispose()
+    store.predictionTaskStatus = 'failed'
     message.value = '无法启动本地计算任务，请重试。'
+    notifyBackground('error')
   }
 }
 </script>

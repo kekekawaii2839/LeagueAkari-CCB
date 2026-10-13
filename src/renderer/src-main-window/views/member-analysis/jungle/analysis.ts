@@ -24,7 +24,9 @@ export type JungleEvidence = {
   valid: Record<string, number>
   zoneWeight: number
   zoneGames: number
+  /** Total matched-player exposure, not a per-metric eligible denominator. */
   minutes: number
+  minutesByMetric: Record<string, number>
 }
 export const evidenceKey = (player: string, side: SideLabel) => `${player}|${side}`
 export const emptyEvidence = (): JungleEvidence => ({
@@ -37,7 +39,8 @@ export const emptyEvidence = (): JungleEvidence => ({
   valid: {},
   zoneWeight: 0,
   zoneGames: 0,
-  minutes: 0
+  minutes: 0,
+  minutesByMetric: {}
 })
 
 /** Supplementary populations only: existing aggregate values/formulas remain authoritative. */
@@ -58,8 +61,27 @@ export function jungleEvidence(games: MemberAnalysisGame[]) {
         if (owner === 2) evidence.unknownOwnership++
         else evidence.ownership++
       } else evidence.missingCamps++
-      evidence.zoneWeight += jungle.totalZoneWeight
-      if (jungle.totalZoneWeight > 0) evidence.zoneGames++
+      evidence.zoneWeight += jungle.totalZoneWeight ?? 0
+      if (jungle.totalZoneWeight !== null && jungle.totalZoneWeight > 0) evidence.zoneGames++
+      for (const [metric, field] of Object.entries({
+        level3GankRate: 'level3Gank',
+        level4GankRate: 'level4Gank',
+        topGanksPG: 'topGanks',
+        midGanksPG: 'midGanks',
+        botGanksPG: 'botGanks',
+        dragonsPG: 'dragons',
+        soloDragonsPG: 'soloDragons',
+        voidgrubsPG: 'voidgrubs',
+        heraldsPG: 'heralds',
+        baronsPG: 'barons'
+      })) {
+        const value = jungle[field as keyof typeof jungle]
+        evidence.valid[metric] =
+          (evidence.valid[metric] ?? 0) +
+          (typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))
+            ? 1
+            : 0)
+      }
       evidence.valid.firstDragonRate =
         (evidence.valid.firstDragonRate ?? 0) + (typeof jungle.gotFirstDragon === 'boolean' ? 1 : 0)
       evidence.valid.firstDragonTime =
@@ -80,9 +102,18 @@ export function jungleEvidence(games: MemberAnalysisGame[]) {
           (evidence.valid[metric] ?? 0) + (Number.isFinite(game[field]) ? 1 : 0)
       }
       if (player) {
-        evidence.minutes += player.minutes
-        for (const metric of efficiencyMetrics)
-          evidence.valid[metric] = (evidence.valid[metric] ?? 0) + 1
+        if (Number.isFinite(player.minutes)) evidence.minutes += player.minutes
+        for (const metric of efficiencyMetrics) {
+          const field = { cspm: 'cs', gpm: 'gold', objectiveDamagePM: 'objectiveDamage' } as const
+          const value = player[field[metric]]
+          // Match aggregateJungle's rateForRows: numerator and exposure must
+          // both be known and finite. True zero is still a valid observation.
+          const available =
+            typeof value === 'number' && Number.isFinite(value) && Number.isFinite(player.minutes)
+          evidence.valid[metric] = (evidence.valid[metric] ?? 0) + Number(available)
+          evidence.minutesByMetric[metric] =
+            (evidence.minutesByMetric[metric] ?? 0) + (available ? player.minutes : 0)
+        }
       }
       result.set(key, evidence)
     }

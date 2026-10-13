@@ -4,7 +4,7 @@ import { type ConversionAggregate, type SideLabel, aggregateConversion } from '.
 import { formatMetric } from './metric-defs'
 import { finiteOrNull, formatSigned } from './visualization'
 
-type EventField = keyof MemberAnalysisGame['eventDecision']
+type EventField = keyof NonNullable<MemberAnalysisGame['eventDecision']>
 export type EventMetric = {
   key: keyof ConversionAggregate
   label: string
@@ -179,9 +179,9 @@ export function eventMetricCell(
   games: MemberAnalysisGame[]
 ) {
   const valid = games.filter((game) =>
-    metric.fields.every((key) => finiteOrNull(game.eventDecision[key]) !== null)
+    metric.fields.every((key) => finiteOrNull(game.eventDecision?.[key]) !== null)
   ).length
-  if (valid !== games.length)
+  if (valid === 0)
     return {
       value: '—',
       sample: `有效 ${valid}/${games.length} 场 · ${valid ? '部分未采集' : '未采集'}`,
@@ -194,8 +194,9 @@ export function eventMetricCell(
       : metric.signed
         ? formatSigned(value, 1)
         : formatMetric(value, metric.format ?? 'num')
-  const sum = (key: EventField) => games.reduce((n, game) => n + Number(game.eventDecision[key]), 0)
-  let sample = `${games.length} 场`
+  const sum = (key: EventField) =>
+    games.reduce((n, game) => n + (game.eventDecision?.[key] ?? 0), 0)
+  let sample = `有效 ${valid}/${games.length} 场`
   if (metric.counts) {
     const [numerator, denominator] = metric.counts.map(sum)
     sample = denominator ? `${numerator} / ${denominator} 次` : `无${metric.windows}`
@@ -205,7 +206,7 @@ export function eventMetricCell(
   }
   return {
     value: text === '—' || !metric.unit ? text : `${text} ${metric.unit}`,
-    sample,
+    sample: valid < games.length ? `${sample} · 有效 ${valid}/${games.length} 场` : sample,
     missing: false
   }
 }

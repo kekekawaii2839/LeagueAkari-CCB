@@ -75,6 +75,7 @@ export class MemberAnalysisPipeline {
     signal: AbortSignal,
     settings: MemberAnalysisSettings
   ) {
+    let summaryStatisticsUnavailable = false
     try {
       this._update({ status: 'collecting', progress: 0.02, message: 'collecting' })
       const collected = await this._collector.collect({
@@ -116,7 +117,11 @@ export class MemberAnalysisPipeline {
           paths.checkpoint,
           ...(settings.opggEnabled ? ['--opgg-enabled'] : [])
         ],
-        (value) => this._handleWorkerMessage(value)
+        (value) => {
+          if (value.type === 'error' && value.code === 'SUMMARY_STAT_UNAVAILABLE')
+            summaryStatisticsUnavailable = true
+          this._handleWorkerMessage(value)
+        }
       )
       if (signal.aborted || message.status === 'cancelled') throw new Error('cancelled')
       if (message.type !== 'result' || message.status !== 'completed')
@@ -130,8 +135,10 @@ export class MemberAnalysisPipeline {
         return
       }
       this._finish('failed', 'failed', {
-        code: 'PIPELINE_FAILED',
-        message: 'Member analysis refresh failed'
+        code: summaryStatisticsUnavailable ? 'SUMMARY_STAT_UNAVAILABLE' : 'PIPELINE_FAILED',
+        message: summaryStatisticsUnavailable
+          ? 'Required match summary statistics unavailable'
+          : 'Member analysis refresh failed'
       })
     }
   }

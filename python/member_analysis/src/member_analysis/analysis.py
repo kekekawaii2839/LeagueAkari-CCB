@@ -38,8 +38,65 @@ def number(value: Any) -> float:
         return 0.0
 
 
-def ratio(numerator: float, denominator: float) -> float | None:
-    return numerator / denominator if denominator else None
+def ratio(numerator: float | None, denominator: float | None) -> float | None:
+    return numerator / denominator if numerator is not None and denominator else None
+
+
+def optional_number(value: Any) -> float | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        result = float(value)
+        return result if math.isfinite(result) and result >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+class RequiredSummaryStatisticUnavailable(ValueError):
+    pass
+
+
+def required_number(value: Any) -> float:
+    result = optional_number(value)
+    if result is None:
+        raise RequiredSummaryStatisticUnavailable("required summary statistic unavailable")
+    return result
+
+
+def complete_sum(values) -> float | None:
+    values = list(values)
+    return sum(values) if values and all(value is not None for value in values) else None
+
+
+def event_coverage(frames: list[dict[str, Any]], end_ms: float) -> bool:
+    """Every minute event bucket from start through the requested window must exist.
+
+    Snapshot tolerance remains one second; coverage permits normal scheduler drift,
+    but never a missing minute. The terminal bucket may be shorter than a minute.
+    """
+    observations = sorted(
+        (frame for frame in frames if isinstance(frame.get("timestamp"), (int, float))
+         and not isinstance(frame.get("timestamp"), bool) and math.isfinite(frame["timestamp"])
+         and frame["timestamp"] >= 0),
+        key=lambda frame: frame["timestamp"],
+    )
+    if not observations or observations[0]["timestamp"] > 1000:
+        return False
+    previous = observations[0]["timestamp"]
+    for frame in observations:
+        timestamp = frame["timestamp"]
+        if timestamp - previous > 62_000 or not isinstance(frame.get("events"), list):
+            return False
+        if timestamp >= end_ms - 1000:
+            return True
+        previous = timestamp
+    return False
+
+
+def optional_any(values) -> bool | None:
+    if any(value is True for value in values):
+        return True
+    return False if all(value is False for value in values) else None
 
 
 def role_name(participant: dict[str, Any]) -> str | None:
@@ -332,13 +389,19 @@ def build_jungle_payload(
     jungler: dict[str, Any] | None,
     target_team: int,
     participant_teams: dict[int, int],
+    _duration_ms: float,
 ) -> dict[str, Any] | None:
     if not jungler:
         return None
     participant_id = int(jungler["participantId"])
     own_side = "blue" if target_team == 100 else "red"
-    pf1 = participant_frame(frames[1] if len(frames) > 1 else None, participant_id)
+    pf1 = participant_frame(frame_at(frames, 60_000), participant_id)
     start_camp = detect_start_camp((pf1 or {}).get("position"))
+    zone_complete = all(
+        (pf := participant_frame(frame_at(frames, minute * 60_000), participant_id)) is not None
+        and all(optional_number((pf.get("position") or {}).get(key)) is not None for key in ("x", "y"))
+        for minute in range(1, ANALYSIS_MINUTES + 1)
+    )
     zone_weights = {"top": 0.0, "mid": 0.0, "bot": 0.0}
     total_zone_weight = 0.0
     for frame in frames[1 : min(len(frames), ANALYSIS_MINUTES + 1)]:
@@ -380,8 +443,8 @@ def build_jungle_payload(
             if lane:
                 ganks[lane] += 1
 
-    pf3 = participant_frame(frames[3] if len(frames) > 3 else None, participant_id)
-    pf4 = participant_frame(frames[4] if len(frames) > 4 else None, participant_id)
+    pf3 = participant_frame(frame_at(frames, 180_000), participant_id)
+    pf4 = participant_frame(frame_at(frames, 240_000), participant_id)
     level3 = level4 = False
     if pf3:
         cs3 = number(pf3.get("minionsKilled")) + number(pf3.get("jungleMinionsKilled"))
@@ -425,31 +488,44 @@ def build_jungle_payload(
             barons += 1
             if first_baron_time is None:
                 first_baron_time = timestamp
+    early_complete = event_coverage(frames, ANALYSIS_MINUTES * 60_000)
+    full_complete = event_coverage(frames, _duration_ms)
+    level3_available = (
+        pf3 is not None and event_coverage(frames, 180_000)
+        and all(optional_number(pf3.get(key)) is not None
+                for key in ("minionsKilled", "jungleMinionsKilled", "level"))
+        and optional_number((pf3.get("damageStats") or {}).get("totalDamageDoneToChampions")) is not None
+    )
+    level4_available = (
+        pf3 is not None and pf4 is not None and event_coverage(frames, 240_000)
+        and all(optional_number((pf.get("damageStats") or {}).get("totalDamageDoneToChampions")) is not None
+                for pf in (pf3, pf4))
+    )
     return {
         "player": str(jungler.get("_targetName")),
         "champion": str(jungler.get("championName") or jungler.get("championId") or "Unknown"),
         "startCamp": start_camp["camp"] if start_camp else None,
         "startCampSide": start_camp["side"] if start_camp else None,
         "startCampOwn": start_camp["side"] == own_side if start_camp else None,
-        "level3Gank": level3,
-        "level4Gank": level4,
-        "topGanks": ganks["top"],
-        "midGanks": ganks["mid"],
-        "botGanks": ganks["bot"],
-        "topZoneWeight": zone_weights["top"],
-        "midZoneWeight": zone_weights["mid"],
-        "botZoneWeight": zone_weights["bot"],
-        "totalZoneWeight": total_zone_weight,
-        "gotFirstDragon": first_dragon_team == target_team if first_dragon_team is not None else None,
-        "dragons": dragons,
-        "soloDragons": solo_dragons,
-        "firstDragonTimeSec": first_dragon_time,
-        "voidgrubs": voidgrubs,
-        "firstVoidgrubTimeSec": first_voidgrub_time,
-        "heralds": heralds,
-        "firstHeraldTimeSec": first_herald_time,
-        "barons": barons,
-        "firstBaronTimeSec": first_baron_time,
+        "level3Gank": level3 if level3_available else None,
+        "level4Gank": level4 if level4_available else None,
+        "topGanks": ganks["top"] if early_complete else None,
+        "midGanks": ganks["mid"] if early_complete else None,
+        "botGanks": ganks["bot"] if early_complete else None,
+        "topZoneWeight": zone_weights["top"] if zone_complete and early_complete else None,
+        "midZoneWeight": zone_weights["mid"] if zone_complete and early_complete else None,
+        "botZoneWeight": zone_weights["bot"] if zone_complete and early_complete else None,
+        "totalZoneWeight": total_zone_weight if zone_complete and early_complete else None,
+        "gotFirstDragon": first_dragon_team == target_team if first_dragon_team is not None and full_complete else None,
+        "dragons": dragons if full_complete else None,
+        "soloDragons": solo_dragons if full_complete else None,
+        "firstDragonTimeSec": first_dragon_time if full_complete else None,
+        "voidgrubs": voidgrubs if full_complete else None,
+        "firstVoidgrubTimeSec": first_voidgrub_time if full_complete else None,
+        "heralds": heralds if full_complete else None,
+        "firstHeraldTimeSec": first_herald_time if full_complete else None,
+        "barons": barons if full_complete else None,
+        "firstBaronTimeSec": first_baron_time if full_complete else None,
     }
 
 
@@ -459,7 +535,7 @@ def build_lane_gank_deaths_payload(
     enemy_jungler: dict[str, Any] | None,
 ) -> dict[str, Any]:
     """Record successful, lane-aligned enemy-jungler ganks before 14:00."""
-    if not frames:
+    if not event_coverage(frames, ANALYSIS_MINUTES * 60_000):
         return {"methodVersion": 1, "status": "unavailable", "reason": "timeline-incomplete"}
     if not enemy_jungler:
         return {"methodVersion": 1, "status": "unavailable", "reason": "enemy-jungler-unresolved"}
@@ -521,7 +597,7 @@ def build_lane_gank_deaths_payload(
 
 def objective_features(
     frames: list[dict[str, Any]], target_team: int, participant_teams: dict[int, int]
-) -> dict[str, float]:
+) -> dict[str, float | None]:
     opponent_team = 300 - target_team
     events = []
     kills = []
@@ -532,7 +608,7 @@ def objective_features(
         if event.get("type") == "CHAMPION_KILL" and value["_owner"] in (100, 200):
             kills.append(value)
     events.sort(key=lambda row: number(row.get("timestamp")))
-    output: dict[str, float] = {}
+    output: dict[str, float | None] = {}
     for minute in (15, 20):
         cutoff = minute * 60_000
         for monster, label in (
@@ -593,7 +669,18 @@ def objective_features(
             target_gold += number(participant.get("totalGold"))
         elif team == opponent_team:
             opponent_gold += number(participant.get("totalGold"))
-    output["m20_gold_diff"] = target_gold - opponent_gold
+    gold_values = [optional_number((participant_frame(frame20, pid) or {}).get("totalGold"))
+                   for pid in participant_teams]
+    output["m20_gold_diff"] = target_gold - opponent_gold if (
+        len(participant_teams) == 10 and all(list(participant_teams.values()).count(team) == 5 for team in (100, 200)) and all(value is not None for value in gold_values)
+    ) else None
+    for minute in (15, 20):
+        for key in list(output):
+            if key.startswith(f"m{minute}_") and key != "m20_gold_diff":
+                # Resource-centered kill windows extend 45s past the resource cutoff.
+                end = minute * 60_000 + (45_000 if "objective_fight" in key else 0)
+                if not event_coverage(frames, end):
+                    output[key] = None
     return output
 
 
@@ -611,10 +698,12 @@ def lane_differences(
         frame = frame_at(frames, minute * 60_000)
         ours = participant_frame(frame, target_id)
         theirs = participant_frame(frame, opponent_id)
-        return getter(ours) - getter(theirs) if ours and theirs else None
+        ours_value = getter(ours) if ours else None
+        theirs_value = getter(theirs) if theirs else None
+        return ours_value - theirs_value if ours_value is not None and theirs_value is not None else None
 
-    cs = lambda row: number(row.get("minionsKilled")) + number(row.get("jungleMinionsKilled"))
-    damage = lambda row: number((row.get("damageStats") or {}).get("totalDamageDoneToChampions"))
+    cs = lambda row: complete_sum(optional_number(row.get(key)) for key in ("minionsKilled", "jungleMinionsKilled"))
+    damage = lambda row: optional_number((row.get("damageStats") or {}).get("totalDamageDoneToChampions"))
     solo_diff = 0
     for event in events:
         if event.get("type") != "CHAMPION_KILL" or number(event.get("timestamp")) > 900_000:
@@ -627,12 +716,12 @@ def lane_differences(
         elif killer == opponent_id and victim == target_id:
             solo_diff -= 1
     return {
-        "gd10": diff(10, lambda row: number(row.get("totalGold"))),
-        "gd15": diff(15, lambda row: number(row.get("totalGold"))),
+        "gd10": diff(10, lambda row: optional_number(row.get("totalGold"))),
+        "gd15": diff(15, lambda row: optional_number(row.get("totalGold"))),
         "csd15": diff(15, cs),
-        "xpd15": diff(15, lambda row: number(row.get("xp"))),
+        "xpd15": diff(15, lambda row: optional_number(row.get("xp"))),
         "damageDiff15": diff(15, damage),
-        "soloDiff15": float(solo_diff),
+        "soloDiff15": float(solo_diff) if event_coverage(frames, 900_000) else None,
     }
 
 
@@ -651,10 +740,10 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
     }
     frames = timeline.get("frames") or []
     events = list(all_events(frames))
-    team_kills = int(sum(number(row.get("kills")) for row in selected))
-    team_deaths = int(sum(number(row.get("deaths")) for row in selected))
-    team_damage = sum(number(row.get("totalDamageDealtToChampions")) for row in selected)
-    team_gold = sum(number(row.get("goldEarned")) for row in selected)
+    team_kills = int(sum(required_number(row.get("kills")) for row in selected))
+    team_deaths = int(sum(required_number(row.get("deaths")) for row in selected))
+    team_damage = complete_sum(optional_number(row.get("totalDamageDealtToChampions")) for row in selected)
+    team_gold = sum(required_number(row.get("goldEarned")) for row in selected)
     by_role = {role_name(row): row for row in selected if role_name(row)}
     enemies_by_role = {role_name(row): row for row in enemies if role_name(row)}
     players = []
@@ -663,46 +752,46 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
         if not row:
             continue
         name = str(row.get("_targetName") or "Unknown")
-        damage_value = number(row.get("totalDamageDealtToChampions"))
-        gold_value = number(row.get("goldEarned"))
-        taken_value = number(row.get("totalDamageTaken"))
+        damage_value = optional_number(row.get("totalDamageDealtToChampions"))
+        gold_value = required_number(row.get("goldEarned"))
+        taken_value = optional_number(row.get("totalDamageTaken"))
         challenges = row.get("challenges") or {}
         minutes = max(number(row.get("timePlayed") or value.get("gameDuration")) / 60, 1 / 60)
         lane = lane_differences(frames, events, row, enemies_by_role.get(role))
         kp = challenges.get("killParticipation")
         if kp is None:
-            kp = ratio(number(row.get("kills")) + number(row.get("assists")), team_kills)
+            kp = ratio(required_number(row.get("kills")) + required_number(row.get("assists")), team_kills)
         players.append(
             {
                 "player": name,
                 "role": role,
                 "champion": str(row.get("championName") or row.get("championId") or "Unknown"),
                 "minutes": minutes,
-                "kills": int(number(row.get("kills"))),
-                "deaths": int(number(row.get("deaths"))),
-                "assists": int(number(row.get("assists"))),
+                "kills": int(required_number(row.get("kills"))),
+                "deaths": int(required_number(row.get("deaths"))),
+                "assists": int(required_number(row.get("assists"))),
                 "teamKills": team_kills,
                 "teamDeaths": team_deaths,
                 "damage": damage_value,
                 "damageShare": ratio(damage_value, team_damage),
                 "gold": gold_value,
                 "goldShare": ratio(gold_value, team_gold),
-                "cs": number(row.get("totalMinionsKilled")) + number(row.get("neutralMinionsKilled")),
-                "vision": number(row.get("visionScore")),
-                "wardsPlaced": int(number(row.get("wardsPlaced"))),
-                "wardsKilled": int(number(row.get("wardsKilled"))),
-                "controlWards": int(number(row.get("visionWardsBoughtInGame"))),
+                "cs": required_number(row.get("totalMinionsKilled")) + required_number(row.get("neutralMinionsKilled")),
+                "vision": optional_number(row.get("visionScore")),
+                "wardsPlaced": optional_number(row.get("wardsPlaced")),
+                "wardsKilled": optional_number(row.get("wardsKilled")),
+                "controlWards": optional_number(row.get("visionWardsBoughtInGame")),
                 "damageTaken": taken_value,
                 "takenShare": challenges.get("damageTakenOnTeamPercentage"),
-                "damageMitigated": number(row.get("damageSelfMitigated")),
-                "objectiveDamage": number(row.get("damageDealtToObjectives")),
-                "turretDamage": number(row.get("damageDealtToTurrets")),
-                "healTeammates": number(row.get("totalHealsOnTeammates")),
-                "shieldTeammates": number(row.get("totalDamageShieldedOnTeammates")),
-                "ccSeconds": number(row.get("timeCCingOthers")),
-                "soloKills": int(number(challenges.get("soloKills"))),
-                "fbPart": bool(row.get("firstBloodKill") or row.get("firstBloodAssist")),
-                "ftPart": bool(row.get("firstTowerKill") or row.get("firstTowerAssist")),
+                "damageMitigated": optional_number(row.get("damageSelfMitigated")),
+                "objectiveDamage": optional_number(row.get("damageDealtToObjectives")),
+                "turretDamage": optional_number(row.get("damageDealtToTurrets")),
+                "healTeammates": optional_number(row.get("totalHealsOnTeammates")),
+                "shieldTeammates": optional_number(row.get("totalDamageShieldedOnTeammates")),
+                "ccSeconds": optional_number(row.get("timeCCingOthers")),
+                "soloKills": optional_number(challenges.get("soloKills")),
+                "fbPart": optional_any([row.get("firstBloodKill"), row.get("firstBloodAssist")]),
+                "ftPart": optional_any([row.get("firstTowerKill"), row.get("firstTowerAssist")]),
                 "kp": kp,
                 **lane,
                 "counter": None,
@@ -716,15 +805,16 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
         {},
     )
     creation = int(value.get("gameStartTimestamp") or value.get("gameCreation") or 0)
-    upper_gold = sum(
-        next(player for player in players if player["role"] == role)["gd15"] or 0
+    upper_gold = complete_sum(
+        next(player for player in players if player["role"] == role)["gd15"]
         for role in ("TOP", "JUNGLE", "MIDDLE")
     )
-    bot_gold = sum(
-        next(player for player in players if player["role"] == role)["gd15"] or 0
+    bot_gold = complete_sum(
+        next(player for player in players if player["role"] == role)["gd15"]
         for role in ("BOTTOM", "UTILITY")
     )
     return {
+        "metricSemantics": "current-v5",
         "gameId": int(value["gameId"]),
         "timestamp": creation,
         "date": datetime.fromtimestamp(creation / 1000, UTC).date().isoformat()
@@ -744,11 +834,12 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
         "gold20Diff": objective["m20_gold_diff"],
         "tower20Diff": objective["m20_towers_diff"],
         "jungle": build_jungle_payload(
-            frames, by_role.get("JUNGLE"), target_team, participant_teams
+            frames, by_role.get("JUNGLE"), target_team, participant_teams, number(value.get("gameDuration")) * 1000
         ),
         "laneGankDeaths": build_lane_gank_deaths_payload(
             frames, by_role, enemies_by_role.get("JUNGLE")
         ),
-        "eventDecision": build_event_decision_payload(frames, target_team, participant_teams),
+        "eventDecision": build_event_decision_payload(frames, target_team, participant_teams)
+        if event_coverage(frames, number(value.get("gameDuration")) * 1000) else None,
         "players": players,
     }

@@ -186,6 +186,7 @@
       :models="models"
       :win-outcome="yMetric === 'winRate'"
     />
+    <p v-if="selectionFeedback" class="ma-chart-note" role="status">{{ selectionFeedback }}</p>
     <section
       v-if="selectedGroup"
       ref="pointDetail"
@@ -425,6 +426,7 @@ const modelPaths = computed(() =>
 )
 const pointGroups = computed(() => groupScatterPoints(points.value))
 const selectedIndex = ref<number | null>(null)
+const selectionFeedback = ref('')
 const scatterRoot = ref<HTMLElement | null>(null)
 const pointDetail = ref<HTMLElement | null>(null)
 let selectionTrigger: HTMLElement | SVGElement | null = null
@@ -433,6 +435,7 @@ const matchDetail = ref<HTMLElement | null>(null)
 const matchDetailId = useId()
 let matchTrigger: HTMLElement | null = null
 async function toggleMatch(gameId: number, event: MouseEvent) {
+  selectionFeedback.value = ''
   if (selectedGameId.value === gameId) return closeMatch()
   matchTrigger = event.currentTarget as HTMLElement
   selectedGameId.value = gameId
@@ -446,6 +449,7 @@ async function closeMatch() {
   if (matchTrigger?.isConnected) matchTrigger.focus({ preventScroll: true })
 }
 async function selectPoint(index: number, event: Event) {
+  selectionFeedback.value = ''
   if (selectedIndex.value === index) return clearPoint()
   selectionTrigger = event.currentTarget as SVGElement
   selectedGameId.value = null
@@ -455,6 +459,7 @@ async function selectPoint(index: number, event: Event) {
   pointDetail.value?.focus({ preventScroll: true })
 }
 async function clearPoint() {
+  selectionFeedback.value = ''
   const index = selectedIndex.value
   selectedIndex.value = null
   selectedGameId.value = null
@@ -469,9 +474,41 @@ async function clearPoint() {
 const selectedGroup = computed(() =>
   selectedIndex.value === null ? null : pointGroups.value[selectedIndex.value]
 )
-watch(pointGroups, () => {
+watch(pointGroups, (groups, previous) => {
+  if (selectedIndex.value === null) return
+  const oldGroup = previous?.[selectedIndex.value]
+  const identity = (row: (typeof points.value)[number]) =>
+    JSON.stringify([row.player, row.role, row.gameId])
+  const keys = oldGroup?.rows.map(identity) ?? []
+  const counts = new Map<string, number>()
+  for (const group of groups)
+    for (const row of group.rows) {
+      const key = identity(row)
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+  const candidates = groups
+    .map((group, index) => ({ group, index }))
+    .filter(({ group }) => {
+      const current = new Set(group.rows.map(identity))
+      return keys.length > 0 && keys.every((key) => counts.get(key) === 1 && current.has(key))
+    })
+  if (candidates.length === 1) {
+    selectedIndex.value = candidates[0].index
+    const gameId = selectedGameId.value
+    if (
+      gameId !== null &&
+      (!candidates[0].group.rows.some((row) => row.gameId === gameId) ||
+        (store.overview &&
+          store.overview.games.filter((game) => game.gameId === gameId).length !== 1))
+    ) {
+      selectedGameId.value = null
+      selectionFeedback.value = uiText('scatterSelectionChanged')
+    }
+    return
+  }
   selectedIndex.value = null
   selectedGameId.value = null
+  selectionFeedback.value = uiText('scatterSelectionChanged')
 })
 const labelAnchor = (x: number, index: number) =>
   x > 690 ? 'end' : x < 250 ? 'start' : index % 2 ? 'start' : 'end'
@@ -525,6 +562,7 @@ function selectTableRow(row: Record<string, unknown>, event: MouseEvent) {
     group.rows.some((point) => tableRowKey(point) === tableRowKey(row))
   )
   if (index < 0) return
+  selectionFeedback.value = ''
   selectionTrigger = event.currentTarget as HTMLElement
   selectedIndex.value = selectedIndex.value === index ? null : index
   selectedGameId.value = null

@@ -159,11 +159,15 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
 
     this._reloadGeneration += 1
     store.loading = false
+    const membersChanged =
+      JSON.stringify(store.settings?.members) !== JSON.stringify(result.value.members)
     store.settings = result.value
     store.capabilities = store.capabilities
       ? { ...store.capabilities, featureEnabled: result.value.enabled }
       : null
-    store.overview = null
+    // Non-identity settings do not invalidate the published analysis. Its
+    // scope remains the overview's metadata until a new read succeeds.
+    if (!result.value.enabled || membersChanged) store.overview = null
     store.error = null
     if (result.value.enabled) await this.reload()
     return result

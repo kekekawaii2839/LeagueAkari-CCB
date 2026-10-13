@@ -17,10 +17,16 @@
           class="settings-feedback"
         >
           <NAlert v-if="saveError" type="error" role="alert">{{ saveError }}</NAlert>
-          <NAlert v-if="confirmDiscard" type="warning">
-            {{ uiText('discard') }}
-            <NButton @click="discard">{{ uiText('discardConfirm') }}</NButton>
-            <NButton @click="confirmDiscard = false">{{ uiText('keepEditing') }}</NButton>
+          <NAlert v-if="confirmDiscard" type="warning" class="settings-discard-warning">
+            <div class="settings-discard-content">
+              <span class="settings-discard-message">{{ uiText('discard') }}</span>
+              <div class="settings-discard-actions">
+                <NButton size="small" @click="discard">{{ uiText('discardConfirm') }}</NButton>
+                <NButton size="small" @click="confirmDiscard = false">{{
+                  uiText('keepEditing')
+                }}</NButton>
+              </div>
+            </div>
           </NAlert>
         </div>
         <div class="member-analysis-settings__row">
@@ -34,9 +40,26 @@
         </div>
 
         <h3 ref="collectionHeading" tabindex="-1" class="settings-group-heading">采集范围</h3>
-        <NFormItem :label="uiText('collectionCount')">
-          <div class="member-analysis-settings__field">
-            <NSelect v-model:value="draft.historyDepth" :options="historyOptions" />
+        <NFormItem
+          :label="uiText('collectionCount')"
+          :validation-status="fieldError('historyDepth') ? 'error' : undefined"
+          :show-feedback="false"
+        >
+          <div class="member-analysis-settings__field" data-validation-key="historyDepth">
+            <NSelect
+              v-model:value="draft.historyDepth"
+              :options="historyOptions"
+              :aria-invalid="Boolean(fieldError('historyDepth'))"
+              :aria-describedby="fieldError('historyDepth') ? errorId('historyDepth') : undefined"
+              @blur="touch('historyDepth')"
+            />
+            <p
+              v-if="fieldError('historyDepth')"
+              :id="errorId('historyDepth')"
+              class="settings-field-error"
+            >
+              {{ fieldError('historyDepth') }}
+            </p>
             <div class="member-analysis-settings__description">
               {{ uiText('collectionCountHelp') }}
             </div>
@@ -97,8 +120,27 @@
         </NFormItem>
 
         <h3 class="settings-group-heading">存储与参考</h3>
-        <NFormItem label="本地存储软上限（GiB）">
-          <NInputNumber v-model:value="draft.storageLimitGiB" :min="1" :max="1000" />
+        <NFormItem
+          label="本地存储软上限（GiB）"
+          :validation-status="fieldError('storageLimitGiB') ? 'error' : undefined"
+          :show-feedback="false"
+        >
+          <div class="member-analysis-settings__field" data-validation-key="storageLimitGiB">
+            <NInputNumber
+              v-model:value="draft.storageLimitGiB"
+              :min="1"
+              :max="1000"
+              :input-props="validationInputProps('storageLimitGiB')"
+              @blur="touch('storageLimitGiB')"
+            />
+            <p
+              v-if="fieldError('storageLimitGiB')"
+              :id="errorId('storageLimitGiB')"
+              class="settings-field-error"
+            >
+              {{ fieldError('storageLimitGiB') }}
+            </p>
+          </div>
         </NFormItem>
 
         <div class="member-analysis-settings__row">
@@ -185,8 +227,9 @@
           <div class="member-analysis-settings__section-title">本地数据清理</div>
           <div class="member-analysis-settings__description">
             当前占用 {{ formatBytes(storageStatus?.totalBytes ?? 0) }}；软上限
-            {{ formatBytes(storageStatus?.limitBytes ?? draft.storageLimitGiB * 1024 ** 3) }}。
-            不会自动删除数据；清理仅移除最旧的历史原始数据，并保留设置和当前分析结果。
+            {{
+              formatBytes(storageStatus?.limitBytes ?? (draft.storageLimitGiB ?? 0) * 1024 ** 3)
+            }}。 不会自动删除数据；清理仅移除最旧的历史原始数据，并保留设置和当前分析结果。
           </div>
           <NButton :loading="cleaning" @click="$emit('preview-cleanup')">预览清理</NButton>
           <div
@@ -221,7 +264,7 @@
               uiText('settingsShowIssues')
             }}</NButton>
           </div>
-          <NButton type="primary" :loading="saving" :disabled="!valid" @click="$emit('save', draft)"
+          <NButton type="primary" :loading="saving" :disabled="!valid" @click="saveDraft"
             >保存设置</NButton
           >
         </div>
@@ -243,7 +286,7 @@ import {
   NSwitch
 } from 'naive-ui'
 import { uiText } from './ui-text'
-import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, useId, watch } from 'vue'
 
 import { ALL_SGPTAG_VALUE, useSgpTagOptions } from '@renderer-shared/composables/useSgpTagOptions'
 
@@ -252,6 +295,8 @@ import type {
   MemberAnalysisSettings,
   MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
+
+import { MemberAnalysisSettingsSchema } from '@shared/shards/member-analysis'
 
 import { parseRiotId } from './riot-id'
 
@@ -270,7 +315,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   'update:show': [value: boolean]
-  save: [value: MemberAnalysisSettings]
+  save: [value: MemberAnalysisSettings, complete: (saved: MemberAnalysisSettings | null) => void]
   'preview-cleanup': []
   'confirm-cleanup': [previewId: string]
 }>()
@@ -288,12 +333,47 @@ function cloneSettings(settings: MemberAnalysisSettings): MemberAnalysisSettings
   }
 }
 
-const draft = reactive<MemberAnalysisSettings>(cloneSettings(props.settings))
+type SettingsDraft = Omit<MemberAnalysisSettings, 'scanLimitPerMember' | 'storageLimitGiB'> & {
+  scanLimitPerMember: number | null
+  storageLimitGiB: number | null
+}
+const draft = reactive<SettingsDraft>(cloneSettings(props.settings))
+const baseline = ref(cloneSettings(props.settings))
+const dirty = computed(() => JSON.stringify(draft) !== JSON.stringify(baseline.value))
+let pendingSave: symbol | null = null
 watch(
   () => props.settings,
-  (settings) => Object.assign(draft, cloneSettings(settings)),
+  (settings) => {
+    if (dirty.value || pendingSave) return
+    baseline.value = cloneSettings(settings)
+    Object.assign(draft, cloneSettings(settings))
+  },
   { deep: true }
 )
+onBeforeUnmount(() => {
+  pendingSave = null
+})
+function saveDraft() {
+  if (props.saving || pendingSave) return
+  const parsed = MemberAnalysisSettingsSchema.safeParse(draft)
+  if (!parsed.success || !valid.value) {
+    void showIssues()
+    return
+  }
+  const submittedDraft = JSON.stringify(draft)
+  const token = Symbol('settings-save')
+  pendingSave = token
+  emit('save', cloneSettings(parsed.data), (saved) => {
+    if (pendingSave !== token) return
+    pendingSave = null
+    if (!saved) return
+    baseline.value = cloneSettings(saved)
+    // The response acknowledges only the submitted revision, never newer input.
+    if (JSON.stringify(draft) !== submittedDraft) return
+    Object.assign(draft, cloneSettings(saved))
+    emit('update:show', false)
+  })
+}
 const confirmDiscard = ref(false)
 const feedback = ref<HTMLElement | null>(null)
 const cleanupConfirmation = ref<HTMLElement | null>(null)
@@ -317,19 +397,21 @@ function requestClose(show: boolean) {
     emit('update:show', true)
     return
   }
-  if (props.saving) return
-  if (JSON.stringify(draft) !== JSON.stringify(cloneSettings(props.settings)))
-    confirmDiscard.value = true
+  if (props.saving || pendingSave) return
+  if (dirty.value) confirmDiscard.value = true
   else emit('update:show', false)
 }
 function discard() {
+  pendingSave = null
+  baseline.value = cloneSettings(props.settings)
   Object.assign(draft, cloneSettings(props.settings))
   confirmDiscard.value = false
   emit('update:show', false)
 }
 watch(
   () => props.show,
-  () => {
+  (show) => {
+    if (!show) pendingSave = null
     confirmDiscard.value = false
     touched.value.clear()
     revealIssues.value = false
@@ -354,26 +436,34 @@ const validationIssues = computed(() => {
       key: 'members',
       message: uiText('settingsMemberCount', { count: draft.members.length })
     })
-  draft.members.forEach((member, index) => {
-    for (const field of memberFields) {
-      if (!member[field.key])
-        issues.push({
-          key: memberKey(index, field.key),
-          message: uiText(
-            field.key === 'serverId'
-              ? 'settingsServerRequired'
-              : field.key === 'gameName'
-                ? 'settingsNameRequired'
-                : 'settingsTagRequired'
-          )
-        })
+  const parsed = MemberAnalysisSettingsSchema.safeParse(draft)
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      const [field, index, memberField] = issue.path
+      const key =
+        field === 'members' && typeof index === 'number' && memberField
+          ? memberKey(index, memberField as MemberField)
+          : String(field)
+      const messageKey =
+        field === 'members' && memberField
+          ? memberField === 'serverId'
+            ? 'settingsServerInvalid'
+            : memberField === 'gameName'
+              ? 'settingsNameInvalid'
+              : 'settingsTagInvalid'
+          : field === 'scanLimitPerMember'
+            ? 'settingsScanInteger'
+            : field === 'storageLimitGiB'
+              ? 'settingsStorageInvalid'
+              : field === 'historyDepth'
+                ? 'settingsHistoryInvalid'
+                : field === 'historyTag'
+                  ? 'settingsModeRequired'
+                  : 'settingsFieldInvalid'
+      if (!issues.some((existing) => existing.key === key))
+        issues.push({ key, message: uiText(messageKey) })
     }
-  })
-  if (!draft.historyTag) issues.push({ key: 'historyTag', message: uiText('settingsModeRequired') })
-  if (draft.scanLimitPerMember == null)
-    issues.push({ key: 'scanLimitPerMember', message: uiText('settingsScanRequired') })
-  else if (!(draft.scanLimitPerMember >= 100 && draft.scanLimitPerMember <= 5000))
-    issues.push({ key: 'scanLimitPerMember', message: uiText('settingsScanRange') })
+  }
   return issues
 })
 const valid = computed(() => validationIssues.value.length === 0)
@@ -549,6 +639,30 @@ function formatBytes(value: number) {
 .member-analysis-member {
   padding: 12px 0;
   border-bottom: 1px solid var(--ma-grid);
+}
+/* Keep the alert's native warning surface; only align this confirmation's content. */
+.settings-discard-content,
+.settings-discard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.settings-discard-content {
+  gap: 12px;
+}
+.settings-discard-message {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.settings-discard-actions {
+  gap: 8px;
+  max-width: 100%;
+}
+.settings-discard-warning :deep(.n-alert__icon) {
+  top: 50%;
+  margin-top: 0;
+  margin-bottom: 0;
+  transform: translateY(-50%);
 }
 .settings-feedback {
   display: grid;

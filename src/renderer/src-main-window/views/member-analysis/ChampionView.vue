@@ -177,6 +177,7 @@
           :champion-id="championId"
           :champion-name="championName"
           :initial-champion="initialChampion"
+          :evidence-context="evidenceContext"
           @close="closePool()"
         />
       </NPopover>
@@ -212,7 +213,11 @@ import { uiText } from './ui-text'
 import { resolveChampionPoolPosition } from './champion-pool-position'
 import { createChampionPoolMotion } from './champion-pool-motion'
 const store = useMemberAnalysisStore()
-const { champions } = useMemberAnalysisData()
+const { champions, games } = useMemberAnalysisData()
+const evidenceContext = computed(() => ({
+  games: games.value,
+  publishedGeneration: store.overviewGeneration
+}))
 const league = useLeagueClientStore()
 const extra = useExtraAssetsStore()
 const resources = useAkariResourceProvider()

@@ -12,12 +12,25 @@ import { renderToString } from 'vue/server-renderer'
 
 import MatchesView from './MatchesView.vue'
 
-const fixture = vi.hoisted(() => ({ games: [] as MemberAnalysisGame[] }))
+const fixture = vi.hoisted(() => ({
+  games: [] as MemberAnalysisGame[],
+  store: { loading: false, viewState: 'ready', matchNavigation: null as any },
+  navigationOptions: null as any,
+  locate: vi.fn(),
+  cancel: vi.fn()
+}))
 vi.mock('./useMemberAnalysisData', () => ({
   useMemberAnalysisData: () => ({ games: ref(fixture.games) })
 }))
 vi.mock('@main-window/shards/member-analysis/store', () => ({
-  useMemberAnalysisStore: () => ({ loading: false, matchNavigation: null })
+  useMemberAnalysisStore: () => fixture.store
+}))
+vi.mock('./match-navigation', () => ({
+  createMatchNavigation: (options: any) => {
+    fixture.navigationOptions = options
+    return { locate: fixture.locate, cancel: fixture.cancel }
+  },
+  resolveMatchNavigationTarget: vi.fn()
 }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@renderer-shared/shards/league-client/store', () => ({
@@ -26,6 +39,7 @@ vi.mock('@renderer-shared/shards/league-client/store', () => ({
 vi.mock('@renderer-shared/components/widgets/ChampionIcon.vue', () => ({ default: () => null }))
 vi.mock('./MatchNativeDetails.vue', () => ({ default: () => null }))
 vi.mock('naive-ui', () => ({
+  NPagination: () => null,
   NButton: (_: unknown, { slots }: { slots: Record<string, Function> }) =>
     h('button', slots.default?.())
 }))
@@ -65,12 +79,61 @@ function game(): MemberAnalysisGame {
     }
   } as MemberAnalysisGame
 }
-async function render(value: MemberAnalysisGame) {
+async function render(value: MemberAnalysisGame, active = false) {
   fixture.games = [value]
-  return renderToString(createSSRApp({ render: () => h(MatchesView) }))
+  return renderToString(createSSRApp({ render: () => h(MatchesView, { active }) }))
 }
 
 describe('compact per-match opponent ranks', () => {
+  test('renders a bounded page without truncating the full sample or exact scope', async () => {
+    fixture.games = Array.from({ length: 500 }, (_, i) => ({ ...game(), gameId: i + 1 }))
+    const store = fixture.store as any
+    store.overviewGeneration = 2
+    try {
+      let html = await renderToString(createSSRApp({ render: () => h(MatchesView) }))
+      expect(html.match(/<article\b/g)).toHaveLength(25)
+      expect(html).toContain('共 500 场')
+      store.matchListScope = {
+        sequence: 1,
+        publishedGeneration: 2,
+        status: 'active',
+        source: 'Synthetic support',
+        gameIds: [1, 26, 500]
+      }
+      html = await renderToString(createSSRApp({ render: () => h(MatchesView) }))
+      expect(html.match(/<article\b/g)).toHaveLength(3)
+      expect(html).toContain('data-match-id="500"')
+      expect(html).toContain('Synthetic support')
+      store.overviewGeneration = 3
+      html = await renderToString(createSSRApp({ render: () => h(MatchesView) }))
+      expect(html).not.toContain('<article')
+      expect(html).toContain('分析版本已变化')
+    } finally {
+      delete store.matchListScope
+      delete store.overviewGeneration
+    }
+  })
+  test.each(['ready', 'error', 'empty', 'feature-disabled'])(
+    'navigation during a reload uses the readable state: %s',
+    async (state) => {
+      const request = { sequence: 1, gameId: 1, source: 'Synthetic evidence' }
+      fixture.store.loading = true
+      fixture.store.viewState = state
+      fixture.store.matchNavigation = request
+      fixture.locate.mockClear()
+      try {
+        await render(game(), true)
+        expect(fixture.locate).toHaveBeenCalledTimes(state === 'ready' ? 1 : 0)
+        expect(fixture.navigationOptions.current(request)).toBe(state === 'ready')
+        fixture.store.matchNavigation = { ...request, sequence: 2 }
+        expect(fixture.navigationOptions.current(request)).toBe(false)
+      } finally {
+        fixture.store.loading = false
+        fixture.store.viewState = 'ready'
+        fixture.store.matchNavigation = null
+      }
+    }
+  )
   test('retains both queue averages but no longer mixes a population summary into matches', async () => {
     const html = await render(game())
     expect(html).toContain('对手查询时平均段位')

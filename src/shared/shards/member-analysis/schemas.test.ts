@@ -3,11 +3,13 @@
 import {
   MEMBER_ANALYSIS_CONTRACT_VERSION,
   MEMBER_ANALYSIS_DATA_VERSION,
+  MemberAnalysisGameSchema,
   MemberAnalysisJobSchema,
   MemberAnalysisPayloadSchema,
   MemberAnalysisSettingsSchema,
   MemberAnalysisUpdateSettingsRequestSchema,
-  migrateLegacyMemberAnalysisPayload
+  migrateLegacyMemberAnalysisPayload,
+  normalizeLegacyMemberAnalysisGame
 } from './schemas'
 import { summarizeMemberAnalysisPayload } from './summary'
 
@@ -167,11 +169,15 @@ describe('member analysis contract', () => {
   })
 
   test('accepts a cross-map trade completed shortly before the enemy objective', () => {
-    const payload = migrateLegacyMemberAnalysisPayload(anonymousLegacyPayload)
-    payload.games[0].eventDecision.tradeDelayTotalSec = -12
-    payload.games[0].eventDecision.tradeDelaySamples = 1
+    const payload = MemberAnalysisPayloadSchema.parse({
+      ...anonymousLegacyPayload,
+      contractVersion: 1,
+      dataVersion: MEMBER_ANALYSIS_DATA_VERSION
+    })
+    payload.games[0].eventDecision!.tradeDelayTotalSec = -12
+    payload.games[0].eventDecision!.tradeDelaySamples = 1
     expect(
-      MemberAnalysisPayloadSchema.parse(payload).games[0].eventDecision.tradeDelayTotalSec
+      MemberAnalysisPayloadSchema.parse(payload).games[0].eventDecision!.tradeDelayTotalSec
     ).toBe(-12)
   })
 
@@ -275,4 +281,38 @@ describe('member analysis contract', () => {
       MemberAnalysisSettingsSchema.safeParse({ ...settings, scanLimitPerMember: 5001 }).success
     ).toBe(false)
   })
+})
+
+test('v5 preserves actual zero/null and legacy recovery never guesses zero provenance', () => {
+  const input = structuredClone(anonymousLegacyPayload.games[0])
+  input.players[0].damage = 0
+  const current = MemberAnalysisGameSchema.parse(input)
+  expect(current.players[0].damage).toBe(0)
+  expect(current.gold20Diff).toBe(200)
+  const legacy = normalizeLegacyMemberAnalysisGame(input)
+  expect(legacy.players[0].damage).toBeNull()
+  expect(legacy.players[0].gold).toBe(input.players[0].gold)
+  expect(legacy.gold20Diff).toBeNull()
+  expect(legacy.eventDecision).toBeNull()
+  expect(legacy.metricSemantics).toBe('legacy-unknown')
+  expect(input.players[0].damage).toBe(0)
+})
+
+test('a mixed compatibility payload keeps each game semantics and unavailable fields', () => {
+  const raw = structuredClone(anonymousLegacyPayload.games[0])
+  const legacy = normalizeLegacyMemberAnalysisGame(raw)
+  const current = MemberAnalysisGameSchema.parse({
+    ...raw,
+    gameId: 2,
+    metricSemantics: 'current-v5'
+  })
+  const payload = MemberAnalysisPayloadSchema.parse({
+    contractVersion: 1,
+    dataVersion: MEMBER_ANALYSIS_DATA_VERSION,
+    meta: { ...anonymousLegacyPayload.meta, gameCount: 2 },
+    games: [legacy, current]
+  })
+  expect(payload.games[0].gold20Diff).toBeNull()
+  expect(payload.games[1].gold20Diff).toBe(200)
+  expect(payload.games.map((g) => g.metricSemantics)).toEqual(['legacy-unknown', 'current-v5'])
 })

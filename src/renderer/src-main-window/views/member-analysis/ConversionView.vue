@@ -103,10 +103,10 @@
               {{ cellsByGame.get(game.gameId)?.sample }}
             </p>
             <p v-if="sectionIndex === 1" class="ma-chart-note">
-              死亡代价 {{ formatMetric(game.eventDecision.deathCostPoints) }} 点 · 资源
-              {{ formatMetric(game.eventDecision.deathCostEpics, 'int') }} 个 · 塔
-              {{ formatMetric(game.eventDecision.deathCostTowers, 'int') }} 座 · 镀层
-              {{ formatMetric(game.eventDecision.deathCostPlates, 'int') }} 层
+              死亡代价 {{ formatMetric(game.eventDecision?.deathCostPoints) }} 点 · 资源
+              {{ formatMetric(game.eventDecision?.deathCostEpics, 'int') }} 个 · 塔
+              {{ formatMetric(game.eventDecision?.deathCostTowers, 'int') }} 座 · 镀层
+              {{ formatMetric(game.eventDecision?.deathCostPlates, 'int') }} 层
             </p></template
           >
         </MemberAnalysisEvidenceTable>
@@ -200,8 +200,8 @@ const evidenceGames = computed(() => {
   return rows.sort(
     sectionIndex.value === 1 && deathOrder.value === 'cost'
       ? (a, b) =>
-          b.eventDecision.deathCostPoints - a.eventDecision.deathCostPoints ||
-          b.timestamp - a.timestamp
+          (b.eventDecision?.deathCostPoints ?? -Infinity) -
+            (a.eventDecision?.deathCostPoints ?? -Infinity) || b.timestamp - a.timestamp
       : (a, b) => b.timestamp - a.timestamp
   )
 })

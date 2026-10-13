@@ -142,3 +142,61 @@ describe('joint first-camp evidence', () => {
   })
 })
 export { fixture }
+
+test('mixed legacy/current efficiency evidence matches aggregate numerator/exposure support', () => {
+  const legacy = fixture('red', true)
+  legacy.metricSemantics = 'legacy-unknown'
+  Object.assign(legacy.players[0], { cs: null, gold: null, objectiveDamage: null, minutes: 50 })
+  const zero = fixture('blue', true, 'Red')
+  zero.metricSemantics = 'current-v5'
+  Object.assign(zero.players[0], { cs: 0, gold: 0, objectiveDamage: 0, minutes: 30 })
+  const partial = fixture('red', false)
+  partial.metricSemantics = 'current-v5'
+  Object.assign(partial.players[0], { cs: 120, gold: null, objectiveDamage: 300, minutes: 15 })
+  const games = [legacy, zero, partial]
+  const before = structuredClone(games)
+  const evidence = jungleEvidence(games).get(evidenceKey('A', '总计'))!
+  const aggregate = aggregateJungle(games).find((row) => row.sideLabel === '总计')!
+  expect(evidence.valid).toMatchObject({ cspm: 2, gpm: 1, objectiveDamagePM: 2 })
+  expect(evidence.minutes).toBe(95) // total exposure, never the metric denominator
+  expect(evidence.minutesByMetric).toEqual({ cspm: 45, gpm: 30, objectiveDamagePM: 45 })
+  expect(aggregate.cspm).toBe(120 / evidence.minutesByMetric.cspm)
+  expect(aggregate.gpm).toBe(0)
+  expect(aggregate.objectiveDamagePM).toBe(300 / evidence.minutesByMetric.objectiveDamagePM)
+  expect(jungleEvidence(games).get(evidenceKey('A', '蓝方'))!.minutesByMetric.gpm).toBe(0)
+  expect(jungleEvidence(games).get(evidenceKey('A', '红方'))!.minutesByMetric.gpm).toBe(30)
+  expect(games).toEqual(before)
+})
+
+test('missing efficiency numerator or exposure contributes no valid time; known zero stays valid', () => {
+  const missing = fixture('red', true)
+  Object.assign(missing.players[0], { cs: null, gold: null, objectiveDamage: null })
+  const e = jungleEvidence([missing]).get(evidenceKey('A', '总计'))!
+  expect(e.minutesByMetric).toEqual({ cspm: 0, gpm: 0, objectiveDamagePM: 0 })
+  expect(e.valid).toMatchObject({ cspm: 0, gpm: 0, objectiveDamagePM: 0 })
+  expect(aggregateJungle([missing])[0]).toMatchObject({
+    cspm: null,
+    gpm: null,
+    objectiveDamagePM: null
+  })
+  const invalidExposure = fixture('red', true)
+  invalidExposure.players[0].minutes = Number.NaN // rejected by source schema; pure guard matches aggregation
+  const invalid = jungleEvidence([invalidExposure]).get(evidenceKey('A', '总计'))!
+  expect(invalid.valid).toMatchObject({ cspm: 0, gpm: 0, objectiveDamagePM: 0 })
+  expect(invalid.minutesByMetric).toEqual({ cspm: 0, gpm: 0, objectiveDamagePM: 0 })
+  expect(aggregateJungle([invalidExposure])[0]).toMatchObject({
+    cspm: null,
+    gpm: null,
+    objectiveDamagePM: null
+  })
+  const zero = fixture('red', true)
+  Object.assign(zero.players[0], { cs: 0, gold: 0, objectiveDamage: 0, minutes: 0 })
+  const z = jungleEvidence([zero]).get(evidenceKey('A', '总计'))!
+  expect(z.valid).toMatchObject({ cspm: 1, gpm: 1, objectiveDamagePM: 1 })
+  expect(z.minutesByMetric).toEqual({ cspm: 0, gpm: 0, objectiveDamagePM: 0 })
+  expect(aggregateJungle([zero])[0]).toMatchObject({
+    cspm: null,
+    gpm: null,
+    objectiveDamagePM: null
+  })
+})

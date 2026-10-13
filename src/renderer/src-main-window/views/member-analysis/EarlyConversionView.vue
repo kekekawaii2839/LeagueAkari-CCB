@@ -111,6 +111,7 @@
       :columns="gameColumns"
       :context-key="`${timing}|${group}|${selectedBucket}`"
       :scroll-x="650"
+      :navigate-to-match="evidenceNavigation"
     >
       <template #detail="{ game }"
         ><p class="ma-chart-note">
@@ -131,6 +132,7 @@ import {
   type DataTableColumns
 } from 'naive-ui'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { aggregateEarlyBuckets, earlyGoldDiff } from './analytics'
 import {
   earlyBucketLabel,
@@ -148,6 +150,7 @@ import { uiText } from './ui-text'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { formatSigned, wilsonInterval } from './visualization'
 const { games } = useMemberAnalysisData()
+const store = useMemberAnalysisStore()
 const root = ref<HTMLElement | null>(null)
 const compact = ref(false)
 let resizeObserver: ResizeObserver | undefined
@@ -240,6 +243,26 @@ const evidenceRows = computed(() =>
     .sort((a, b) => b.game.timestamp - a.game.timestamp)
 )
 const evidenceGames = computed(() => evidenceRows.value.map((row) => row.game))
+const evidenceNavigation = computed(() => {
+  const publishedGeneration = store.overviewGeneration
+  const supported = evidenceGames.value
+  const source = `${timing.value} 分钟 · ${earlyGroups.find((item) => item.key === group.value)?.label ?? ''} · ${selectedBucket.value}`
+  return (game: MemberAnalysisGame) => {
+    if (!supported.includes(game)) return
+    if (store.navigateToMatches([game.gameId], source, publishedGeneration)) {
+      store.navigateToMatch(game.gameId, source)
+    } else {
+      const keys = {
+        empty: 'scopeErrorEmpty',
+        invalid: 'scopeErrorInvalid',
+        ambiguous: 'scopeErrorAmbiguous',
+        missing: 'scopeErrorMissing',
+        stale: 'scopeErrorStale'
+      } as const
+      notice.value = uiText(keys[store.matchListScopeError ?? 'invalid'])
+    }
+  }
+})
 const diffsByGame = computed(
   () => new Map(evidenceRows.value.map((row) => [row.game.gameId, row.diff]))
 )

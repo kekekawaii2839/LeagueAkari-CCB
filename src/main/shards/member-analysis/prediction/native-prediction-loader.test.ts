@@ -508,3 +508,42 @@ test('exactly 500 games retain every future observation and source without trunc
   expect(f.readSource).toHaveBeenCalledTimes(500)
   expect(result.provenance.futureInput?.gameCount).toBe(498)
 })
+
+test('validated native nullable future input maps absent facts to null without altering Lab seed', async () => {
+  const f = futureFixture()
+  const native = {
+    ...f.game,
+    patch: '26.1',
+    roster: 'synthetic',
+    metricSemantics: 'current-v5',
+    counterMean: null,
+    upperGold15: null,
+    botGold15: null,
+    gold20Diff: null,
+    tower20Diff: null,
+    jungle: null,
+    laneGankDeaths: null,
+    eventDecision: null,
+    players: f.game.players.map((row, i) => ({
+      ...row,
+      champion: `Synthetic${i}`,
+      counter: null,
+      damage: i === 0 ? null : 0,
+      shieldTeammates: null,
+      fbPart: null
+    }))
+  }
+  f.additional.games = [native]
+  const result = await f.run()
+  const rows = result.request.observations.filter((row) => row.gameId === 3)
+  expect(rows).toHaveLength(5)
+  expect(rows[0].metrics[performanceMetricKeys.indexOf('dpm')]).toBeNull()
+  expect(rows[1].metrics[performanceMetricKeys.indexOf('dpm')]).toBe(0)
+  expect(rows.every((row) => row.metrics[performanceMetricKeys.indexOf('shieldPM')] === null)).toBe(
+    true
+  )
+  expect(rows.every((row) => row.metrics[performanceMetricKeys.indexOf('fbRate')] === null)).toBe(
+    true
+  )
+  expect(f.additional.games[0]).toEqual(native)
+})

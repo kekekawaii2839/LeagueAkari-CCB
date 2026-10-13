@@ -60,6 +60,36 @@ function createHarness() {
 }
 
 describe('member analysis IPC boundary', () => {
+  test('member settings retain dedicated source, full field validation and normalized reads/writes', async () => {
+    const { handlers, event, context } = createHarness()
+    expect(handlers.get('getSettings')!({ sender: {} })).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+    expect(await handlers.get('updateSettings')!({ sender: {} }, { enabled: false })).toMatchObject(
+      { ok: false, error: { code: 'INVALID_ARGUMENT' } }
+    )
+    for (const settings of [
+      { storageLimitGiB: null },
+      { scanLimitPerMember: 100.5 },
+      { members: [{ serverId: 'bad/server', gameName: 'Synthetic', tagLine: 'TEST' }] },
+      { members: [{ serverId: 'SYNTHETIC', gameName: '   ', tagLine: 'TEST' }] }
+    ])
+      expect(await handlers.get('updateSettings')!(event, settings)).toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_ARGUMENT' }
+      })
+    expect(context.settingService.set).not.toHaveBeenCalled()
+    const result = await handlers.get('updateSettings')!(event, {
+      members: [{ serverId: ' SYNTHETIC ', gameName: ' Synthetic Name ', tagLine: ' TEST ' }]
+    })
+    expect(result).toMatchObject({
+      ok: true,
+      value: { members: [{ serverId: 'SYNTHETIC', gameName: 'Synthetic Name', tagLine: 'TEST' }] }
+    })
+    expect(handlers.get('getSettings')!(event)).toEqual(result)
+  })
+
   test('keeps the prediction experiment off by default and saves it via validated settings', async () => {
     const { handlers, event, context } = createHarness()
     const get = handlers.get('getSettings')!

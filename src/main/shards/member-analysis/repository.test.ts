@@ -3,13 +3,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { MemberAnalysisRepository } from './repository'
 
 const roots: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
@@ -110,7 +111,7 @@ function syntheticGame(gameId: number, player = 'Player Alpha') {
   }
 }
 
-function writeAnalysis(path: string, count: number) {
+function writeAnalysis(path: string, count: number, playerCount = 1) {
   const database = new DatabaseSync(path)
   database.exec(
     `CREATE TABLE derived_games(server_id TEXT NOT NULL,game_id INTEGER NOT NULL,checksum TEXT NOT NULL,payload_json TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(server_id,game_id)); CREATE TABLE metadata(key TEXT PRIMARY KEY,value TEXT NOT NULL); INSERT INTO metadata VALUES('generated_at','2026-01-01T00:00:00.000Z'); INSERT INTO metadata VALUES('derivation_version','2');`
@@ -122,7 +123,12 @@ function writeAnalysis(path: string, count: number) {
       'TEST',
       gameId,
       `checksum-${gameId}`,
-      JSON.stringify(syntheticGame(gameId)),
+      JSON.stringify(
+        syntheticGame(
+          gameId,
+          playerCount === 1 ? 'Player Alpha' : `Synthetic ${gameId % playerCount}`
+        )
+      ),
       '2026-01-01'
     )
   database.exec('COMMIT')
@@ -130,6 +136,161 @@ function writeAnalysis(path: string, count: number) {
 }
 
 describe('member analysis repository', () => {
+  test('reuses both full-scope counts across five pages but not a new first request or filter', () => {
+    const value = repository()
+    try {
+      writeAnalysis(value.currentAnalysisPath, 500, 30)
+      const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare')
+      const countCalls = () =>
+        prepare.mock.calls.filter(
+          ([sql]) => /^SELECT COUNT\((\*|DISTINCT)/.test(sql) && sql.includes('derived_games')
+        ).length
+      const first = value.readGames({ pageSize: 100 })
+      const ids = first.games.map((game) => game.gameId)
+      let cursor = first.nextCursor
+      while (cursor) {
+        const page = value.readGames({ pageSize: 100, cursor })
+        expect(page.total).toBe(500)
+        expect(page.playerCount).toBe(30)
+        ids.push(...page.games.map((game) => game.gameId))
+        cursor = page.nextCursor
+      }
+      expect(ids).toHaveLength(500)
+      expect(new Set(ids).size).toBe(500)
+      expect(countCalls()).toBe(2)
+      value.readGames({ pageSize: 100 })
+      expect(countCalls()).toBe(4)
+      const filters = {
+        outcome: 'win' as const,
+        patch: 'all',
+        dateFrom: '',
+        dateTo: '',
+        durationMin: null,
+        durationMax: null,
+        participant: 'all',
+        matchRole: 'all' as const,
+        champion: 'all',
+        query: ''
+      }
+      const filtered = value.readGames({ pageSize: 100, cursor: first.nextCursor, filters })
+      expect(filtered.total).toBe(250)
+      expect(filtered.playerCount).toBe(15)
+      expect(countCalls()).toBe(6)
+      value.readGames({ pageSize: 100, cursor: first.nextCursor })
+      expect(countCalls()).toBe(8)
+    } finally {
+      value.close()
+    }
+  })
+
+  test('invalidates continuation counts on a publication with the same generated timestamp', () => {
+    const value = repository()
+    try {
+      writeAnalysis(value.currentAnalysisPath, 20, 5)
+      const first = value.readGames({ pageSize: 5 })
+      writeAnalysis(value.stagingAnalysisPath, 7)
+      value.publishStaging()
+      const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare')
+      const current = value.readGames({ cursor: first.nextCursor, pageSize: 5 })
+      expect(current.generatedAt).toBe(first.generatedAt)
+      expect(current.total).toBe(7)
+      expect(current.playerCount).toBe(1)
+      expect(
+        prepare.mock.calls.filter(
+          ([sql]) => sql.startsWith('SELECT COUNT(') && sql.includes('derived_games')
+        )
+      ).toHaveLength(2)
+    } finally {
+      value.close()
+    }
+  })
+
+  test.each(['delete', 'wal'] as const)(
+    'detects in-place data changes without a new generated timestamp: %s',
+    (mode) => {
+      const value = repository()
+      let writer: DatabaseSync | null = null
+      try {
+        writeAnalysis(value.currentAnalysisPath, 20, 5)
+        writer = new DatabaseSync(value.currentAnalysisPath)
+        if (mode === 'wal') writer.exec('PRAGMA journal_mode=WAL')
+        const first = value.readGames({ pageSize: 5 })
+        writer.exec('DELETE FROM derived_games WHERE game_id > 1')
+        const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare')
+        const current = value.readGames({ cursor: first.nextCursor, pageSize: 5 })
+        expect(current.generatedAt).toBe(first.generatedAt)
+        expect(current.total).toBe(1)
+        expect(current.playerCount).toBe(1)
+        expect(
+          prepare.mock.calls.filter(
+            ([sql]) => sql.startsWith('SELECT COUNT(') && sql.includes('derived_games')
+          )
+        ).toHaveLength(2)
+      } finally {
+        writer?.close()
+        value.close()
+      }
+    }
+  )
+
+  test('invalidates counts after failed publication rollback and still validates versions per page', () => {
+    const value = repository()
+    try {
+      writeAnalysis(value.currentAnalysisPath, 20, 5)
+      const first = value.readGames({ pageSize: 5 })
+      writeAnalysis(value.stagingAnalysisPath, 7)
+      vi.spyOn(value.opponentRanks, 'publishGames').mockImplementationOnce(() => {
+        throw new Error('Synthetic publication failure')
+      })
+      expect(() => value.publishStaging()).toThrow('Synthetic publication failure')
+      const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare')
+      const restored = value.readGames({ cursor: first.nextCursor, pageSize: 5 })
+      expect(restored.total).toBe(20)
+      expect(restored.playerCount).toBe(5)
+      expect(
+        prepare.mock.calls.filter(
+          ([sql]) => sql.startsWith('SELECT COUNT(') && sql.includes('derived_games')
+        )
+      ).toHaveLength(2)
+      const database = new DatabaseSync(value.currentAnalysisPath)
+      database.prepare("UPDATE metadata SET value='999' WHERE key='derivation_version'").run()
+      database.close()
+      expect(() => value.readGames({ cursor: restored.nextCursor, pageSize: 5 })).toThrow(
+        'Unsupported member analysis derivation version'
+      )
+    } finally {
+      value.close()
+    }
+  })
+
+  test('clears counts when the publication disappears and when the repository is reopened', () => {
+    const value = repository()
+    try {
+      writeAnalysis(value.currentAnalysisPath, 20, 5)
+      const first = value.readGames({ pageSize: 5 })
+      value.close()
+      value.initialize()
+      const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare')
+      expect(value.readGames({ cursor: first.nextCursor, pageSize: 5 }).total).toBe(20)
+      expect(
+        prepare.mock.calls.filter(
+          ([sql]) => sql.startsWith('SELECT COUNT(') && sql.includes('derived_games')
+        )
+      ).toHaveLength(2)
+      rmSync(value.currentAnalysisPath)
+      expect(value.readGames({ cursor: first.nextCursor }).total).toBe(0)
+      writeAnalysis(value.currentAnalysisPath, 2)
+      expect(value.readGames({ cursor: first.nextCursor }).total).toBe(2)
+      expect(
+        prepare.mock.calls.filter(
+          ([sql]) => sql.startsWith('SELECT COUNT(') && sql.includes('derived_games')
+        )
+      ).toHaveLength(4)
+    } finally {
+      value.close()
+    }
+  })
+
   test('future prediction expansion checks raw future start before touching old derived outcomes', () => {
     const value = repository()
     try {
@@ -542,4 +703,34 @@ describe('member analysis repository', () => {
     restored.close()
     value.close()
   })
+})
+
+test('read-only legacy recovery keeps unknown zeros unavailable; v5 zeros survive publication', () => {
+  const value = repository()
+  writeAnalysis(value.currentAnalysisPath, 1)
+  const before = readFileSync(value.currentAnalysisPath)
+  const old = value.readGames().games[0]
+  expect(old.metricSemantics).toBe('legacy-unknown')
+  expect(old.players[0].kills).toBeNull()
+  expect(old.gold20Diff).toBeNull()
+  expect(old.eventDecision).toBeNull()
+  expect(readFileSync(value.currentAnalysisPath)).toEqual(before)
+  writeAnalysis(value.stagingAnalysisPath, 1)
+  const db = new DatabaseSync(value.stagingAnalysisPath)
+  db.prepare("UPDATE metadata SET value='5' WHERE key='derivation_version'").run()
+  db.close()
+  value.publishStaging()
+  expect(value.readGames().games[0].players[0].kills).toBe(0)
+  expect(value.readGames().games[0].gold20Diff).toBe(0)
+  value.close()
+})
+test('invalid staging leaves legacy results readable even without raw caches', () => {
+  const value = repository()
+  writeAnalysis(value.currentAnalysisPath, 1)
+  const before = readFileSync(value.currentAnalysisPath)
+  writeFileSync(value.stagingAnalysisPath, 'invalid staging')
+  expect(() => value.publishStaging()).toThrow()
+  expect(readFileSync(value.currentAnalysisPath)).toEqual(before)
+  expect(value.readGames().games[0].metricSemantics).toBe('legacy-unknown')
+  value.close()
 })

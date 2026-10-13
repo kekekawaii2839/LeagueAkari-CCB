@@ -13,11 +13,11 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from member_analysis.analysis import derive_game
+    from member_analysis.analysis import RequiredSummaryStatisticUnavailable, derive_game
     from member_analysis.opgg import OpggLaneKillClient, enrich_games
 except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from analysis import derive_game
+    from analysis import RequiredSummaryStatisticUnavailable, derive_game
     from opgg import OpggLaneKillClient, enrich_games
 
 
@@ -114,7 +114,7 @@ def run(args: argparse.Namespace) -> int:
     connection.execute(
         "INSERT OR REPLACE INTO metadata(key,value) VALUES('source','SGP 对局历史与详情')"
     )
-    connection.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('derivation_version','4')")
+    connection.execute("INSERT OR REPLACE INTO metadata(key,value) VALUES('derivation_version','5')")
     connection.commit()
     integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     count = connection.execute("SELECT COUNT(*) FROM derived_games").fetchone()[0]
@@ -150,6 +150,9 @@ def main() -> None:
     args = parser.parse_args()
     try:
         raise SystemExit(run(args))
+    except RequiredSummaryStatisticUnavailable:
+        emit("error", code="SUMMARY_STAT_UNAVAILABLE", message="Required match summary statistics unavailable")
+        raise SystemExit(1) from None
     except Exception as error:
         emit("error", code="WORKER_FAILED", message=str(error)[:240])
         raise SystemExit(1) from None

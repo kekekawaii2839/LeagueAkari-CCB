@@ -24,6 +24,18 @@ jobs:
     name: Merge verified upstream/dev
     runs-on: windows-2022
     steps:
+      # Repository prerequisite: configure a fine-grained credential with contents:read
+      # for the private akari-prediction-lab repository. The default GITHUB_TOKEN
+      # cannot read another private repository. Never fall back to unpinned sources.
+      - name: Require authorized private Lab read access
+        shell: pwsh
+        env:
+          LAB_READ_TOKEN: ${{ secrets.PREDICTION_LAB_READ_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:LAB_READ_TOKEN)) {
+            throw "Missing PREDICTION_LAB_READ_TOKEN prerequisite: private Lab contents read access required"
+          }
+
       - name: Check out the CCB development branch
         uses: actions/checkout@v7
         with:
@@ -57,6 +69,47 @@ jobs:
           git switch -c "automation/upstream-${upstream_sha:0:12}"
           git merge --no-ff --no-commit upstream/dev
           node -e "const fs=require('node:fs');const p='docs/fork/patch-manifest.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.upstreamBaseline=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n')" "$upstream_sha"
+
+      - name: Resolve the fixed Lab gitlink
+        if: steps.freshness.outputs.changed == 'true'
+        id: lab-pin
+        shell: pwsh
+        run: |
+          $entry = @(git ls-files --stage -- packages/prediction-lab)
+          if ($LASTEXITCODE -ne 0 -or $entry.Count -ne 1 -or [string]$entry[0] -notmatch '^160000 ([a-f0-9]{40}) 0\tpackages/prediction-lab$') {
+            throw "A resolved fixed Prediction Lab gitlink is required"
+          }
+          $sha = $Matches[1]
+          # The merged .gitmodules file must never choose where the private read
+          # credential is sent. Checkout below also uses this fixed repository.
+          $labPath = git config --file .gitmodules --get submodule.prediction-lab.path
+          if ($LASTEXITCODE -ne 0 -or $labPath -ne 'packages/prediction-lab') {
+            throw "Prediction Lab path differs from the authorized fixed source"
+          }
+          $labUrl = git config --file .gitmodules --get submodule.prediction-lab.url
+          if ($LASTEXITCODE -ne 0 -or $labUrl -ne 'https://github.com/kekekawaii2839/akari-prediction-lab.git') {
+            throw "Prediction Lab URL differs from the authorized fixed source"
+          }
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+
+      - name: Initialize private Lab at the fixed gitlink
+        if: steps.freshness.outputs.changed == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: kekekawaii2839/akari-prediction-lab
+          path: packages/prediction-lab
+          ref: ${{ steps.lab-pin.outputs.sha }}
+          token: ${{ secrets.PREDICTION_LAB_READ_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Require pinned and clean Lab before dependency or runtime gates
+        if: steps.freshness.outputs.changed == 'true'
+        run: node scripts/checks/check-prediction-lab-submodule.mjs --require-pinned
+
+      - name: Verify exact staged and working-tree privacy candidates
+        if: steps.freshness.outputs.changed == 'true'
+        run: node scripts/checks/check-member-analysis-data-leaks.mjs
 
       - name: Set up Node
         if: steps.freshness.outputs.changed == 'true'

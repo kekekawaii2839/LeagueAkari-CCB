@@ -36,7 +36,8 @@
           <strong>{{ player.player.split('#')[0] }}</strong>
           <span>{{ player.champion }}</span>
           <span class="ma-view-meta"
-            >{{ player.kills }} / {{ player.deaths }} / {{ player.assists }}</span
+            >{{ formatMetric(player.kills, 'int') }} / {{ formatMetric(player.deaths, 'int') }} /
+            {{ formatMetric(player.assists, 'int') }}</span
           >
         </div>
       </div>
@@ -48,6 +49,7 @@
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
 import { NButton, NDataTable, type DataTableColumns } from 'naive-ui'
 import { computed, h, nextTick, ref, useId, watch } from 'vue'
+import { formatMetric } from './metric-defs'
 import { fixedFiveRoster } from './visualization'
 
 const props = withDefaults(

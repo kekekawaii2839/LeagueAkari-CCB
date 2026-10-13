@@ -23,15 +23,18 @@ export class SettingFactoryIpcHandlers {
       namespace,
       'set',
       async (_, settingNamespace: string, key: string, newValue: any) => {
+        this._assertGenericAccess(settingNamespace, key)
         await this.settingFactory.setSetting(settingNamespace, key, newValue)
       }
     )
 
     ipc.onCall(namespace, 'get', async (_, settingNamespace: string, key: string) => {
+      this._assertGenericAccess(settingNamespace, key)
       return this.settingFactory.getSetting(settingNamespace, key)
     })
 
     ipc.onCall(namespace, 'getByPrefix', async (_, settingNamespace: string, keyPrefix: string) => {
+      this._assertGenericAccess(settingNamespace, keyPrefix)
       return this.settingFactory.getSettingsByPrefix(settingNamespace, keyPrefix)
     })
 
@@ -39,6 +42,7 @@ export class SettingFactoryIpcHandlers {
       namespace,
       'removeByPrefix',
       async (_, settingNamespace: string, keyPrefix: string) => {
+        this._assertGenericAccess(settingNamespace, keyPrefix)
         return this.settingFactory.removeSettingsByPrefix(settingNamespace, keyPrefix)
       }
     )
@@ -70,6 +74,17 @@ export class SettingFactoryIpcHandlers {
       const filePath = result.filePaths[0]
       return await this.settingsJsonFileService.readSettingsFromJsonFile(filePath)
     })
+  }
+
+  private _assertGenericAccess(settingNamespace: string, key: string) {
+    // Feature configuration is reachable only through its sender/schema-validated IPC.
+    // Check the storage key too: a nested namespace must not bypass the boundary.
+    if (`${settingNamespace}/${key}`.startsWith('member-analysis-main/')) {
+      throw new AkariIpcError(
+        'Use member-analysis-main settings IPC for member analysis configuration',
+        'ProtectedSettingsNamespace'
+      )
+    }
   }
 
   private _getMainWindow() {

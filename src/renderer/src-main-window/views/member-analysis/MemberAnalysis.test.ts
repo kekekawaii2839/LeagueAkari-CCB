@@ -11,6 +11,7 @@ import { renderToString } from 'vue/server-renderer'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 
+import { MEMBER_ANALYSIS_DATA_VERSION } from '@shared/shards/member-analysis'
 import MemberAnalysis from './MemberAnalysis.vue'
 
 const renderer = vi.hoisted(() => ({
@@ -60,6 +61,7 @@ vi.mock('naive-ui', () => {
     NButton: Stub,
     NPagination: Stub,
     useThemeVars: () => ref({ fontFamily: 'system-ui', primaryColor: '#587c66' }),
+    useMessage: () => ({ error: vi.fn() }),
     NDataTable: Stub,
     NEmpty: Stub,
     NProgress: Stub,
@@ -82,7 +84,7 @@ vi.mock('naive-ui', () => {
 
 const emptyOverview = {
   contractVersion: 1 as const,
-  dataVersion: 4 as const,
+  dataVersion: MEMBER_ANALYSIS_DATA_VERSION,
   firstRun: false,
   generatedAt: null,
   source: 'SGP 对局历史与详情',
@@ -114,7 +116,7 @@ async function renderState(
   }
   store.capabilities = {
     contractVersion: 1,
-    dataVersion: 4,
+    dataVersion: MEMBER_ANALYSIS_DATA_VERSION,
     featureEnabled: state !== 'feature-disabled',
     workerAvailable: true,
     methods: [
@@ -131,11 +133,13 @@ async function renderState(
     ]
   }
   store.overview =
-    state === 'first-run'
-      ? { ...emptyOverview, firstRun: true }
-      : state === 'ready'
-        ? { ...emptyOverview, gameCount: 1, playerCount: 1 }
-        : emptyOverview
+    state === 'loading' || state === 'error'
+      ? null
+      : state === 'first-run'
+        ? { ...emptyOverview, firstRun: true }
+        : state === 'ready'
+          ? { ...emptyOverview, gameCount: 1, playerCount: 1 }
+          : emptyOverview
   store.error =
     state === 'error'
       ? { code: 'INTERNAL_ERROR', message: 'synthetic degraded state', retryable: true }

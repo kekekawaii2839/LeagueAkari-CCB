@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { OpponentRanksSchema } from './opponent-ranks'
 
 export const MEMBER_ANALYSIS_CONTRACT_VERSION = 1 as const
-export const MEMBER_ANALYSIS_DATA_VERSION = 4 as const
+export const MEMBER_ANALYSIS_DATA_VERSION = 5 as const
 
 export const MemberAnalysisRoleSchema = z.enum(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'])
 export const MemberAnalysisSideSchema = z.enum(['Blue', 'Red'])
@@ -16,31 +16,31 @@ export const MemberAnalysisPlayerGameSchema = z
     role: MemberAnalysisRoleSchema,
     champion: z.string().trim().min(1).max(64),
     minutes: z.number().finite().nonnegative(),
-    kills: z.number().int().nonnegative(),
-    deaths: z.number().int().nonnegative(),
-    assists: z.number().int().nonnegative(),
-    teamKills: z.number().int().nonnegative(),
-    teamDeaths: z.number().int().nonnegative(),
-    damage: z.number().finite().nonnegative(),
+    kills: z.number().int().nonnegative().nullable(),
+    deaths: z.number().int().nonnegative().nullable(),
+    assists: z.number().int().nonnegative().nullable(),
+    teamKills: z.number().int().nonnegative().nullable(),
+    teamDeaths: z.number().int().nonnegative().nullable(),
+    damage: z.number().finite().nonnegative().nullable(),
     damageShare: nullableFiniteNumber,
-    gold: z.number().finite().nonnegative(),
+    gold: z.number().finite().nonnegative().nullable(),
     goldShare: nullableFiniteNumber,
-    cs: z.number().finite().nonnegative(),
-    vision: z.number().finite().nonnegative(),
-    wardsPlaced: z.number().int().nonnegative(),
-    wardsKilled: z.number().int().nonnegative(),
-    controlWards: z.number().int().nonnegative(),
-    damageTaken: z.number().finite().nonnegative(),
+    cs: z.number().finite().nonnegative().nullable(),
+    vision: z.number().finite().nonnegative().nullable(),
+    wardsPlaced: z.number().int().nonnegative().nullable(),
+    wardsKilled: z.number().int().nonnegative().nullable(),
+    controlWards: z.number().int().nonnegative().nullable(),
+    damageTaken: z.number().finite().nonnegative().nullable(),
     takenShare: nullableFiniteNumber,
-    damageMitigated: z.number().finite().nonnegative(),
-    objectiveDamage: z.number().finite().nonnegative(),
-    turretDamage: z.number().finite().nonnegative(),
-    healTeammates: z.number().finite().nonnegative(),
-    shieldTeammates: z.number().finite().nonnegative(),
-    ccSeconds: z.number().finite().nonnegative(),
-    soloKills: z.number().int().nonnegative(),
-    fbPart: z.boolean(),
-    ftPart: z.boolean(),
+    damageMitigated: z.number().finite().nonnegative().nullable(),
+    objectiveDamage: z.number().finite().nonnegative().nullable(),
+    turretDamage: z.number().finite().nonnegative().nullable(),
+    healTeammates: z.number().finite().nonnegative().nullable(),
+    shieldTeammates: z.number().finite().nonnegative().nullable(),
+    ccSeconds: z.number().finite().nonnegative().nullable(),
+    soloKills: z.number().int().nonnegative().nullable(),
+    fbPart: z.boolean().nullable(),
+    ftPart: z.boolean().nullable(),
     kp: nullableFiniteNumber,
     gd10: nullableFiniteNumber,
     gd15: nullableFiniteNumber,
@@ -59,24 +59,24 @@ export const MemberAnalysisJungleGameSchema = z
     startCamp: z.enum(['red', 'blue', 'gromp', 'wolves', 'raptors', 'krugs']).nullable(),
     startCampSide: z.enum(['blue', 'red']).nullable(),
     startCampOwn: z.boolean().nullable(),
-    level3Gank: z.boolean(),
-    level4Gank: z.boolean(),
-    topGanks: z.number().int().nonnegative(),
-    midGanks: z.number().int().nonnegative(),
-    botGanks: z.number().int().nonnegative(),
-    topZoneWeight: z.number().finite().nonnegative(),
-    midZoneWeight: z.number().finite().nonnegative(),
-    botZoneWeight: z.number().finite().nonnegative(),
-    totalZoneWeight: z.number().finite().nonnegative(),
+    level3Gank: z.boolean().nullable(),
+    level4Gank: z.boolean().nullable(),
+    topGanks: z.number().int().nonnegative().nullable(),
+    midGanks: z.number().int().nonnegative().nullable(),
+    botGanks: z.number().int().nonnegative().nullable(),
+    topZoneWeight: z.number().finite().nonnegative().nullable(),
+    midZoneWeight: z.number().finite().nonnegative().nullable(),
+    botZoneWeight: z.number().finite().nonnegative().nullable(),
+    totalZoneWeight: z.number().finite().nonnegative().nullable(),
     gotFirstDragon: z.boolean().nullable(),
-    dragons: z.number().int().nonnegative(),
-    soloDragons: z.number().int().nonnegative(),
+    dragons: z.number().int().nonnegative().nullable(),
+    soloDragons: z.number().int().nonnegative().nullable(),
     firstDragonTimeSec: nullableFiniteNumber,
-    voidgrubs: z.number().int().nonnegative(),
+    voidgrubs: z.number().int().nonnegative().nullable(),
     firstVoidgrubTimeSec: nullableFiniteNumber,
-    heralds: z.number().int().nonnegative(),
+    heralds: z.number().int().nonnegative().nullable(),
     firstHeraldTimeSec: nullableFiniteNumber,
-    barons: z.number().int().nonnegative(),
+    barons: z.number().int().nonnegative().nullable(),
     firstBaronTimeSec: nullableFiniteNumber
   })
   .strict()
@@ -156,19 +156,20 @@ export const MemberAnalysisGameSchema = z
     win: z.boolean(),
     duration: z.number().finite().nonnegative(),
     roster: z.string().max(512),
+    metricSemantics: z.enum(['current-v5', 'legacy-unknown']).optional(),
     // Additive, main-owned current snapshots; absent in legacy worker datasets.
     opponentRanks: OpponentRanksSchema.optional(),
-    dragon15Diff: z.number().finite(),
-    grub15Diff: z.number().finite(),
-    objectiveFight15Diff: z.number().finite(),
+    dragon15Diff: nullableFiniteNumber,
+    grub15Diff: nullableFiniteNumber,
+    objectiveFight15Diff: nullableFiniteNumber,
     counterMean: nullableFiniteNumber,
-    upperGold15: z.number().finite(),
-    botGold15: z.number().finite(),
-    gold20Diff: z.number().finite(),
-    tower20Diff: z.number().finite(),
+    upperGold15: nullableFiniteNumber,
+    botGold15: nullableFiniteNumber,
+    gold20Diff: nullableFiniteNumber,
+    tower20Diff: nullableFiniteNumber,
     jungle: MemberAnalysisJungleGameSchema.nullable(),
     laneGankDeaths: MemberAnalysisLaneGankDeathsSchema.default(null),
-    eventDecision: MemberAnalysisEventDecisionGameSchema,
+    eventDecision: MemberAnalysisEventDecisionGameSchema.nullable(),
     players: z.array(MemberAnalysisPlayerGameSchema).max(10)
   })
   .strict()
@@ -474,11 +475,85 @@ export type MemberAnalysisCollectionAudit = z.infer<typeof MemberAnalysisCollect
 export type MemberAnalysisResult<T> =
   { ok: true; value: T } | { ok: false; error: MemberAnalysisError }
 
+/** Old producers lost absence through zero coercion. Nonzero raw scalar facts
+ * remain readable; zero is conservatively unavailable (not declared missing).
+ * Derived totals/differences cannot certify their denominator/component coverage.
+ * This is a read-only conversion: raw caches and databases are never rewritten. */
+export function normalizeLegacyMemberAnalysisGame(input: unknown): MemberAnalysisGame {
+  const game = MemberAnalysisGameSchema.parse(input)
+  game.metricSemantics = 'legacy-unknown'
+  for (const row of game.players) {
+    for (const key of [
+      'kills',
+      'deaths',
+      'assists',
+      'gold',
+      'damage',
+      'vision',
+      'wardsPlaced',
+      'wardsKilled',
+      'controlWards',
+      'damageTaken',
+      'damageMitigated',
+      'objectiveDamage',
+      'turretDamage',
+      'healTeammates',
+      'shieldTeammates',
+      'ccSeconds',
+      'soloKills'
+    ] as const) {
+      if (row[key] === 0) row[key] = null
+    }
+    // CS was a sum of two independently zero-coerced components.
+    row.cs = null
+    row.teamKills = null
+    row.teamDeaths = null
+    row.damageShare = null
+    row.goldShare = null
+    row.kp = null
+    if (row.fbPart === false) row.fbPart = null
+    if (row.ftPart === false) row.ftPart = null
+    // Nullable frame presence did not protect absent frame statistic values.
+    row.gd10 = row.gd15 = row.csd15 = row.xpd15 = row.damageDiff15 = row.soloDiff15 = null
+  }
+  game.upperGold15 = game.botGold15 = game.gold20Diff = null
+  game.dragon15Diff = game.grub15Diff = game.objectiveFight15Diff = game.tower20Diff = null
+  game.eventDecision = null
+  if (game.laneGankDeaths?.status === 'available')
+    game.laneGankDeaths = { methodVersion: 1, status: 'unavailable', reason: 'timeline-incomplete' }
+  if (game.jungle) {
+    for (const key of [
+      'level3Gank',
+      'level4Gank',
+      'topGanks',
+      'midGanks',
+      'botGanks',
+      'topZoneWeight',
+      'midZoneWeight',
+      'botZoneWeight',
+      'totalZoneWeight',
+      'gotFirstDragon',
+      'dragons',
+      'soloDragons',
+      'firstDragonTimeSec',
+      'voidgrubs',
+      'firstVoidgrubTimeSec',
+      'heralds',
+      'firstHeraldTimeSec',
+      'barons',
+      'firstBaronTimeSec'
+    ] as const)
+      game.jungle[key] = null
+  }
+  return game
+}
+
 export function migrateLegacyMemberAnalysisPayload(input: unknown): MemberAnalysisPayload {
   const legacy = LegacyMemberAnalysisPayloadSchema.parse(input)
   return MemberAnalysisPayloadSchema.parse({
     contractVersion: MEMBER_ANALYSIS_CONTRACT_VERSION,
     dataVersion: MEMBER_ANALYSIS_DATA_VERSION,
-    ...legacy
+    ...legacy,
+    games: legacy.games.map(normalizeLegacyMemberAnalysisGame)
   })
 }

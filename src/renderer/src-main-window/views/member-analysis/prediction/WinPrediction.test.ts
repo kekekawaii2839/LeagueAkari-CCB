@@ -12,6 +12,7 @@ import WinPrediction from './WinPrediction.vue'
 
 vi.mock('./prediction.worker?worker', () => ({ default: class {} }))
 vi.mock('naive-ui', () => ({
+  useMessage: () => ({}),
   NButton: defineComponent({
     setup:
       (_, { slots }) =>

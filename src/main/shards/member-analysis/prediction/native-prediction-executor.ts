@@ -12,7 +12,6 @@ import {
 } from '../../../../../packages/prediction-lab/src/legacy/model'
 import type { PredictionSide } from '../../../../../packages/prediction-lab/src/legacy/side-history'
 import { performanceMetricKeys } from '../../../../../packages/prediction-lab/src/metrics'
-import createWorker from './native-prediction-worker?nodeWorker'
 
 export interface NativePredictionRequest {
   observations: PredictionObservation[]
@@ -126,7 +125,7 @@ function validate(request: NativePredictionRequest, now: number) {
 export class NativePredictionExecutor {
   private _active = false
 
-  execute(
+  async execute(
     request: NativePredictionRequest,
     { signal }: { signal?: AbortSignal } = {}
   ): Promise<NativePredictionOutcome> {
@@ -150,18 +149,24 @@ export class NativePredictionExecutor {
       return Promise.resolve(failure('invalid-input'))
     }
     this._active = true
-    return new Promise((resolveOutcome) => {
-      let worker: Worker
-      try {
-        worker = createWorker({
-          workerData: snapshot,
-          resourceLimits: { maxOldGenerationSizeMb: 256 }
-        })
-      } catch {
+    let worker: Worker
+    try {
+      // Only execution loads the bundler entry; ordinary shard imports must
+      // never evaluate it inside an unrelated worker thread (such as Vitest).
+      const { default: createWorker } = await import('./native-prediction-worker?nodeWorker')
+      if (signal?.aborted) {
         this._active = false
-        resolveOutcome(failure('worker-error', inputHash))
-        return
+        return failure('aborted', inputHash)
       }
+      worker = createWorker({
+        workerData: snapshot,
+        resourceLimits: { maxOldGenerationSizeMb: 256 }
+      })
+    } catch {
+      this._active = false
+      return failure('worker-error', inputHash)
+    }
+    return new Promise((resolveOutcome) => {
       let settling = false,
         exited = false
       let confirmExit: () => void = () => {}

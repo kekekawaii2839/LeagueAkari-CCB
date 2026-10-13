@@ -14,11 +14,11 @@ export type RoleAggregate = {
   games: number
   wins: number
   winRate: number
-  kda: number
+  kda: number | null
   kp: number | null
-  killsPG: number
-  deathsPG: number
-  assistsPG: number
+  killsPG: number | null
+  deathsPG: number | null
+  assistsPG: number | null
   killShare: number | null
   deathShare: number | null
   dpm: number | null
@@ -40,9 +40,9 @@ export type RoleAggregate = {
   healPM: number | null
   shieldPM: number | null
   ccPM: number | null
-  soloKillsPG: number
-  fbRate: number
-  ftRate: number
+  soloKillsPG: number | null
+  fbRate: number | null
+  ftRate: number | null
   gd10: number | null
   gd15: number | null
   csd15: number | null
@@ -50,9 +50,9 @@ export type RoleAggregate = {
   damageDiff15: number | null
   soloDiff15: number | null
   counter: number | null
-  dragon15: number
-  grub15: number
-  objectiveFight15: number
+  dragon15: number | null
+  grub15: number | null
+  objectiveFight15: number | null
   laneGankEligibleGames: number | null
   laneGankDeaths: number | null
   laneGankDeathsPG: number | null
@@ -87,13 +87,13 @@ export type PairAggregate = {
   wins: number
   winRate: number
   counterMean: number | null
-  upperGold15: number
-  botGold15: number
-  dragon15Diff: number
-  grub15Diff: number
-  objectiveFight15Diff: number
-  gold20Diff: number
-  tower20Diff: number
+  upperGold15: number | null
+  botGold15: number | null
+  dragon15Diff: number | null
+  grub15Diff: number | null
+  objectiveFight15Diff: number | null
+  gold20Diff: number | null
+  tower20Diff: number | null
 }
 export type JungleAggregate = Record<string, number | string | null> & {
   player: string
@@ -108,29 +108,29 @@ export type ConversionAggregate = {
   games: number
   wins: number
   winRate: number
-  killEpisodes: number
-  convertedKillEpisodes: number
-  killToEpicEpisodes: number
-  killToTowerEpisodes: number
+  killEpisodes: number | null
+  convertedKillEpisodes: number | null
+  killToEpicEpisodes: number | null
+  killToTowerEpisodes: number | null
   killConversionRate: number | null
   killToEpicRate: number | null
   killToTowerRate: number | null
   conversionDelaySec: number | null
-  deathEpisodes: number
-  highCostDeathEpisodes: number
+  deathEpisodes: number | null
+  highCostDeathEpisodes: number | null
   highCostDeathRate: number | null
-  deathCostPointsPG: number
-  deathCostEpicsPG: number
-  deathCostTowersPG: number
-  shutdownBountyLostPG: number
-  objectivesTaken: number
-  cleanObjectives: number
+  deathCostPointsPG: number | null
+  deathCostEpicsPG: number | null
+  deathCostTowersPG: number | null
+  shutdownBountyLostPG: number | null
+  objectivesTaken: number | null
+  cleanObjectives: number | null
   cleanObjectiveRate: number | null
-  objectiveFightSamples: number
-  objectiveFightWins: number
+  objectiveFightSamples: number | null
+  objectiveFightWins: number | null
   objectiveFightWinRate: number | null
-  enemyObjectives: number
-  tradedEnemyObjectives: number
+  enemyObjectives: number | null
+  tradedEnemyObjectives: number | null
   crossMapTradeRate: number | null
   tradeDelaySec: number | null
 }
@@ -153,19 +153,39 @@ const roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] as const
 const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
 const ratio = (numerator: number, denominator: number) =>
   denominator ? numerator / denominator : 0
-const ratioNullable = (numerator: number, denominator: number) =>
-  denominator ? numerator / denominator : null
-const average = (values: (number | null | undefined)[]) => {
-  const valid = values.filter(
-    (value): value is number => typeof value === 'number' && Number.isFinite(value)
-  )
-  return valid.length ? sum(valid) / valid.length : 0
-}
+const ratioNullable = (numerator: number | null, denominator: number | null) =>
+  numerator !== null && denominator ? numerator / denominator : null
 const averageNullable = (values: (number | null | undefined)[]) => {
   const valid = values.filter(
     (value): value is number => typeof value === 'number' && Number.isFinite(value)
   )
   return valid.length ? sum(valid) / valid.length : null
+}
+
+const numeric = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value)
+// Source population for aggregate ratios: known zero exposure still contributes
+// to the aggregate. It is not equivalent to a non-null single-game ratio.
+export function knownMetricPopulation<T>(
+  rows: readonly T[],
+  ...sources: ((row: T) => unknown)[]
+): T[] {
+  return rows.filter((row) => sources.every((source) => numeric(source(row))))
+}
+const rateForRows = <T>(
+  rows: T[],
+  value: (row: T) => number | null,
+  exposure: (row: T) => number | null
+): number | null => {
+  const valid = knownMetricPopulation(rows, value, exposure)
+  return ratioNullable(
+    sum(valid.map((row) => value(row) as number)),
+    sum(valid.map((row) => exposure(row) as number))
+  )
+}
+const booleanRate = <T>(rows: T[], value: (row: T) => boolean | null) => {
+  const valid = rows.filter((row) => typeof value(row) === 'boolean')
+  return ratioNullable(valid.filter((row) => value(row)).length, valid.length)
 }
 
 export type MemberLaneGankDeathEvidence = MemberAnalysisLaneGankDeathEvent & {
@@ -271,12 +291,15 @@ export function aggregateRoles(
       const [groupRole, groupPlayer] = key.split('|') as [MemberAnalysisPlayerGame['role'], string]
       const r = group.rows
       const g = group.games
-      const minutes = sum(r.map((x) => x.minutes))
-      const kills = sum(r.map((x) => x.kills))
-      const deaths = sum(r.map((x) => x.deaths))
-      const assists = sum(r.map((x) => x.assists))
+      const combat = r.filter((x) => numeric(x.kills) && numeric(x.deaths) && numeric(x.assists))
+      const kills = sum(combat.map((x) => x.kills!))
+      const deaths = sum(combat.map((x) => x.deaths!))
+      const assists = sum(combat.map((x) => x.assists!))
       const damageShare = averageNullable(r.map((x) => x.damageShare))
       const goldShare = averageNullable(r.map((x) => x.goldShare))
+      const conversionRows = knownMetricPopulation(r, (x) => x.damageShare, (x) => x.goldShare)
+      const conversionDamageShare = averageNullable(conversionRows.map((x) => x.damageShare))
+      const conversionGoldShare = averageNullable(conversionRows.map((x) => x.goldShare))
       const eligibleLaneGankGames =
         groupRole === 'JUNGLE'
           ? []
@@ -300,36 +323,103 @@ export function aggregateRoles(
         games: r.length,
         wins: g.filter((x) => x.win).length,
         winRate: ratio(g.filter((x) => x.win).length, r.length),
-        kda: ratio(kills + assists, Math.max(1, deaths)),
+        kda: combat.length ? ratio(kills + assists, Math.max(1, deaths)) : null,
         kp: averageNullable(r.map((x) => x.kp)),
-        killsPG: ratio(kills, r.length),
-        deathsPG: ratio(deaths, r.length),
-        assistsPG: ratio(assists, r.length),
-        killShare: ratioNullable(kills, sum(r.map((x) => x.teamKills))),
-        deathShare: ratioNullable(deaths, sum(r.map((x) => x.teamDeaths))),
-        dpm: ratioNullable(sum(r.map((x) => x.damage)), minutes),
+        killsPG: averageNullable(r.map((x) => x.kills)),
+        deathsPG: averageNullable(r.map((x) => x.deaths)),
+        assistsPG: averageNullable(r.map((x) => x.assists)),
+        killShare: rateForRows(
+          r,
+          (x) => x.kills,
+          (x) => x.teamKills
+        ),
+        deathShare: rateForRows(
+          r,
+          (x) => x.deaths,
+          (x) => x.teamDeaths
+        ),
+        dpm: rateForRows(
+          r,
+          (x) => x.damage,
+          (x) => x.minutes
+        ),
         damageShare,
-        gpm: ratioNullable(sum(r.map((x) => x.gold)), minutes),
+        gpm: rateForRows(
+          r,
+          (x) => x.gold,
+          (x) => x.minutes
+        ),
         goldShare,
-        damageConversion:
-          damageShare === null || goldShare === null ? null : ratioNullable(damageShare, goldShare),
-        damagePerGold: ratioNullable(sum(r.map((x) => x.damage)), sum(r.map((x) => x.gold))),
-        cspm: ratioNullable(sum(r.map((x) => x.cs)), minutes),
-        vspm: ratioNullable(sum(r.map((x) => x.vision)), minutes),
-        wpm: ratioNullable(sum(r.map((x) => x.wardsPlaced)), minutes),
-        wcpm: ratioNullable(sum(r.map((x) => x.wardsKilled)), minutes),
-        cwpm: ratioNullable(sum(r.map((x) => x.controlWards)), minutes),
+        damageConversion: ratioNullable(conversionDamageShare, conversionGoldShare),
+        damagePerGold: rateForRows(
+          r,
+          (x) => x.damage,
+          (x) => x.gold
+        ),
+        cspm: rateForRows(
+          r,
+          (x) => x.cs,
+          (x) => x.minutes
+        ),
+        vspm: rateForRows(
+          r,
+          (x) => x.vision,
+          (x) => x.minutes
+        ),
+        wpm: rateForRows(
+          r,
+          (x) => x.wardsPlaced,
+          (x) => x.minutes
+        ),
+        wcpm: rateForRows(
+          r,
+          (x) => x.wardsKilled,
+          (x) => x.minutes
+        ),
+        cwpm: rateForRows(
+          r,
+          (x) => x.controlWards,
+          (x) => x.minutes
+        ),
         takenShare: averageNullable(r.map((x) => x.takenShare)),
-        damageTakenPM: ratioNullable(sum(r.map((x) => x.damageTaken)), minutes),
-        mitigatedPM: ratioNullable(sum(r.map((x) => x.damageMitigated)), minutes),
-        objectiveDamagePM: ratioNullable(sum(r.map((x) => x.objectiveDamage)), minutes),
-        turretDamagePM: ratioNullable(sum(r.map((x) => x.turretDamage)), minutes),
-        healPM: ratioNullable(sum(r.map((x) => x.healTeammates)), minutes),
-        shieldPM: ratioNullable(sum(r.map((x) => x.shieldTeammates)), minutes),
-        ccPM: ratioNullable(sum(r.map((x) => x.ccSeconds)), minutes),
-        soloKillsPG: ratio(sum(r.map((x) => x.soloKills)), r.length),
-        fbRate: ratio(r.filter((x) => x.fbPart).length, r.length),
-        ftRate: ratio(r.filter((x) => x.ftPart).length, r.length),
+        damageTakenPM: rateForRows(
+          r,
+          (x) => x.damageTaken,
+          (x) => x.minutes
+        ),
+        mitigatedPM: rateForRows(
+          r,
+          (x) => x.damageMitigated,
+          (x) => x.minutes
+        ),
+        objectiveDamagePM: rateForRows(
+          r,
+          (x) => x.objectiveDamage,
+          (x) => x.minutes
+        ),
+        turretDamagePM: rateForRows(
+          r,
+          (x) => x.turretDamage,
+          (x) => x.minutes
+        ),
+        healPM: rateForRows(
+          r,
+          (x) => x.healTeammates,
+          (x) => x.minutes
+        ),
+        shieldPM: rateForRows(
+          r,
+          (x) => x.shieldTeammates,
+          (x) => x.minutes
+        ),
+        ccPM: rateForRows(
+          r,
+          (x) => x.ccSeconds,
+          (x) => x.minutes
+        ),
+        soloKillsPG: averageNullable(r.map((x) => x.soloKills)),
+        fbRate: booleanRate(r, (x) => x.fbPart),
+        ftRate: booleanRate(r, (x) => x.ftPart),
         gd10: averageNullable(r.map((x) => x.gd10)),
         gd15: averageNullable(r.map((x) => x.gd15)),
         csd15: averageNullable(r.map((x) => x.csd15)),
@@ -337,9 +427,9 @@ export function aggregateRoles(
         damageDiff15: averageNullable(r.map((x) => x.damageDiff15)),
         soloDiff15: averageNullable(r.map((x) => x.soloDiff15)),
         counter: averageNullable(r.map((x) => x.counter)),
-        dragon15: average(g.map((x) => x.dragon15Diff)),
-        grub15: average(g.map((x) => x.grub15Diff)),
-        objectiveFight15: average(g.map((x) => x.objectiveFight15Diff)),
+        dragon15: averageNullable(g.map((x) => x.dragon15Diff)),
+        grub15: averageNullable(g.map((x) => x.grub15Diff)),
+        objectiveFight15: averageNullable(g.map((x) => x.objectiveFight15Diff)),
         laneGankEligibleGames: laneGankAvailable ? eligibleLaneGankGames.length : null,
         laneGankDeaths: laneGankAvailable ? laneGankEvents.length : null,
         laneGankDeathsPG: laneGankAvailable
@@ -484,13 +574,13 @@ function pairGroup(
     wins,
     winRate: ratio(wins, games.length),
     counterMean: averageNullable(games.map((g) => g.counterMean)),
-    upperGold15: average(games.map((g) => g.upperGold15)),
-    botGold15: average(games.map((g) => g.botGold15)),
-    dragon15Diff: average(games.map((g) => g.dragon15Diff)),
-    grub15Diff: average(games.map((g) => g.grub15Diff)),
-    objectiveFight15Diff: average(games.map((g) => g.objectiveFight15Diff)),
-    gold20Diff: average(games.map((g) => g.gold20Diff)),
-    tower20Diff: average(games.map((g) => g.tower20Diff))
+    upperGold15: averageNullable(games.map((g) => g.upperGold15)),
+    botGold15: averageNullable(games.map((g) => g.botGold15)),
+    dragon15Diff: averageNullable(games.map((g) => g.dragon15Diff)),
+    grub15Diff: averageNullable(games.map((g) => g.grub15Diff)),
+    objectiveFight15Diff: averageNullable(games.map((g) => g.objectiveFight15Diff)),
+    gold20Diff: averageNullable(games.map((g) => g.gold20Diff)),
+    tower20Diff: averageNullable(games.map((g) => g.tower20Diff))
   }
 }
 export function aggregatePairs(
@@ -584,7 +674,6 @@ function jungleGroup(
       const campCounts = new Map<string, number>()
       starts.forEach((x) => campCounts.set(x.startCamp!, (campCounts.get(x.startCamp!) ?? 0) + 1))
       const firstDragonSamples = jungles.filter((x) => x.gotFirstDragon !== null)
-      const minutes = sum(rows.map((x) => x.minutes))
       return {
         player: jungler,
         sideLabel,
@@ -633,22 +722,25 @@ function jungleGroup(
           starts.filter((x) => x.startCamp === 'krugs').length,
           starts.length
         ),
-        level3GankRate: ratio(jungles.filter((x) => x.level3Gank).length, jungles.length),
-        level4GankRate: ratio(jungles.filter((x) => x.level4Gank).length, jungles.length),
-        topGanksPG: ratio(sum(jungles.map((x) => x.topGanks)), jungles.length),
-        midGanksPG: ratio(sum(jungles.map((x) => x.midGanks)), jungles.length),
-        botGanksPG: ratio(sum(jungles.map((x) => x.botGanks)), jungles.length),
-        topZoneRate: ratioNullable(
-          sum(jungles.map((x) => x.topZoneWeight)),
-          sum(jungles.map((x) => x.totalZoneWeight))
+        level3GankRate: booleanRate(jungles, (x) => x.level3Gank),
+        level4GankRate: booleanRate(jungles, (x) => x.level4Gank),
+        topGanksPG: averageNullable(jungles.map((x) => x.topGanks)),
+        midGanksPG: averageNullable(jungles.map((x) => x.midGanks)),
+        botGanksPG: averageNullable(jungles.map((x) => x.botGanks)),
+        topZoneRate: rateForRows(
+          jungles,
+          (x) => x.topZoneWeight,
+          (x) => x.totalZoneWeight
         ),
-        midZoneRate: ratioNullable(
-          sum(jungles.map((x) => x.midZoneWeight)),
-          sum(jungles.map((x) => x.totalZoneWeight))
+        midZoneRate: rateForRows(
+          jungles,
+          (x) => x.midZoneWeight,
+          (x) => x.totalZoneWeight
         ),
-        botZoneRate: ratioNullable(
-          sum(jungles.map((x) => x.botZoneWeight)),
-          sum(jungles.map((x) => x.totalZoneWeight))
+        botZoneRate: rateForRows(
+          jungles,
+          (x) => x.botZoneWeight,
+          (x) => x.totalZoneWeight
         ),
         firstDragonRate: ratioNullable(
           firstDragonSamples.filter((x) => x.gotFirstDragon).length,
@@ -656,20 +748,32 @@ function jungleGroup(
         ),
         firstDragonSamples: firstDragonSamples.length,
         firstDragonTime: averageNullable(jungles.map((x) => x.firstDragonTimeSec)),
-        dragonsPG: ratio(sum(jungles.map((x) => x.dragons)), jungles.length),
-        soloDragonsPG: ratio(sum(jungles.map((x) => x.soloDragons)), jungles.length),
-        voidgrubsPG: ratio(sum(jungles.map((x) => x.voidgrubs)), jungles.length),
-        heraldsPG: ratio(sum(jungles.map((x) => x.heralds)), jungles.length),
-        baronsPG: ratio(sum(jungles.map((x) => x.barons)), jungles.length),
-        dragon15: average(groupGames.map((g) => g.dragon15Diff)),
-        grub15: average(groupGames.map((g) => g.grub15Diff)),
-        objectiveFight15: average(groupGames.map((g) => g.objectiveFight15Diff)),
+        dragonsPG: averageNullable(jungles.map((x) => x.dragons)),
+        soloDragonsPG: averageNullable(jungles.map((x) => x.soloDragons)),
+        voidgrubsPG: averageNullable(jungles.map((x) => x.voidgrubs)),
+        heraldsPG: averageNullable(jungles.map((x) => x.heralds)),
+        baronsPG: averageNullable(jungles.map((x) => x.barons)),
+        dragon15: averageNullable(groupGames.map((g) => g.dragon15Diff)),
+        grub15: averageNullable(groupGames.map((g) => g.grub15Diff)),
+        objectiveFight15: averageNullable(groupGames.map((g) => g.objectiveFight15Diff)),
         gd10: averageNullable(rows.map((x) => x.gd10)),
         gd15: averageNullable(rows.map((x) => x.gd15)),
         xpd15: averageNullable(rows.map((x) => x.xpd15)),
-        cspm: ratioNullable(sum(rows.map((x) => x.cs)), minutes),
-        gpm: ratioNullable(sum(rows.map((x) => x.gold)), minutes),
-        objectiveDamagePM: ratioNullable(sum(rows.map((x) => x.objectiveDamage)), minutes)
+        cspm: rateForRows(
+          rows,
+          (x) => x.cs,
+          (x) => x.minutes
+        ),
+        gpm: rateForRows(
+          rows,
+          (x) => x.gold,
+          (x) => x.minutes
+        ),
+        objectiveDamagePM: rateForRows(
+          rows,
+          (x) => x.objectiveDamage,
+          (x) => x.minutes
+        )
       }
     })
     .sort((a, b) => Number(b.games) - Number(a.games) || a.player.localeCompare(b.player, 'zh-CN'))
@@ -706,8 +810,9 @@ export function aggregateJungle(
 }
 
 function conversionGroup(games: MemberAnalysisGame[], sideLabel: SideLabel): ConversionAggregate {
-  const total = (key: keyof MemberAnalysisGame['eventDecision']) =>
-    sum(games.map((game) => Number(game.eventDecision[key]) || 0))
+  const valid = games.filter((game) => game.eventDecision !== null)
+  const total = (key: keyof NonNullable<MemberAnalysisGame['eventDecision']>) =>
+    valid.length ? sum(valid.map((game) => game.eventDecision![key])) : null
   const wins = games.filter((g) => g.win).length
   return {
     sideLabel,
@@ -728,10 +833,10 @@ function conversionGroup(games: MemberAnalysisGame[], sideLabel: SideLabel): Con
     deathEpisodes: total('deathEpisodes'),
     highCostDeathEpisodes: total('highCostDeathEpisodes'),
     highCostDeathRate: ratioNullable(total('highCostDeathEpisodes'), total('deathEpisodes')),
-    deathCostPointsPG: ratio(total('deathCostPoints'), games.length),
-    deathCostEpicsPG: ratio(total('deathCostEpics'), games.length),
-    deathCostTowersPG: ratio(total('deathCostTowers'), games.length),
-    shutdownBountyLostPG: ratio(total('shutdownBountyLost'), games.length),
+    deathCostPointsPG: ratioNullable(total('deathCostPoints'), valid.length),
+    deathCostEpicsPG: ratioNullable(total('deathCostEpics'), valid.length),
+    deathCostTowersPG: ratioNullable(total('deathCostTowers'), valid.length),
+    shutdownBountyLostPG: ratioNullable(total('shutdownBountyLost'), valid.length),
     objectivesTaken: total('objectivesTaken'),
     cleanObjectives: total('cleanObjectives'),
     cleanObjectiveRate: ratioNullable(total('cleanObjectives'), total('objectivesTaken')),

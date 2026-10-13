@@ -21,11 +21,11 @@
       />
 
       <p
-        v-if="store.overview && !audit && store.overview.gameCount > 0"
+        v-if="hasLegacyUnknownMetrics || (store.overview && !audit && store.overview.gameCount > 0)"
         class="member-analysis-notice"
         role="status"
       >
-        {{ uiText('oldData') }}
+        {{ uiText(hasLegacyUnknownMetrics ? 'legacyUnknownMetrics' : 'oldData') }}
       </p>
 
       <section v-if="store.overview" class="member-analysis-context" aria-label="当前分析范围">
@@ -49,16 +49,101 @@
         <NButton size="tiny" @click="memberAnalysis.cancelRefresh">取消</NButton>
       </div>
 
+      <div
+        v-if="
+          hasPublishedOverview && jobFailureNotice && dismissedJobFailure !== jobFailureNotice.key
+        "
+        :key="`job-failure-${jobFailureNotice.key}`"
+        class="member-analysis-failure member-analysis-failure-job"
+        role="status"
+      >
+        <span class="member-analysis-failure-copy">
+          <NIcon class="member-analysis-failure-icon" :size="16" aria-hidden="true"
+            ><ErrorIcon
+          /></NIcon>
+          <span
+            tabindex="0"
+            :title="friendlyJobError"
+            :aria-label="`${uiText('overviewReloadFailed')}。${friendlyJobError}`"
+            >{{ uiText('overviewReloadFailed') }}</span
+          >
+        </span>
+        <span class="member-analysis-failure-actions">
+          <NButton
+            size="tiny"
+            quaternary
+            :disabled="store.loading || jobRunning || !!refreshReason"
+            :title="refreshReason?.text"
+            @click="memberAnalysis.startRefresh()"
+            >{{ uiText('retry') }}</NButton
+          >
+          <NButton size="tiny" quaternary aria-label="关闭提示" @click="jobFailureNotice.close"
+            ><template #icon
+              ><NIcon><CloseIcon /></NIcon></template
+          ></NButton>
+        </span>
+      </div>
       <NAlert
-        v-if="store.job?.status === 'failed'"
+        v-if="jobFailureNotice && !hasPublishedOverview"
+        :key="`job-failure-${jobFailureNotice.key}`"
         class="member-analysis-audit"
         type="error"
-        title="刷新失败，已保留上一版数据"
+        :title="uiText('jobRefreshFailed')"
       >
         {{ friendlyJobError }}
       </NAlert>
 
       <div class="member-analysis-content">
+        <p
+          v-if="hasPublishedOverview && store.loading"
+          class="member-analysis-notice"
+          role="status"
+        >
+          {{ uiText('overviewReloading') }}
+        </p>
+        <div
+          v-else-if="
+            hasPublishedOverview &&
+            errorFailureNotice &&
+            dismissedErrorFailure !== errorFailureNotice.key
+          "
+          :key="`overview-failure-${errorFailureNotice.key}`"
+          class="member-analysis-failure"
+          role="status"
+        >
+          <span class="member-analysis-failure-copy">
+            <NIcon class="member-analysis-failure-icon" :size="16" aria-hidden="true"
+              ><ErrorIcon
+            /></NIcon>
+            <span
+              tabindex="0"
+              :title="unavailableMessage"
+              :aria-label="`${uiText('overviewReloadFailed')}。${unavailableMessage}`"
+              >{{ uiText('overviewReloadFailed') }}</span
+            >
+          </span>
+          <span class="member-analysis-failure-actions">
+            <NButton size="tiny" quaternary @click="memberAnalysis.reload()">{{
+              uiText('retry')
+            }}</NButton>
+            <NButton size="tiny" quaternary aria-label="关闭提示" @click="errorFailureNotice.close"
+              ><template #icon
+                ><NIcon><CloseIcon /></NIcon></template
+            ></NButton>
+          </span>
+        </div>
+        <p
+          v-else-if="
+            hasPublishedOverview &&
+            !store.error &&
+            store.job?.status !== 'failed' &&
+            overviewReloaded
+          "
+          class="member-analysis-notice"
+          role="status"
+        >
+          {{ uiText('overviewReloaded') }}
+        </p>
         <div v-if="store.viewState === 'loading'" class="member-analysis-centered">
           <NSpin size="large" description="正在初始化成员分析" />
         </div>
@@ -120,6 +205,10 @@
                   v-else-if="section.key === 'matches'"
                   :active="primarySection === 'matches'"
                 />
+                <WinPrediction
+                  v-else-if="section.key === 'prediction'"
+                  :active="primarySection === 'prediction'"
+                />
                 <component v-else :is="section.component" />
               </div>
             </NTabPane>
@@ -149,13 +238,25 @@
 <script setup lang="ts">
 import { useInstance } from '@renderer-shared/shards'
 import { useMediaQuery } from '@vueuse/core'
-import { NAlert, NButton, NEmpty, NProgress, NResult, NSpin, NTabPane, NTabs } from 'naive-ui'
+import { Close as CloseIcon, ErrorFilled as ErrorIcon } from '@vicons/carbon'
+import {
+  NAlert,
+  NButton,
+  NEmpty,
+  NIcon,
+  NProgress,
+  NResult,
+  NSpin,
+  NTabPane,
+  NTabs
+} from 'naive-ui'
 import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { selectMemberAnalysisSample } from './analytics'
+import { useMemberAnalysisData } from './useMemberAnalysisData'
 
 import MemberAnalysisFilters from './MemberAnalysisFilters.vue'
 import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
@@ -193,6 +294,7 @@ const allSections = [
 ] as const
 
 const store = useMemberAnalysisStore()
+const { selection: analysisSelection } = useMemberAnalysisData()
 const sections = computed(() =>
   allSections.filter(
     (section) =>
@@ -245,18 +347,38 @@ watch(
   },
   { flush: 'sync' }
 )
+watch(
+  () => store.matchListScope?.sequence,
+  (sequence) => {
+    if (!sequence || store.matchListScope?.status !== 'active') return
+    primaryMotion.cancel()
+    activeSection.value = 'matches'
+  },
+  { flush: 'sync' }
+)
 watch(activeSection, (section) => {
   if (section !== 'matches') store.cancelMatchNavigation()
 })
 watch(
   [
     () => store.overview,
-    () => store.loading,
-    () => JSON.stringify([store.filters, store.sampleSize, store.analysisSide]),
-    () => store.job?.status
+    () => JSON.stringify([store.filters, store.sampleSize, store.analysisSide])
   ],
   () => {
     if (!store.matchNavigation) return
+    const gameId = store.matchNavigation.gameId
+    const overviewGames = store.overview?.games ?? []
+    const sample = selectMemberAnalysisSample(
+      overviewGames,
+      store.filters,
+      store.analysisSide,
+      store.sampleSize
+    ).sample
+    if (
+      overviewGames.filter((game) => game.gameId === gameId).length === 1 &&
+      sample.some((game) => game.gameId === gameId)
+    )
+      return
     store.cancelMatchNavigation()
     store.matchNavigationFeedback = uiText('matchNavigationScopeChanged')
   },
@@ -309,24 +431,101 @@ function openSettings(section: 'collection' | 'members' | null = null) {
   store.settingsDrawerVisible = true
 }
 const audit = computed(() => store.overview?.collectionAudit ?? null)
+const hasLegacyUnknownMetrics = computed(
+  () => store.overview?.games.some((game) => game.metricSemantics === 'legacy-unknown') ?? false
+)
+const hasPublishedOverview = computed(
+  () => store.viewState === 'ready' || store.viewState === 'empty'
+)
+const jobFailureEpoch = ref(0)
+const dismissedJobFailure = ref<number | null>(null)
+watch(
+  [() => store.job?.jobId, () => store.job?.status],
+  ([id, status], previous) => {
+    if (status === 'failed' && (previous?.[1] !== 'failed' || id !== previous?.[0]))
+      jobFailureEpoch.value++
+  },
+  { immediate: true, flush: 'sync' }
+)
+const jobFailureNotice = computed(() => {
+  if (store.job?.status !== 'failed') return null
+  const id = store.job.jobId
+  const key = jobFailureEpoch.value
+  return {
+    key,
+    close: () => {
+      if (
+        hasPublishedOverview.value &&
+        store.job?.status === 'failed' &&
+        store.job.jobId === id &&
+        jobFailureEpoch.value === key
+      )
+        dismissedJobFailure.value = key
+      // Parent-owned dismissal must not leave NAlert internally hidden when
+      // a newer failure replaces this one in the same render tick.
+      return false
+    }
+  }
+})
+const errorFailureEpoch = ref(0)
+const dismissedErrorFailure = ref<number | null>(null)
+watch(
+  () => store.error,
+  (error) => {
+    if (error) errorFailureEpoch.value++
+  },
+  { immediate: true, flush: 'sync' }
+)
+watch(
+  () => store.loading,
+  (loading) => {
+    if (loading) errorFailureEpoch.value++
+  },
+  { flush: 'sync' }
+)
+const errorFailureNotice = computed(() => {
+  if (!store.error) return null
+  const error = store.error
+  const key = errorFailureEpoch.value
+  return {
+    key,
+    close: () => {
+      if (hasPublishedOverview.value && store.error === error && errorFailureEpoch.value === key)
+        dismissedErrorFailure.value = key
+      return false
+    }
+  }
+})
+const overviewReloaded = ref(false)
+watch(
+  () => store.loading,
+  (loading) => {
+    if (loading) overviewReloaded.value = false
+  }
+)
+watch(
+  () => store.overview,
+  (overview, previous) => {
+    // Reading the same published generation after saving settings is not a
+    // new collection. Do not label an unchanged publication as updated data.
+    overviewReloaded.value = Boolean(
+      overview &&
+      previous &&
+      (overview.generatedAt !== previous.generatedAt ||
+        overview.gameCount !== previous.gameCount ||
+        overview.playerCount !== previous.playerCount ||
+        overview.source !== previous.source)
+    )
+  }
+)
 const rendererAudit = computed(() => {
-  const selection = selectMemberAnalysisSample(
-    store.overview?.games ?? [],
-    store.filters,
-    store.analysisSide,
-    store.sampleSize
-  )
+  const selection = analysisSelection.value
   const global = selection.globallyFiltered.length
   const sample = selection.sample.length
   return { global, sample }
 })
 const patchScope = computed(() => {
-  const selection = selectMemberAnalysisSample(
-    store.overview?.games ?? [],
-    store.filters,
-    store.analysisSide,
-    store.sampleSize
-  ).sample
+  const selection = analysisSelection.value.sample
   const patches = [...new Set(selection.map((game) => game.patch))].sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true })
   )
@@ -357,6 +556,7 @@ const unavailableMessage = computed(() => {
 })
 const friendlyJobError = computed(() => {
   const code = store.job?.error?.code
+  if (code === 'SUMMARY_STAT_UNAVAILABLE') return uiText('missingRequiredSummary')
   if (code === 'PIPELINE_FAILED') {
     const unresolved = Number(
       /failed to resolve (\d+)/i.exec(store.job?.error?.message ?? '')?.[1] ?? 0
@@ -396,15 +596,26 @@ watch(
   { immediate: true }
 )
 
-async function saveSettings(settings: Parameters<MemberAnalysisRenderer['updateSettings']>[0]) {
+async function saveSettings(
+  settings: Parameters<MemberAnalysisRenderer['updateSettings']>[0],
+  complete: (saved: NonNullable<typeof store.settings> | null) => void
+) {
+  if (savingSettings.value) {
+    complete(null)
+    return
+  }
   savingSettings.value = true
   try {
     settingsError.value = ''
     const result = await memberAnalysis.updateSettings(settings)
-    if (result.ok) store.settingsDrawerVisible = false
-    else settingsError.value = uiText('saveFailed')
+    if (result.ok) complete(result.value)
+    else {
+      settingsError.value = uiText('saveFailed')
+      complete(null)
+    }
   } catch {
     settingsError.value = uiText('saveFailed')
+    complete(null)
   } finally {
     savingSettings.value = false
   }
@@ -484,6 +695,57 @@ async function confirmCleanup(previewId: string) {
   margin: 10px 24px 0;
 }
 
+.member-analysis-failure {
+  display: flex;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 36px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--ma-red) 14%, var(--la-color-bg-primary));
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--ma-red) 16%, var(--la-color-bg-primary));
+  font-size: 14px;
+  font-family: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.member-analysis-failure-job {
+  margin: 0 20px;
+}
+.member-analysis-failure-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 300px;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.member-analysis-failure-icon {
+  flex: 0 0 auto;
+  color: var(--ma-red);
+}
+.member-analysis-failure-copy > span:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 2px;
+}
+.member-analysis-failure-copy > span {
+  cursor: help;
+}
+.member-analysis-failure-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.member-analysis-failure-actions :deep(.n-button) {
+  min-width: 24px;
+  height: 24px;
+}
+
 .member-analysis-context {
   display: flex;
   min-height: 36px;
@@ -534,6 +796,9 @@ async function confirmCleanup(previewId: string) {
 }
 
 @media (max-width: 760px) {
+  .member-analysis-failure-job {
+    margin: 0 16px;
+  }
   .member-analysis-content {
     padding: 0 16px 16px;
   }

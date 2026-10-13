@@ -4,6 +4,44 @@
       <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
       <span class="ma-view-meta">{{ uiText('recentFirst') }}</span>
     </div>
+    <div
+      v-if="store.matchListScope"
+      ref="scopeBanner"
+      class="ma-view-toolbar"
+      role="status"
+      tabindex="-1"
+    >
+      <span class="ma-view-meta">{{
+        uiText('matchScopeSummary', {
+          source: store.matchListScope.source,
+          visible: scopedGames.length,
+          requested: listScope.requested,
+          sample: games.length
+        })
+      }}</span>
+      <NButton size="small" secondary @click="store.clearMatchListScope()">{{
+        uiText('matchScopeClear')
+      }}</NButton>
+    </div>
+    <p v-if="listScope.expired" class="ma-chart-note" role="status">
+      {{ uiText('matchScopeExpired') }}
+    </p>
+    <div v-if="scopedGames.length > MEMBER_ANALYSIS_MATCH_PAGE_SIZE" class="ma-view-toolbar">
+      <span class="ma-view-meta">{{
+        uiText('matchPageSummary', {
+          first: paging.start + 1,
+          last: paging.end,
+          total: scopedGames.length
+        })
+      }}</span>
+      <NPagination
+        :page="paging.page"
+        :page-size="MEMBER_ANALYSIS_MATCH_PAGE_SIZE"
+        :item-count="scopedGames.length"
+        :page-slot="5"
+        @update:page="changePage"
+      />
+    </div>
     <p
       v-if="navigationSource || store.matchNavigationFeedback"
       ref="navigationFeedback"
@@ -15,7 +53,7 @@
       {{ store.matchNavigationFeedback || uiText('matchNavigationPending') }}
     </p>
     <article
-      v-for="game in games"
+      v-for="game in renderedGames"
       :key="game.gameId"
       :data-match-id="game.gameId"
       class="match-card"
@@ -82,20 +120,27 @@
           ><span
             ><b>击杀兑现</b><em>{{ conversion(game) }}</em></span
           ><span
-            ><b>死亡代价</b><em>{{ formatMetric(game.eventDecision.deathCostPoints) }}</em></span
+            ><b>死亡代价</b><em>{{ formatMetric(game.eventDecision?.deathCostPoints) }}</em></span
           >
         </div>
         <OpponentRankDetails :ranks="game.opponentRanks" />
       </div>
     </article>
-    <div v-if="!games.length" class="ma-empty">当前筛选条件下没有固定五人对局。</div>
+    <div v-if="!scopedGames.length && !listScope.expired" class="ma-empty">
+      {{ store.matchListScope ? uiText('matchScopeEmpty') : '当前筛选条件下没有固定五人对局。' }}
+    </div>
   </div>
 </template>
+<script lang="ts">
+// Session-local delivery acknowledgement survives a lazy pane remount, not
+// just tab switches. It contains no dataset and never writes persisted state.
+const consumedMatchScopes = new WeakMap<object, number>()
+</script>
 <script setup lang="ts">
 import { uiText } from './ui-text'
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
-import { NButton } from 'naive-ui'
-import { nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
+import { NButton, NPagination } from 'naive-ui'
+import { computed, nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
@@ -114,13 +159,80 @@ import {
   type MemberAnalysisMatchNavigation
 } from '@main-window/shards/member-analysis/store'
 import { createMatchNavigation, resolveMatchNavigationTarget } from './match-navigation'
+import {
+  MEMBER_ANALYSIS_MATCH_PAGE_SIZE,
+  matchListPageForGame,
+  resolveMatchListPage,
+  resolveMatchListScope
+} from './match-list'
 const props = withDefaults(defineProps<{ active?: boolean }>(), { active: false })
 const store = useMemberAnalysisStore()
 const list = ref<HTMLElement | null>(null)
 const navigationSource = ref('')
 const navigationTargetId = ref<number | null>(null)
 const navigationFeedback = ref<HTMLElement | null>(null)
+const scopeBanner = ref<HTMLElement | null>(null)
+let scopeFocusToken = 0
+function consumeScope(sequence: number) {
+  consumedMatchScopes.set(store, Math.max(consumedMatchScopes.get(store) ?? 0, sequence))
+}
+watch(
+  [
+    () => store.matchListScope?.sequence,
+    () => store.matchListScope?.status,
+    () => store.overviewGeneration,
+    () => props.active,
+    () => store.matchNavigation
+  ],
+  async () => {
+    const token = ++scopeFocusToken
+    const scope = store.matchListScope
+    if (!scope || scope.sequence <= (consumedMatchScopes.get(store) ?? 0)) return
+    consumeScope(scope.sequence)
+    const current = () =>
+      token === scopeFocusToken &&
+      props.active &&
+      store.viewState === 'ready' &&
+      store.matchListScope === scope &&
+      scope.status === 'active' &&
+      scope.publishedGeneration === store.overviewGeneration &&
+      !store.matchNavigation
+    if (!current()) return
+    await nextTick()
+    const banner = scopeBanner.value
+    if (
+      !current() ||
+      !banner?.isConnected ||
+      !banner.getClientRects().length ||
+      !banner.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+    )
+      return
+    banner.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+    banner.focus({ preventScroll: true })
+  },
+  { immediate: true, flush: 'post' }
+)
 const { games } = useMemberAnalysisData()
+const listScope = computed(() =>
+  resolveMatchListScope(games.value, store.matchListScope, store.overviewGeneration)
+)
+const scopedGames = computed(() => listScope.value.games)
+const page = ref(1)
+const paging = computed(() => resolveMatchListPage(scopedGames.value.length, page.value))
+const renderedGames = computed(() => scopedGames.value.slice(paging.value.start, paging.value.end))
+watch(scopedGames, () => {
+  page.value = paging.value.page
+})
+watch(
+  () => store.matchListScope?.sequence,
+  (sequence) => {
+    if (sequence) page.value = 1
+  },
+  { flush: 'sync' }
+)
+function changePage(value: number) {
+  page.value = resolveMatchListPage(scopedGames.value.length, value).page
+}
 const rankQueues = [
   { key: 'solo', label: '单双排' },
   { key: 'flex', label: '灵活组排' }
@@ -133,11 +245,14 @@ const lcs = useLeagueClientStore()
 const router = useRouter()
 const expanded = reactive(new Set<number>())
 const navigation = createMatchNavigation<MemberAnalysisMatchNavigation>({
-  current: (request) => props.active && !store.loading && store.matchNavigation === request,
+  current: (request) =>
+    props.active && store.viewState === 'ready' && store.matchNavigation === request,
   resolve: (request) =>
-    resolveMatchNavigationTarget(store.overview?.games ?? [], games.value, request.gameId),
+    resolveMatchNavigationTarget(store.overview?.games ?? [], scopedGames.value, request.gameId),
   rendered: () => nextTick(),
   expand: (game) => {
+    const targetPage = matchListPageForGame(scopedGames.value, game)
+    if (targetPage !== null) page.value = targetPage
     navigationTargetId.value = game.gameId
     expanded.add(game.gameId)
   },
@@ -163,15 +278,20 @@ watch(
       navigationSource.value = ''
       navigationTargetId.value = null
     }
-    if (!active || !request || store.loading) return
+    if (!active || !request || store.viewState !== 'ready') return
     navigationSource.value = request.source
     navigationTargetId.value = null
     void navigation.locate(request)
   },
   { immediate: true, flush: 'post' }
 )
-onDeactivated(() => navigation.cancel())
-onBeforeUnmount(() => navigation.cancel())
+function stopNavigation() {
+  navigation.cancel()
+  scopeFocusToken++
+  if (store.matchListScope) consumeScope(store.matchListScope.sequence)
+}
+onDeactivated(stopNavigation)
+onBeforeUnmount(stopNavigation)
 watch(games, (value) => {
   const ids = new Set(value.map((game) => game.gameId))
   for (const id of expanded) if (!ids.has(id)) expanded.delete(id)
@@ -180,14 +300,15 @@ const toggle = (id: number) => (expanded.has(id) ? expanded.delete(id) : expande
 const openMatches = () => router.push({ name: 'player-tabs' })
 const fixedPlayers = (players: MemberAnalysisPlayerGame[]) => fixedFiveRoster(players)
 const normalizeChampion = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
-const championInfo = (value: string) => {
-  const normalized = normalizeChampion(value)
-  return Object.values(lcs.gameData.champions).find(
-    (champion) =>
-      normalizeChampion(champion.alias) === normalized ||
-      normalizeChampion(champion.name) === normalized
-  )
-}
+const championIndex = computed(() => {
+  const index = new Map<string, (typeof lcs.gameData.champions)[number]>()
+  for (const champion of Object.values(lcs.gameData.champions)) {
+    for (const key of [normalizeChampion(champion.alias), normalizeChampion(champion.name)])
+      if (!index.has(key)) index.set(key, champion)
+  }
+  return index
+})
+const championInfo = (value: string) => championIndex.value.get(normalizeChampion(value))
 const championId = (value: string) => championInfo(value)?.id ?? -1
 const championName = (value: string) => championInfo(value)?.name ?? value
 const roleNames = {
@@ -214,7 +335,7 @@ const toneClass = (value: unknown) => {
   return number === null || number === 0 ? '' : number > 0 ? 'ma-positive' : 'ma-negative'
 }
 const conversion = (game: MemberAnalysisGame) =>
-  game.eventDecision.killEpisodes
+  game.eventDecision?.killEpisodes
     ? formatMetric(
         game.eventDecision.convertedKillEpisodes / game.eventDecision.killEpisodes,
         'pct'

@@ -49,7 +49,9 @@
         }}</template
       ><template v-if="efficiencyMetrics.includes(metric as (typeof efficiencyMetrics)[number])">
         ·
-        {{ jungleText('minutes', { minutes: evidence.minutes.toFixed(0) }) }}</template
+        {{
+          jungleText('minutes', { minutes: (evidence.minutesByMetric[metric] ?? 0).toFixed(0) })
+        }}</template
       ></small
     >
   </div>

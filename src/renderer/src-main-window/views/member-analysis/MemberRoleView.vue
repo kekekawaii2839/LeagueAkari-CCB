@@ -91,7 +91,14 @@
                         >
                           {{ short(row.player) }} <span aria-hidden="true">↗</span>
                         </button>
-                        <strong v-else>{{ short(row.player) }}</strong>
+                        <button
+                          v-else
+                          type="button"
+                          class="evidence-link"
+                          @click="metricEvidenceMember = { player: row.player, role: row.role }"
+                        >
+                          {{ short(row.player) }} <span aria-hidden="true">↗</span>
+                        </button>
                       </span>
                     </th>
                     <td class="sample-cell">
@@ -130,6 +137,25 @@
           </section>
         </div>
 
+        <section v-if="group !== 'gankDeaths' && metricEvidenceRow" class="gank-evidence">
+          <header class="gank-evidence__header">
+            <h3>{{ short(metricEvidenceRow.player) }} · {{ roleName[metricEvidenceRow.role] }}</h3>
+            <NSelect
+              v-model:value="metricEvidenceMetric"
+              :options="metricEvidenceOptions"
+              size="small"
+              :aria-label="uiText('evidenceMetricSelect')"
+            />
+            <NSelect
+              v-if="metricEvidenceSides.length > 1"
+              v-model:value="metricEvidenceSide"
+              :options="metricEvidenceSides"
+              :aria-label="uiText('evidenceSideSelect')"
+              size="small"
+            />
+          </header>
+          <EvidenceMatchAction :evidence="roleMatchEvidence" />
+        </section>
         <section
           v-if="group === 'gankDeaths'"
           class="gank-evidence"
@@ -151,6 +177,15 @@
               aria-label="选择要核查的成员分路"
             />
           </header>
+
+          <EvidenceMatchAction v-if="selectedEvidenceRow" :evidence="gankPopulationEvidence" />
+          <NSelect
+            v-if="selectedEvidenceRow"
+            v-model:value="gankMetric"
+            :options="gankMetricOptions"
+            :aria-label="uiText('evidenceMetricSelect')"
+            size="small"
+          />
 
           <div v-if="!availableLaneGankGames" class="gank-evidence__empty">
             当前分析数据尚未生成被抓事件，请刷新数据。
@@ -176,7 +211,10 @@
                   :key="`${event.gameId}-${event.timestampSec}-${event.victimPlayer}`"
                 >
                   <td>{{ event.date }} · {{ event.side === 'Blue' ? '蓝方' : '红方' }}</td>
-                  <td>尾号 {{ String(event.gameId).slice(-6) }}</td>
+                  <td>
+                    尾号 {{ String(event.gameId).slice(-6)
+                    }}<EvidenceMatchAction :evidence="gankEventEvidence.get(event)!" compact />
+                  </td>
                   <td>{{ event.victimChampion }} / {{ roleName[event.victimRole] }}</td>
                   <td>{{ formatEventTime(event.timestampSec) }}</td>
                   <td>{{ event.enemyJunglerChampion }}</td>
@@ -205,10 +243,32 @@ import WinRateInterval from './WinRateInterval.vue'
 import MemberRoleComparison from './MemberRoleComparison.vue'
 import MetricHelp from './MetricHelp.vue'
 import { nextRoleTableSort, sortRoleTableRows, type RoleTableSort } from './role-table-sort'
+import EvidenceMatchAction from './EvidenceMatchAction.vue'
+import {
+  laneGankEvidenceGames,
+  memberRoleEvidenceGames,
+  type MemberRoleEvidenceMetric,
+  type MatchEvidenceSelection
+} from './evidence-selection'
 
 const store = useMemberAnalysisStore()
 const { windowGames } = useMemberAnalysisData()
 const group = ref<keyof typeof roleMetricGroups>('core')
+const metricEvidenceMember = ref<{ player: string; role: Role } | null>(null)
+const metricEvidenceMetric = ref<MemberRoleEvidenceMetric>('gd15')
+const metricEvidenceOptions = computed(() =>
+  group.value === 'gankDeaths'
+    ? []
+    : roleMetricGroups[group.value].columns.map((key) => ({
+        value: key,
+        label: roleMetricMeta[key].label
+      }))
+)
+watchEffect(() => {
+  if (!metricEvidenceOptions.value.some((option) => option.value === metricEvidenceMetric.value))
+    metricEvidenceMetric.value = (metricEvidenceOptions.value[0]?.value ??
+      'games') as MemberRoleEvidenceMetric
+})
 const groupSorts = ref<Partial<Record<keyof typeof roleMetricGroups, RoleTableSort>>>({})
 const currentSort = computed(() => groupSorts.value[group.value] ?? null)
 function toggleSort(key: string) {
@@ -229,6 +289,50 @@ const rows = computed(() =>
     store.sideBreakdown
   )
 )
+const metricEvidenceSide = ref('总计')
+const metricEvidenceSides = computed(() =>
+  rows.value
+    .filter(
+      (row) =>
+        row.player === metricEvidenceMember.value?.player &&
+        row.role === metricEvidenceMember.value?.role
+    )
+    .map((row) => ({ value: row.sideLabel, label: row.sideLabel }))
+)
+watchEffect(() => {
+  if (!metricEvidenceSides.value.some((option) => option.value === metricEvidenceSide.value))
+    metricEvidenceSide.value = metricEvidenceSides.value[0]?.value ?? '总计'
+})
+const metricEvidenceRow = computed(() =>
+  rows.value.find(
+    (row) =>
+      row.player === metricEvidenceMember.value?.player &&
+      row.role === metricEvidenceMember.value?.role &&
+      row.sideLabel === metricEvidenceSide.value
+  )
+)
+const roleMatchEvidence = computed(() => {
+  const row = metricEvidenceRow.value
+  const metric = metricEvidenceMetric.value
+  const metricLabel = roleMetricMeta[metric].label
+  const value = row?.[metric]
+  const available = !!row && typeof value === 'number' && Number.isFinite(value)
+  return {
+    publishedGeneration: store.overviewGeneration,
+    metricLabel,
+    available,
+    source: `${row?.player ?? ''} · ${row ? roleName[row.role] : ''} · ${row?.sideLabel ?? ''} · ${metricLabel}`,
+    games:
+      row && available
+        ? memberRoleEvidenceGames(windowGames.value, {
+            player: row.player,
+            role: row.role,
+            metric,
+            side: row.sideLabel === '蓝方' ? 'Blue' : row.sideLabel === '红方' ? 'Red' : undefined
+          })
+        : []
+  }
+})
 const minimum = computed(() => (store.sampleSize === 20 ? 3 : store.sampleSize === 50 ? 5 : 8))
 const roleOrder = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] as const
 type Role = (typeof roleOrder)[number]
@@ -365,6 +469,49 @@ const selectedEvidenceRow = computed(() =>
 const selectedEvidence = computed(() => {
   const selected = selectedEvidenceRow.value
   return selected ? laneGankDeathEvidence(windowGames.value, selected.player, selected.role) : []
+})
+const gankMetric = ref<(typeof roleMetricGroups.gankDeaths.columns)[number]>('laneGankDeathsPG')
+const gankMetricOptions = roleMetricGroups.gankDeaths.columns.map((key) => ({
+  value: key,
+  label: roleMetricMeta[key].label
+}))
+const gankPopulationEvidence = computed(() => {
+  const row = selectedEvidenceRow.value
+  const metricLabel = roleMetricMeta[gankMetric.value].label
+  return {
+    publishedGeneration: store.overviewGeneration,
+    metricLabel,
+    source: `${row?.player ?? ''} · ${row ? roleName[row.role] : ''} · ${row?.sideLabel ?? ''} · ${metricLabel}`,
+    available: !!row && row[gankMetric.value] !== null,
+    games: row
+      ? gankMetric.value === 'games'
+        ? memberRoleEvidenceGames(windowGames.value, {
+            player: row.player,
+            role: row.role,
+            metric: 'games'
+          })
+        : laneGankEvidenceGames(windowGames.value, {
+            player: row.player,
+            role: row.role,
+            mode: 'population'
+          })
+      : []
+  }
+})
+const gankEventEvidence = computed(() => {
+  const generation = store.overviewGeneration
+  return new Map(
+    selectedEvidence.value.map((event) => [
+      event,
+      {
+        publishedGeneration: generation,
+        metricLabel: `${formatEventTime(event.timestampSec)} · ${roleMetricMeta.laneGankDeaths.label}`,
+        source: `${event.victimPlayer} · ${roleName[event.victimRole]} · ${formatEventTime(event.timestampSec)}`,
+        available: true,
+        games: windowGames.value.filter((game) => game.gameId === event.gameId)
+      } satisfies MatchEvidenceSelection
+    ])
+  )
 })
 const availableLaneGankGames = computed(
   () => windowGames.value.filter((game) => game.laneGankDeaths?.status === 'available').length

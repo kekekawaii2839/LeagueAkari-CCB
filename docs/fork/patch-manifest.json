@@ -3,7 +3,7 @@
   "upstreamBaseline": "5109b2f7fcce6e02312e534cd1729ed0f2142b51",
   "budget": {
     "targetFiles": 35,
-    "hardMaxFiles": 38,
+    "hardMaxFiles": 40,
     "targetChangedLines": 800,
     "hardMaxChangedLines": 900
   },
@@ -19,6 +19,18 @@
     "src/shared/test-fixtures/api/README.md"
   ],
   "patches": [
+    {
+      "id": "member-analysis-protected-generic-settings",
+      "upstreamFile": "src/main/shards/setting-factory/ipc-handlers.ts",
+      "purpose": "Prevent generic settings IPC from bypassing member-analysis sender validation, settings schema and active-job restrictions",
+      "replacementIfUpstreamChanges": "Use an upstream protected-namespace settings policy that delegates to the member-analysis settings controller"
+    },
+    {
+      "id": "member-analysis-private-settings-import-export",
+      "upstreamFile": "src/main/shards/setting-factory/settings-json-file-service.ts",
+      "purpose": "Exclude private member-analysis settings from generic exports and reject legacy imports that bypass the dedicated settings boundary before any write or restart",
+      "replacementIfUpstreamChanges": "Use an upstream per-namespace import/export policy while preserving other settings compatibility"
+    },
     {
       "id": "native-prediction-build-fingerprint",
       "upstreamFile": "electron.vite.config.ts",

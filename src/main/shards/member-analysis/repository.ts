@@ -9,6 +9,7 @@ import {
   type MemberAnalysisMatchDetails,
   type MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
+import { normalizeLegacyMemberAnalysisGame } from '@shared/shards/member-analysis/schemas'
 import { createHash } from 'node:crypto'
 import {
   closeSync,
@@ -69,8 +70,8 @@ PRAGMA user_version=2;`
 
 const GIB = 1024 ** 3
 const ANALYSIS_SCHEMA_VERSION = 2
-const DERIVATION_VERSION = '4'
-const COMPATIBLE_DERIVATION_VERSIONS = new Set(['2', '3', DERIVATION_VERSION])
+const DERIVATION_VERSION = '5'
+const COMPATIBLE_DERIVATION_VERSIONS = new Set(['2', '3', '4', DERIVATION_VERSION])
 const DEFAULT_FILTERS: MemberAnalysisFilters = {
   outcome: 'all',
   patch: 'all',
@@ -99,6 +100,7 @@ export class MemberAnalysisRepository {
   private _catalog: DatabaseSync | null = null
   private _cleanupPlan: CleanupPlan | null = null
   private _cleanupRunning = false
+  private _overviewCounts: { scope: string; total: number; playerCount: number } | null = null
 
   constructor(readonly dataRoot: string) {
     this.dataRoot = resolve(dataRoot)
@@ -112,6 +114,7 @@ export class MemberAnalysisRepository {
   }
 
   initialize() {
+    this._overviewCounts = null
     mkdirSync(this.rawRoot, { recursive: true })
     mkdirSync(this.jobsRoot, { recursive: true })
     mkdirSync(this.dbRoot, { recursive: true })
@@ -133,6 +136,7 @@ export class MemberAnalysisRepository {
   }
 
   close() {
+    this._overviewCounts = null
     this.opponentRanks.close()
     this._catalog?.close()
     this._catalog = null
@@ -389,6 +393,8 @@ export class MemberAnalysisRepository {
   }
 
   publishStaging(rankSnapshots: GameRankSnapshot[] = []) {
+    // A publication attempt (including rollback) ends any prior count scope.
+    this._overviewCounts = null
     if (!existsSync(this.stagingAnalysisPath)) throw new Error('analysis staging database missing')
     const staging = new DatabaseSync(this.stagingAnalysisPath)
     let count: number
@@ -442,7 +448,8 @@ export class MemberAnalysisRepository {
     nextCursor: string | null
     collectionAudit: MemberAnalysisCollectionAudit | null
   } {
-    if (!existsSync(this.currentAnalysisPath))
+    if (!existsSync(this.currentAnalysisPath)) {
+      this._overviewCounts = null
       return {
         generatedAt: null,
         source: 'SGP 对局历史与详情',
@@ -452,8 +459,10 @@ export class MemberAnalysisRepository {
         nextCursor: null,
         collectionAudit: null
       }
-    const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+    }
+    let database: DatabaseSync | null = null
     try {
+      database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
       const derivation = database
         .prepare("SELECT value FROM metadata WHERE key='derivation_version'")
         .get() as { value: string } | undefined
@@ -475,25 +484,45 @@ export class MemberAnalysisRepository {
         game_id: number
         payload_json: string
       }[]
-      const total = (
-        database
-          .prepare(`SELECT COUNT(*) AS count FROM derived_games WHERE ${whereSql}`)
-          .get(...params) as {
-          count: number
-        }
-      ).count
-      const playerCount = (
-        database
-          .prepare(
-            `SELECT COUNT(DISTINCT json_extract(player.value,'$.player')) AS count
-             FROM derived_games,json_each(derived_games.payload_json,'$.players') player
-             WHERE ${whereSql}`
-          )
-          .get(...params) as { count: number }
-      ).count
       const generatedAt = database
         .prepare("SELECT value FROM metadata WHERE key='generated_at'")
         .get() as { value: string } | undefined
+      // Reuse only continuation-page counts for the same immutable publication
+      // and complete filter scope. Keep one entry, not an unbounded query cache.
+      // File identity also distinguishes publications with equal timestamps;
+      // WAL identity covers in-place SQLite changes without a main-file write.
+      const countScope = JSON.stringify([
+        derivation.value,
+        generatedAt?.value ?? null,
+        Object.keys(DEFAULT_FILTERS).map((key) => filters[key as keyof MemberAnalysisFilters]),
+        ...[this.currentAnalysisPath, `${this.currentAnalysisPath}-wal`].map((path) => {
+          if (!existsSync(path)) return null
+          const stat = statSync(path, { bigint: true })
+          return [stat.dev, stat.ino, stat.size, stat.mtimeNs, stat.ctimeNs].map(String)
+        })
+      ])
+      let counts =
+        cursor && this._overviewCounts?.scope === countScope ? this._overviewCounts : null
+      if (!counts) {
+        const total = (
+          database
+            .prepare(`SELECT COUNT(*) AS count FROM derived_games WHERE ${whereSql}`)
+            .get(...params) as {
+            count: number
+          }
+        ).count
+        const playerCount = (
+          database
+            .prepare(
+              `SELECT COUNT(DISTINCT json_extract(player.value,'$.player')) AS count
+             FROM derived_games,json_each(derived_games.payload_json,'$.players') player
+             WHERE ${whereSql}`
+            )
+            .get(...params) as { count: number }
+        ).count
+        counts = { scope: countScope, total, playerCount }
+        this._overviewCounts = counts
+      }
       const source = database.prepare("SELECT value FROM metadata WHERE key='source'").get() as
         { value: string } | undefined
       const auditRow = database
@@ -506,20 +535,26 @@ export class MemberAnalysisRepository {
         generatedAt: generatedAt?.value ?? null,
         source: source?.value?.trim() || '来源未知',
         games: rows.slice(0, pageSize).map((row) => {
-          const game = MemberAnalysisGameSchema.parse(JSON.parse(row.payload_json))
+          const game =
+            derivation.value === DERIVATION_VERSION
+              ? MemberAnalysisGameSchema.parse(JSON.parse(row.payload_json))
+              : normalizeLegacyMemberAnalysisGame(JSON.parse(row.payload_json))
           const ranks = this.opponentRanks.readGame(row.server_id, row.game_id)
           return ranks ? { ...game, opponentRanks: ranks } : game
         }),
-        total,
-        playerCount,
+        total: counts.total,
+        playerCount: counts.playerCount,
         collectionAudit,
         nextCursor:
           rows.length > pageSize
             ? this._encodeCursor(rows[pageSize - 1].game_id, rows[pageSize - 1].server_id)
             : null
       }
+    } catch (error) {
+      this._overviewCounts = null
+      throw error
     } finally {
-      database.close()
+      database?.close()
     }
   }
 

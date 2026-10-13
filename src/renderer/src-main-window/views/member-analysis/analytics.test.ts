@@ -312,7 +312,7 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     })
     const earlyTrade = games.map((value) => ({
       ...value,
-      eventDecision: { ...value.eventDecision, tradeDelayTotalSec: -30, tradeDelaySamples: 1 }
+      eventDecision: { ...value.eventDecision!, tradeDelayTotalSec: -30, tradeDelaySamples: 1 }
     }))
     expect(aggregateConversion(earlyTrade)[0].tradeDelaySec).toBe(-30)
     expect(aggregateSynergy(games)[0]).toMatchObject({
@@ -412,7 +412,7 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     const noDecisionWindows = {
       ...games[0],
       eventDecision: {
-        ...games[0].eventDecision,
+        ...games[0].eventDecision!,
         killEpisodes: 0,
         convertedKillEpisodes: 0,
         killToEpicEpisodes: 0,
@@ -709,11 +709,11 @@ describe('event result presentation and matching games', () => {
   })
   test('distinguishes zero results from no event windows and missing observations', () => {
     const observed = structuredClone(game(404, false, 'Blue'))
-    observed.eventDecision.convertedKillEpisodes = 0
+    observed.eventDecision!.convertedKillEpisodes = 0
     expect(eventMetricCell(metric, aggregateConversion([observed])[0], [observed]).value).toBe(
       '0.0%'
     )
-    observed.eventDecision.killEpisodes = 0
+    observed.eventDecision!.killEpisodes = 0
     expect(eventMetricCell(metric, aggregateConversion([observed])[0], [observed])).toMatchObject({
       value: '—',
       sample: '无击杀窗口',
@@ -721,24 +721,24 @@ describe('event result presentation and matching games', () => {
     })
     // Defensive rendering of legacy/malformed missingness, not a new source contract.
     const missing = structuredClone(game(405, true, 'Red'))
-    missing.eventDecision.killEpisodes = null as unknown as number
+    missing.eventDecision = null
     const sample = [observed, missing]
     expect(eventMetricCell(metric, aggregateConversion(sample)[0], sample)).toMatchObject({
       value: '—',
-      sample: '有效 1/2 场 · 部分未采集',
-      missing: true
+      sample: '无击杀窗口 · 有效 1/2 场',
+      missing: false
     })
   })
   test('delay sample counts come from delay records rather than converted episodes', () => {
     const sample = structuredClone(game(406, true, 'Blue'))
-    sample.eventDecision.convertedKillEpisodes = 4
-    sample.eventDecision.conversionDelaySamples = 1
+    sample.eventDecision!.convertedKillEpisodes = 4
+    sample.eventDecision!.conversionDelaySamples = 1
     const delay = eventSections[0].metrics[3]
     expect(eventMetricCell(delay, aggregateConversion([sample])[0], [sample])).toMatchObject({
       value: '60.00 秒',
       sample: '延迟记录 1 次'
     })
-    sample.eventDecision.conversionDelaySamples = 0
+    sample.eventDecision!.conversionDelaySamples = 0
     expect(eventMetricCell(delay, aggregateConversion([sample])[0], [sample])).toMatchObject({
       value: '—',
       sample: '无延迟记录'
@@ -746,8 +746,8 @@ describe('event result presentation and matching games', () => {
   })
   test('preserves signed extreme trade delay and weighted totals', () => {
     const sample = structuredClone(game(407, true, 'Red'))
-    sample.eventDecision.tradeDelayTotalSec = -123456
-    sample.eventDecision.tradeDelaySamples = 2
+    sample.eventDecision!.tradeDelayTotalSec = -123456
+    sample.eventDecision!.tradeDelaySamples = 2
     expect(
       eventMetricCell(eventSections[3].metrics[1], aggregateConversion([sample])[0], [sample]).value
     ).toBe('−61728.0 秒')
@@ -800,4 +800,57 @@ describe('early result groups and evidence', () => {
         .every((b) => b.winRate === null)
     ).toBe(true)
   })
+})
+
+test('missing raw values use only matching exposure and preserve true zero', () => {
+  const sample = [game(9001, true, 'Blue'), game(9002, false, 'Red')]
+  sample[0].players[0].damage = null
+  sample[0].players[0].shieldTeammates = null
+  sample[0].players[0].soloKills = null
+  sample[1].players[0].damage = 0
+  sample[1].players[0].shieldTeammates = 0
+  sample[1].players[0].soloKills = 0
+  const row = aggregateRoles(sample, 'TOP')[0]
+  expect(row.dpm).toBe(0)
+  expect(row.shieldPM).toBe(0)
+  expect(row.soloKillsPG).toBe(0)
+  sample[1].players[0].damage = null
+  expect(aggregateRoles(sample, 'TOP')[0].dpm).toBeNull()
+  expect(aggregateRoles(sample, 'TOP')[0].kda).not.toBeNull()
+})
+test('missing timeline remains absent in pairs, events and prediction observations', async () => {
+  const sample = game(9003, true, 'Blue')
+  sample.upperGold15 = sample.botGold15 = sample.gold20Diff = null
+  sample.dragon15Diff = sample.grub15Diff = sample.objectiveFight15Diff = null
+  sample.eventDecision = null
+  expect(aggregatePairs([sample])[0].upperGold15).toBeNull()
+  expect(earlyGoldDiff(sample, '20')).toBeNull()
+  expect(aggregateConversion([sample])[0].deathCostPointsPG).toBeNull()
+  sample.players[0].damage = null
+  sample.players[0].fbPart = null
+  const { predictionObservations } = await import('./prediction/observations')
+  const { performanceMetricKeys } =
+    await import('@shared/shards/member-analysis/performance-metrics')
+  const observation = predictionObservations([sample])[0]
+  expect(observation.metrics[performanceMetricKeys.indexOf('dpm')]).toBeNull()
+  expect(observation.metrics[performanceMetricKeys.indexOf('fbRate')]).toBeNull()
+  expect(observation.metrics[performanceMetricKeys.indexOf('dragon15')]).toBeNull()
+})
+
+test('damage conversion uses paired shares, not unrelated valid populations', () => {
+  const sample = [game(9010, true, 'Blue'), game(9011, false, 'Red'), game(9012, true, 'Blue')]
+  sample[0].players[0].damageShare = 0.9
+  sample[0].players[0].goldShare = null
+  sample[1].players[0].damageShare = null
+  sample[1].players[0].goldShare = 0.8
+  sample[2].players[0].damageShare = 0.2
+  sample[2].players[0].goldShare = 0.1
+  expect(aggregateRoles(sample, 'TOP')[0].damageConversion).toBe(2)
+  sample[2].players[0].goldShare = 0
+  expect(aggregateRoles(sample, 'TOP')[0].damageConversion).toBeNull()
+  sample[2].players[0].goldShare = 0.1
+  sample[2].players[0].damageShare = 0
+  expect(aggregateRoles(sample, 'TOP')[0].damageConversion).toBe(0)
+  sample[2].players[0].damageShare = null
+  expect(aggregateRoles(sample, 'TOP')[0].damageConversion).toBeNull()
 })

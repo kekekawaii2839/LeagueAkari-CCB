@@ -45,6 +45,7 @@ test('snapshot hash, fixed worker resources, unavailable result and complete cle
     serialized = JSON.stringify(input),
     pending = executor.execute(input)
   input.lineup.TOP = 'mutated'
+  await vi.dynamicImportSettled()
   expect(factory.mock.calls[0][0].workerData.lineup.TOP).toBe('synthetic-a')
   expect(factory.mock.calls[0][0].resourceLimits).toEqual({ maxOldGenerationSizeMb: 256 })
   worker.emit('message', { status: 'unavailable', reason: 'synthetic' })
@@ -66,6 +67,7 @@ test('busy until successful worker is confirmed reaped, then reusable', async ()
   )
   const executor = new NativePredictionExecutor(),
     pending = executor.execute(request())
+  await vi.dynamicImportSettled()
   worker.emit('message', available())
   expect(await executor.execute(request())).toMatchObject({ status: 'failed', reasonCode: 'busy' })
   release(0)
@@ -73,6 +75,7 @@ test('busy until successful worker is confirmed reaped, then reusable', async ()
   const next = new WorkerFixture()
   factory.mockReturnValue(next)
   const second = executor.execute(request())
+  await vi.dynamicImportSettled()
   next.emit('message', { status: 'unavailable', reason: 'synthetic' })
   expect((await second).status).toBe('completed')
 })
@@ -81,6 +84,7 @@ test('abort wins cancellation/completion/error race exactly once and only after 
   const executor = new NativePredictionExecutor(),
     controller = new AbortController(),
     pending = executor.execute(request(), { signal: controller.signal })
+  await vi.dynamicImportSettled()
   controller.abort()
   worker.emit('message', available())
   worker.emit('error', Error('private identity'))
@@ -99,6 +103,7 @@ test('timeout is fixed 30 seconds, keeps cap occupied through termination', asyn
   )
   const executor = new NativePredictionExecutor(),
     pending = executor.execute(request())
+  await vi.dynamicImportSettled()
   await vi.advanceTimersByTimeAsync(29999)
   expect(worker.terminate).not.toHaveBeenCalled()
   await vi.advanceTimersByTimeAsync(1)
@@ -113,6 +118,7 @@ test('error and premature exit remain generic and both reclaim lifecycle', async
     worker = new WorkerFixture()
     factory.mockReturnValue(worker)
     const pending = new NativePredictionExecutor().execute(request())
+    await vi.dynamicImportSettled()
     worker.emit(event, event === 'error' ? Error('private raw reason') : 1)
     const result = await pending
     expect(result).toMatchObject({ status: 'failed', reasonCode: 'worker-error' })
@@ -143,6 +149,7 @@ test('invalid/nonfinite worker probabilities fail closed', async () => {
     worker = new WorkerFixture()
     factory.mockReturnValue(worker)
     const pending = new NativePredictionExecutor().execute(request())
+    await vi.dynamicImportSettled()
     worker.emit('message', output)
     expect(await pending).toMatchObject({ reasonCode: 'invalid-output' })
   }
@@ -158,6 +165,7 @@ test('available summary retains uncertainty, endpoints and low-bootstrap null ex
     worker = new WorkerFixture()
     factory.mockReturnValue(worker)
     const pending = new NativePredictionExecutor().execute(request())
+    await vi.dynamicImportSettled()
     worker.emit('message', output)
     expect(await pending).toMatchObject({ status: 'completed', result: output })
   }
@@ -173,6 +181,7 @@ test('worker status cannot coerce and incomplete or branch-mismatched results fa
     worker = new WorkerFixture()
     factory.mockReturnValue(worker)
     const pending = new NativePredictionExecutor().execute(request())
+    await vi.dynamicImportSettled()
     worker.emit('message', output)
     expect(await pending).toMatchObject({ reasonCode: 'invalid-output' })
   }
@@ -207,6 +216,7 @@ test('spawn failure releases cap and suppresses exception payload', async () => 
   expect(await executor.execute(request())).toMatchObject({ reasonCode: 'worker-error' })
   factory.mockReturnValue(worker)
   const pending = executor.execute(request())
+  await vi.dynamicImportSettled()
   worker.emit('message', { status: 'unavailable', reason: 'synthetic' })
   expect((await pending).status).toBe('completed')
 })
@@ -248,6 +258,7 @@ test('failed terminate never releases busy slot before independent exit confirma
   worker.terminate.mockRejectedValue(Error('private terminate'))
   const executor = new NativePredictionExecutor(),
     pending = executor.execute(request())
+  await vi.dynamicImportSettled()
   worker.emit('message', { status: 'unavailable', reason: 'synthetic' })
   await Promise.resolve()
   await Promise.resolve()
@@ -255,4 +266,19 @@ test('failed terminate never releases busy slot before independent exit confirma
   worker.emit('exit', 1)
   expect((await pending).status).toBe('completed')
   expect(worker.listenerCount('exit')).toBe(0)
+})
+
+test('abort while factory import is pending prevents launch and releases the busy cap', async () => {
+  const executor = new NativePredictionExecutor()
+  const controller = new AbortController()
+  const pending = executor.execute(request(), { signal: controller.signal })
+  const busy = executor.execute(request())
+  controller.abort()
+  expect(await busy).toMatchObject({ reasonCode: 'busy' })
+  expect(await pending).toMatchObject({ reasonCode: 'aborted' })
+  expect(factory).not.toHaveBeenCalled()
+  const next = executor.execute(request())
+  await vi.dynamicImportSettled()
+  worker.emit('message', { status: 'unavailable', reason: 'synthetic' })
+  expect((await next).status).toBe('completed')
 })

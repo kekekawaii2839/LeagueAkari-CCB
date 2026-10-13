@@ -93,7 +93,7 @@
                 class="member-identity"
                 :aria-expanded="selected === row.player"
                 :aria-controls="`${id}-member-detail`"
-                @click="selected = selected === row.player ? null : row.player"
+                @click="selectMember(row.player)"
               >
                 <span class="member-avatar" aria-hidden="true">{{
                   memberSlots.get(row.player) ?? '—'
@@ -132,6 +132,9 @@
         <NButton @click="store.resetFilters()">清除筛选</NButton>
       </div>
     </section>
+    <p v-if="selectedMemberUnavailable" class="ma-chart-note" role="status">
+      {{ uiText('roleSelectionUnavailable') }}
+    </p>
     <section
       v-if="selectedRow"
       :id="`${id}-member-detail`"
@@ -160,6 +163,7 @@
           <dd>{{ roleMetricDetail('dpm', selectedRow.dpm) }}</dd>
         </div>
       </dl>
+      <EvidenceMatchAction class="member-evidence-action" :evidence="selectedEvidence" />
     </section>
   </div>
 </template>
@@ -176,6 +180,8 @@ import WinRateInterval from './WinRateInterval.vue'
 import MetricHelp from './MetricHelp.vue'
 import { uiText } from './ui-text'
 import './member-analysis-visuals.css'
+import { memberRoleEvidenceGames } from './evidence-selection'
+import EvidenceMatchAction from './EvidenceMatchAction.vue'
 
 const store = useMemberAnalysisStore()
 const { games: games } = useMemberAnalysisData()
@@ -198,6 +204,11 @@ watch(
 )
 const roleName = computed(() => roles[role.value])
 const selected = ref<string | null>(null)
+const selectedMemberUnavailable = ref(false)
+function selectMember(player: string) {
+  selected.value = selected.value === player ? null : player
+  selectedMemberUnavailable.value = false
+}
 const metric = ref<'gd15' | 'kp'>('gd15')
 const metricOptions = [
   { label: '15 分钟经济差', value: 'gd15' },
@@ -238,8 +249,37 @@ const memberSlots = computed(
     )
 )
 const selectedRow = computed(() => rows.value.find((row) => row.player === selected.value))
-watch([role, games], () => {
+const selectedEvidence = computed(() => {
+  const evidence = {
+    publishedGeneration: store.overviewGeneration,
+    source: `${selectedRow.value?.player ?? ''} · ${roleName.value} · ${metricInfo.value.label}`,
+    games:
+      selectedRow.value &&
+      Number.isFinite(selectedRow.value[metric.value]) &&
+      selectedRow.value[metric.value] !== null
+        ? memberRoleEvidenceGames(games.value, {
+            player: selectedRow.value.player,
+            role: role.value,
+            metric: metric.value
+          })
+        : []
+  }
+  // The shared action closes over this same published payload, not live props
+  // read at click time. Keep the displayed count and generation together.
+  return { ...evidence, metricLabel: metricInfo.value.label, available: evidence.games.length > 0 }
+})
+watch(role, () => {
   selected.value = null
+  selectedMemberUnavailable.value = false
+})
+watch(rows, (current) => {
+  if (
+    selected.value !== null &&
+    current.filter((row) => row.player === selected.value && row.role === role.value).length !== 1
+  ) {
+    selected.value = null
+    selectedMemberUnavailable.value = true
+  }
 })
 const shortName = (name: string) => name.split('#')[0]
 const valueOf = (row: RoleAggregate) => row[metric.value]
@@ -289,6 +329,15 @@ async function closeDetail() {
 }
 </script>
 <style scoped>
+.member-evidence-action {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 12px;
+  color: var(--comparison-muted);
+  font-size: 12px;
+}
 .role-comparison-chart {
   min-width: 0;
   font-variant-numeric: tabular-nums;

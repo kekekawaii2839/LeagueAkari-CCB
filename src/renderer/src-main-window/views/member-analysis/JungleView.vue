@@ -232,6 +232,20 @@
         </div>
       </div>
       <p class="scale-note">{{ jungleText('source') }}</p>
+      <NSelect
+        v-model:value="evidenceMetric"
+        :options="evidenceMetricOptions"
+        :aria-label="uiText('evidenceMetricSelect')"
+        size="small"
+      />
+      <EvidenceMatchAction :evidence="matchEvidence" />
+      <NSelect
+        v-if="showSides"
+        v-model:value="evidenceSide"
+        :options="evidenceSideOptions"
+        :aria-label="uiText('evidenceSideSelect')"
+        size="small"
+      />
     </section>
     <section v-if="state.method" id="jungle-method" class="jungle-method">
       <h3>{{ jungleText('definitions') }}</h3>
@@ -257,7 +271,10 @@ import type { JungleGroup } from './jungle'
 const sessions = new WeakMap<object, { group: JungleGroup; selected: string; method: boolean }>()
 </script>
 <script setup lang="ts">
-import { NButton, NRadioGroup, NRadioButton, NSwitch } from 'naive-ui'
+import { NButton, NRadioGroup, NRadioButton, NSwitch, NSelect } from 'naive-ui'
+import EvidenceMatchAction from './EvidenceMatchAction.vue'
+import { jungleEvidenceGames, type JungleEvidenceMetric } from './evidence-selection'
+import { uiText } from './ui-text'
 import {
   computed,
   nextTick,
@@ -269,7 +286,7 @@ import {
 } from 'vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import type { JungleAggregate, SideLabel } from './analytics'
-import { formatMetric, jungleGroups } from './metric-defs'
+import { formatMetric, jungleGroups, jungleMeta } from './metric-defs'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { memberOrder, wilsonInterval } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
@@ -354,6 +371,55 @@ const headers = computed(
 const detailMetrics = [
   ...new Set(Object.values(jungleGroups).flatMap((g) => [...g.columns]))
 ].filter((k) => !['games', 'winRate', 'startDistribution'].includes(k))
+const evidenceMetric = ref<JungleEvidenceMetric>('games')
+const evidenceSide = ref<SideLabel>('总计')
+const evidenceSideOptions = computed(() => [
+  {
+    value: selected.value?.sideLabel ?? '总计',
+    label: selected.value?.sideLabel ?? uiText('evidenceAllSides')
+  },
+  ...(showSides.value ? sides.map((side) => ({ value: side, label: side })) : [])
+])
+watch(
+  evidenceSideOptions,
+  (options) => {
+    if (!options.some((option) => option.value === evidenceSide.value))
+      evidenceSide.value = options[0].value
+  },
+  { immediate: true }
+)
+const evidenceMetricOptions = computed(() => [
+  { value: 'games', label: jungleMeta.games.label },
+  ...detailMetrics.map((key) => ({ value: key, label: jungleMeta[key].label }))
+])
+const matchEvidence = computed(() => {
+  const row =
+    evidenceSide.value === selected.value?.sideLabel
+      ? selected.value
+      : selected.value
+        ? sideRow(selected.value, evidenceSide.value)
+        : undefined
+  const metricLabel =
+    evidenceMetricOptions.value.find((option) => option.value === evidenceMetric.value)?.label ?? ''
+  const available =
+    !!row &&
+    typeof row[evidenceMetric.value] === 'number' &&
+    Number.isFinite(row[evidenceMetric.value])
+  return {
+    publishedGeneration: store.overviewGeneration,
+    metricLabel,
+    available,
+    source: `${row?.player ?? ''} · ${row?.sideLabel ?? ''} · ${metricLabel}`,
+    games:
+      row && available
+        ? jungleEvidenceGames(games.value, {
+            player: row.player,
+            metric: evidenceMetric.value,
+            side: row.sideLabel === '蓝方' ? 'Blue' : row.sideLabel === '红方' ? 'Red' : undefined
+          })
+        : []
+  }
+})
 const campColors = [
   'var(--ma-red)',
   'var(--ma-blue)',

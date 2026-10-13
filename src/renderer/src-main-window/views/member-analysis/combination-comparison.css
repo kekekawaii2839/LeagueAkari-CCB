@@ -64,7 +64,7 @@
 .member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
   height: 72px;
   box-sizing: border-box;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 32px;
   border-top: 1px solid var(--ma-grid-strong);

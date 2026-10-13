@@ -104,6 +104,23 @@
             </dd>
           </div>
         </dl>
+        <template v-if="evidenceContext">
+          <NSelect
+            v-model:value="evidenceMetric"
+            :options="evidenceMetricOptions"
+            :aria-label="uiText('evidenceMetricSelect')"
+            size="small"
+          />
+          <NSelect
+            v-if="evidenceMetric === 'games' || evidenceMetric === 'winRate'"
+            v-model:value="evidenceSide"
+            :options="evidenceSideOptions"
+            :aria-label="uiText('evidenceSideSelect')"
+            size="small"
+          />
+          <p v-if="evidenceMetric === 'pickRate'">{{ uiText('evidencePickPopulation') }}</p>
+          <EvidenceMatchAction :evidence="matchEvidence" />
+        </template>
       </section>
       <div class="popover-help">
         <MetricHelp :label="uiText('poolHelp')" :definition="uiText('poolInterpretation')" />
@@ -114,7 +131,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
-import { NButton, NIcon, NScrollbar } from 'naive-ui'
+import { NButton, NIcon, NScrollbar, NSelect } from 'naive-ui'
+import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
+import EvidenceMatchAction from './EvidenceMatchAction.vue'
+import { memberRoleEvidenceGames, type MemberRoleEvidenceMetric } from './evidence-selection'
 import ChevronUp20Regular from '@vicons/fluent/es/ChevronUp20Regular'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import type { ChampionPool } from './champion-pools'
@@ -129,6 +149,7 @@ const props = defineProps<{
   championId: (name: string) => number
   championName: (name: string) => string
   initialChampion: string | null
+  evidenceContext?: { games: MemberAnalysisGame[]; publishedGeneration: number }
 }>()
 const emit = defineEmits<{ close: [] }>()
 const panel = ref<HTMLElement | null>(null)
@@ -140,6 +161,51 @@ const selectedChampion = ref(props.initialChampion)
 const selected = computed(() =>
   props.pool.rows.find((row) => row.champion === selectedChampion.value)
 )
+const evidenceMetric = ref<MemberRoleEvidenceMetric | 'pickRate'>('games')
+const evidenceSide = ref<'all' | 'Blue' | 'Red'>('all')
+const evidenceSideOptions = computed(() => [
+  { value: 'all', label: uiText('evidenceAllSides') },
+  { value: 'Blue', label: uiText('evidenceBlueSide') },
+  { value: 'Red', label: uiText('evidenceRedSide') }
+])
+const evidenceMetricOptions = computed(() => [
+  { value: 'games', label: roleMetricMeta.games.label },
+  { value: 'winRate', label: uiText('poolWinRate') },
+  { value: 'pickRate', label: uiText('poolPickRate') },
+  ...detailMetrics.map((metric) => ({ value: metric.key, label: metric.label }))
+])
+const matchEvidence = computed(() => {
+  const row = selected.value
+  const metricLabel =
+    evidenceMetricOptions.value.find((option) => option.value === evidenceMetric.value)?.label ?? ''
+  const side =
+    evidenceMetric.value === 'games' || evidenceMetric.value === 'winRate'
+      ? evidenceSide.value
+      : 'all'
+  const available =
+    !!row &&
+    (evidenceMetric.value === 'games' ||
+      evidenceMetric.value === 'winRate' ||
+      evidenceMetric.value === 'pickRate' ||
+      (typeof row.performance[evidenceMetric.value as keyof typeof row.performance] === 'number' &&
+        Number.isFinite(row.performance[evidenceMetric.value as keyof typeof row.performance])))
+  return {
+    publishedGeneration: props.evidenceContext?.publishedGeneration ?? -1,
+    source: `${props.pool.player} · ${props.roleLabel} · ${row?.champion ?? ''} · ${metricLabel} · ${evidenceSideOptions.value.find((option) => option.value === side)?.label}`,
+    metricLabel,
+    available,
+    games:
+      available && props.evidenceContext && row
+        ? memberRoleEvidenceGames(props.evidenceContext.games, {
+            player: props.pool.player,
+            role: props.pool.role,
+            champion: evidenceMetric.value === 'pickRate' ? undefined : row.champion,
+            metric: evidenceMetric.value === 'pickRate' ? 'games' : evidenceMetric.value,
+            side: side === 'all' ? undefined : side
+          })
+        : []
+  }
+})
 const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const detailMotion = createChampionPoolMotion(() => reducedMotion.value)
 watch(reducedMotion, () => detailMotion.finish())
@@ -393,10 +459,13 @@ const displayedMetrics = computed(() =>
 .popover-hero strong,
 .popover-hero small {
   display: block;
-  font-size: 12px;
   line-height: 1.5;
 }
+.popover-hero strong {
+  font-size: 14px;
+}
 .popover-hero small {
+  font-size: 12px;
   color: var(--ma-muted);
 }
 .popover-rates {

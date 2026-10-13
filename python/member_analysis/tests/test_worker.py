@@ -81,7 +81,7 @@ def synthetic_summary(game_id=7):
 
 def synthetic_details():
     frames = []
-    for minute in range(21):
+    for minute in range(31):
         participant_frames = {}
         for participant_id in range(1, 11):
             target = participant_id <= 5
@@ -209,7 +209,7 @@ class WorkerContractTest(unittest.TestCase):
              "assistingParticipantIds": [], "position": {"x": 4200, "y": 10500}},
         ]
         result = build_lane_gank_deaths_payload(
-            [{"timestamp": 0, "participantFrames": {}, "events": events}],
+            [{"timestamp": minute * 60000, "participantFrames": {}, "events": events if minute == 0 else []} for minute in range(15)],
             targets,
             enemy_jungler,
         )
@@ -218,7 +218,7 @@ class WorkerContractTest(unittest.TestCase):
         self.assertEqual([event["involvement"] for event in result["events"]], ["killer", "assist"])
 
     def test_marks_lane_gank_data_unavailable_without_enemy_jungler(self):
-        result = build_lane_gank_deaths_payload([{"events": []}], {}, None)
+        result = build_lane_gank_deaths_payload(synthetic_details()["json"]["frames"], {}, None)
         self.assertEqual(
             result,
             {"methodVersion": 1, "status": "unavailable", "reason": "enemy-jungler-unresolved"},
@@ -269,6 +269,75 @@ class WorkerContractTest(unittest.TestCase):
         self.assertEqual(len(game["laneGankDeaths"]["events"]), 1)
         self.assertEqual(game["laneGankDeaths"]["events"][0]["timestampSec"], 480)
         self.assertNotIn("token", json.dumps(game).lower())
+
+    def test_missing_raw_stats_are_not_zero_and_team_share_requires_all_five(self):
+        summary = synthetic_summary()
+        row = summary["json"]["participants"][0]
+        del row["totalDamageDealtToChampions"]
+        del row["totalDamageShieldedOnTeammates"]
+        del row["challenges"]
+        game = derive_game(summary, synthetic_details())
+        self.assertIsNone(game["players"][0]["damage"])
+        self.assertIsNone(game["players"][0]["shieldTeammates"])
+        self.assertIsNone(game["players"][0]["soloKills"])
+        self.assertTrue(all(player["damageShare"] is None for player in game["players"]))
+        self.assertEqual(game["players"][1]["damage"], 12000)
+        self.assertEqual(game["players"][1]["shieldTeammates"], 0)
+        row["totalDamageDealtToChampions"] = 0
+        game = derive_game(summary, synthetic_details())
+        self.assertEqual(game["players"][0]["damage"], 0)
+        self.assertEqual(game["players"][0]["damageShare"], 0)
+
+    def test_missing_snapshots_and_components_do_not_become_partial_sums(self):
+        details = synthetic_details()
+        frames = details["json"]["frames"]
+        frames[:] = [frame for frame in frames if frame["timestamp"] != 1200000]
+        game = derive_game(synthetic_summary(), details)
+        self.assertIsNone(game["gold20Diff"])
+        self.assertEqual(game["upperGold15"], 2700)
+        self.assertEqual(game["dragon15Diff"], 1)
+        self.assertIsNone(game["eventDecision"])
+        self.assertIsNone(game["tower20Diff"])
+        details = synthetic_details()
+        frame = details["json"]["frames"][15]
+        del frame["participantFrames"]["1"]["totalGold"]
+        game = derive_game(synthetic_summary(), details)
+        self.assertIsNone(game["players"][0]["gd15"])
+        self.assertIsNone(game["upperGold15"])
+        self.assertEqual(game["botGold15"], 1800)
+        self.assertEqual(game["players"][0]["damageDiff15"], 750)
+
+    def test_empty_and_single_frame_are_unavailable_not_no_events(self):
+        for frames in ([], synthetic_details()["json"]["frames"][:1]):
+            game = derive_game(synthetic_summary(), {"frames": frames})
+            self.assertIsNone(game["gold20Diff"])
+            self.assertIsNone(game["dragon15Diff"])
+            self.assertIsNone(game["eventDecision"])
+            self.assertEqual(game["laneGankDeaths"]["status"], "unavailable")
+            self.assertIsNone(game["jungle"]["level3Gank"])
+            self.assertIsNone(game["jungle"]["dragons"])
+            self.assertEqual(game["players"][0]["damage"], 12000)
+
+    def test_complete_zero_events_are_valid_and_gaps_are_window_specific(self):
+        details = synthetic_details()
+        for frame in details["json"]["frames"]:
+            frame["events"] = []
+        game = derive_game(synthetic_summary(), details)
+        self.assertEqual(game["eventDecision"]["deathCostPoints"], 0)
+        self.assertEqual(game["laneGankDeaths"]["status"], "available")
+        self.assertEqual(game["laneGankDeaths"]["events"], [])
+        self.assertEqual(game["dragon15Diff"], 0)
+        details["json"]["frames"].pop(25)
+        game = derive_game(synthetic_summary(), details)
+        self.assertIsNone(game["eventDecision"])
+        self.assertEqual(game["dragon15Diff"], 0)
+        self.assertEqual(game["laneGankDeaths"]["status"], "available")
+
+    def test_missing_required_summary_stat_is_explicitly_rejected(self):
+        summary = synthetic_summary()
+        del summary["json"]["participants"][0]["kills"]
+        with self.assertRaisesRegex(ValueError, "required summary statistic unavailable"):
+            derive_game(summary, synthetic_details())
 
     def test_rejects_a_partial_configured_party(self):
         summary = synthetic_summary()
@@ -349,6 +418,59 @@ class WorkerContractTest(unittest.TestCase):
             )
             database.close()
             self.assertFalse((root / "db" / "analysis.sqlite3").exists())
+
+    def test_raw_cache_recovery_and_failure_do_not_modify_published_analysis(self):
+        with tempfile.TemporaryDirectory(prefix="akari-g2-recovery-") as directory:
+            root = Path(directory)
+            (root / "raw").mkdir()
+            (root / "jobs").mkdir()
+            (root / "db").mkdir()
+            current = root / "db/current.sqlite3"
+            # Disposable synthetic previous generation; worker never opens it.
+            old_bytes = b"synthetic previous published generation"
+            current.write_bytes(old_bytes)
+            command = [sys.executable, "-I", str(SRC / "member_analysis/worker.py"),
+                       "--job-id", "recovery", "--data-root", str(root),
+                       "--manifest", "jobs/manifest.json", "--staging", "db/next.sqlite3",
+                       "--current", "db/current.sqlite3", "--checkpoint", "jobs/checkpoint.json"]
+            def write_raw(summary, details):
+                for name, value in (("summary", summary), ("details", details)):
+                    with gzip.open(root / f"raw/{name}.gz", "wt", encoding="utf-8") as handle:
+                        json.dump(value, handle)
+                (root / "jobs/manifest.json").write_text(json.dumps({"items": [{
+                    "serverId": "SYNTHETIC", "gameId": 7, "checksum": "synthetic",
+                    "summaryPath": "raw/summary.gz", "detailsPath": "raw/details.gz"}]}), encoding="utf-8")
+            for details, complete in ((synthetic_details(), True), ({"frames": []}, False)):
+                write_raw(synthetic_summary(), details)
+                result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                database = sqlite3.connect(root / "db/next.sqlite3")
+                try:
+                    self.assertEqual(database.execute("SELECT value FROM metadata WHERE key='derivation_version'").fetchone()[0], "5")
+                    game = json.loads(database.execute("SELECT payload_json FROM derived_games").fetchone()[0])
+                finally:
+                    database.close()
+                self.assertEqual(game["players"][0]["damage"], 12000)
+                self.assertEqual(game["gold20Diff"] is not None, complete)
+                self.assertEqual(game["eventDecision"] is not None, complete)
+                self.assertEqual(current.read_bytes(), old_bytes)
+            bad = synthetic_summary()
+            del bad["json"]["participants"][0]["kills"]
+            write_raw(bad, synthetic_details())
+            for has_previous in (True, False):
+                if not has_previous:
+                    current.unlink()
+                result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+                self.assertEqual(result.returncode, 1)
+                messages = [json.loads(line) for line in result.stdout.splitlines()]
+                self.assertEqual(messages[-1]["code"], "SUMMARY_STAT_UNAVAILABLE")
+                self.assertEqual(current.read_bytes() if current.exists() else None,
+                                 old_bytes if has_previous else None)
+            # Cleared raw cache cannot be reconstructed from derived facts.
+            (root / "raw/summary.gz").unlink()
+            result = subprocess.run(command, capture_output=True, text=True, timeout=20)
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(current.exists())
 
 
 if __name__ == "__main__":

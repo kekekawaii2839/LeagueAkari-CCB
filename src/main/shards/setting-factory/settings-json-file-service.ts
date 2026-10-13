@@ -65,7 +65,8 @@ export class SettingsJsonFileService {
     const jsonContent = {
       databaseVersion: StorageMain.LEAGUE_AKARI_DB_CURRENT_VERSION,
       type: 'league-akari-settings',
-      data: all
+      // Member configuration is private and not part of generic settings transfer.
+      data: all.filter((setting) => !setting.key.startsWith('member-analysis-main/'))
     }
 
     await fs.promises.writeFile(filePath, JSON.stringify(jsonContent), 'utf-8')
@@ -100,6 +101,15 @@ export class SettingsJsonFileService {
       )
     ) {
       throw new AkariIpcError(`The file is not a valid settings file`, 'InvalidSettingsData')
+    }
+
+    // Reject the whole import before any writes, including legacy bundles containing
+    // this namespace. Never partially import or bypass the feature's running-job lock.
+    if (content.data.some((setting: Setting) => setting.key.startsWith('member-analysis-main/'))) {
+      throw new AkariIpcError(
+        'Member analysis configuration cannot be imported. Remove it from the settings file and configure it in the member analysis page.',
+        'ProtectedSettingsNamespace'
+      )
     }
 
     // 替换数据库中上述提到的设置项

@@ -1,11 +1,13 @@
+import {
+  type NativeMetricGame,
+  predictionObservationsFromGames
+} from '@shared/shards/member-analysis/performance-metrics'
+import { MemberAnalysisGameSchema } from '@shared/shards/member-analysis/schemas'
 import { createHash } from 'node:crypto'
 import { open } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import {
-  predictionObservationsFromGames,
-  validatePredictionGames
-} from '../../../../../packages/prediction-lab/src/akari-metrics'
+import { validatePredictionGames } from '../../../../../packages/prediction-lab/src/akari-metrics'
 import {
   type TeamLineup,
   predictionRoles
@@ -158,9 +160,18 @@ export async function buildNativePredictionInitialSnapshot(
       reject()
     }
   }
-  let games: ReturnType<typeof validatePredictionGames>
+  let games: NativeMetricGame[]
   try {
-    games = validatePredictionGames([...parsed.games, ...futureGames])
+    // The immutable Lab seed retains its strict source contract. Current native
+    // future records are validated against the nullable product schema instead;
+    // both map to the same legal number|null observation vector, never raw casts.
+    games = [
+      ...validatePredictionGames(parsed.games),
+      ...futureGames.map((input) => {
+        const native = MemberAnalysisGameSchema.safeParse(input)
+        return native.success ? native.data : validatePredictionGames([input])[0]
+      })
+    ]
   } catch {
     reject()
   }

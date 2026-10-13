@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { gunzipSync } from 'node:zlib'
 import { expect, test, vi } from 'vitest'
 
-import { predictionObservationsFromGames } from '../../../../packages/prediction-lab/src/akari-metrics'
+import { predictionObservationsFromGames } from '@shared/shards/member-analysis/performance-metrics'
 import { MemberAnalysisCollector } from './collector'
 import { MemberAnalysisPipeline } from './execution'
 import { MemberAnalysisRepository } from './repository'

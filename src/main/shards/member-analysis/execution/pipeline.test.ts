@@ -280,3 +280,45 @@ describe('member analysis refresh pipeline', () => {
     repository.close()
   })
 })
+
+test('required summary failure is safe, never publishes, and does not leak into the next job', async () => {
+  const collector = { collect: vi.fn(async () => ({ items: [], memberErrors: 0 })) }
+  const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }
+  let attempt = 0
+  const worker = {
+    available: true,
+    run: vi.fn(
+      async (
+        _args: string[],
+        onMessage: (message: { type: 'error'; code: string; message: string }) => void
+      ) => {
+        onMessage({
+          type: 'error',
+          code: attempt++ === 0 ? 'SUMMARY_STAT_UNAVAILABLE' : 'UNKNOWN_WORKER_CODE',
+          message: 'private raw diagnostic'
+        })
+        throw Error('private raw failure')
+      }
+    )
+  }
+  const pipeline = new MemberAnalysisPipeline(
+    collector as any,
+    repository as any,
+    worker as any,
+    settings
+  )
+  pipeline.start()
+  await waitFor(() => pipeline.get()?.status === 'failed')
+  expect(pipeline.get()?.error).toEqual({
+    code: 'SUMMARY_STAT_UNAVAILABLE',
+    message: 'Required match summary statistics unavailable'
+  })
+  expect(repository.publishStaging).not.toHaveBeenCalled()
+  pipeline.start()
+  await waitFor(() => pipeline.get()?.status === 'failed')
+  expect(pipeline.get()?.error).toEqual({
+    code: 'PIPELINE_FAILED',
+    message: 'Member analysis refresh failed'
+  })
+  expect(repository.publishStaging).not.toHaveBeenCalled()
+})

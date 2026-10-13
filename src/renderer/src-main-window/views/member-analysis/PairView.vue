@@ -205,6 +205,19 @@
             }}
           </p>
           <p class="ma-chart-note">{{ uiText('combinationRoleEvidenceNote') }}</p>
+          <NSelect
+            v-model:value="evidenceMetric"
+            :options="evidenceMetricOptions"
+            :aria-label="uiText('evidenceMetricSelect')"
+            size="small"
+          />
+          <NSelect
+            v-model:value="evidenceSide"
+            :options="evidenceSideOptions"
+            :aria-label="uiText('evidenceSideSelect')"
+            size="small"
+          />
+          <EvidenceMatchAction :evidence="matchEvidence" />
         </aside>
         <aside
           v-else
@@ -227,9 +240,11 @@
 </template>
 <script setup lang="ts">
 import { NButton, NRadioButton, NRadioGroup, NSelect } from 'naive-ui'
+import EvidenceMatchAction from './EvidenceMatchAction.vue'
+import { pairEvidenceGames, type PairEvidenceMetric } from './evidence-selection'
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric } from './metric-defs'
+import { formatMetric, roleMetricMeta } from './metric-defs'
 import { finiteOrNull, formatSigned } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
 import SynergyHeroStats from './SynergyHeroStats.vue'
@@ -378,6 +393,61 @@ const selectedRow = computed(() => rows.value.find((row) => row.pair === selecte
 const evidence = computed(() =>
   selectedRow.value ? rolePairEvidence(games.value, selectedRow.value) : null
 )
+const evidenceMetric = ref<PairEvidenceMetric>(metric.value)
+watch(metric, (value) => {
+  evidenceMetric.value = value
+})
+const evidenceSide = ref('总计')
+const evidenceMetricOptions = [
+  { value: 'games', label: roleMetricMeta.games.label },
+  { value: 'winRate', label: roleMetricMeta.winRate.label },
+  { value: 'counterMean', label: roleMetricMeta.counter.label },
+  ...metricOptions
+]
+const evidenceSideOptions = computed(() =>
+  pairs.value
+    .filter(
+      (row) => row.pair === selectedRow.value?.pair && row.pairType === selectedRow.value?.pairType
+    )
+    .map((row) => ({ value: row.sideLabel, label: row.sideLabel }))
+)
+watch(
+  evidenceSideOptions,
+  (options) => {
+    if (!options.some((option) => option.value === evidenceSide.value))
+      evidenceSide.value = options[0]?.value ?? '总计'
+  },
+  { immediate: true }
+)
+const matchEvidence = computed(() => {
+  const row = pairs.value.find(
+    (row) =>
+      row.pair === selectedRow.value?.pair &&
+      row.pairType === selectedRow.value?.pairType &&
+      row.sideLabel === evidenceSide.value
+  )
+  const metricName =
+    evidenceMetricOptions.find((option) => option.value === evidenceMetric.value)?.label ?? ''
+  const available =
+    !!row &&
+    row[evidenceMetric.value] !== null &&
+    typeof row[evidenceMetric.value] === 'number' &&
+    Number.isFinite(row[evidenceMetric.value])
+  return {
+    publishedGeneration: store.overviewGeneration,
+    metricLabel: metricName,
+    available,
+    source: `${row?.pair ?? ''} · ${row ? names[row.pairType] : ''} · ${row?.sideLabel ?? ''} · ${metricName}`,
+    games:
+      row && available
+        ? (pairEvidenceGames(games.value, {
+            ...row,
+            metric: evidenceMetric.value,
+            side: row.sideLabel === '蓝方' ? 'Blue' : row.sideLabel === '红方' ? 'Red' : undefined
+          }) ?? [])
+        : []
+  }
+})
 const heroStats = computed(() =>
   evidence.value && selectedRow.value
     ? sharedHeroStats({
