@@ -67,7 +67,16 @@ for (const { repoRoot, file, display } of candidates) {
     !normalized.includes('/') &&
     /\.(?:py|mjs|ts|tsx)$/i.test(normalized)
   const isPredictionLabText = repoRoot === predictionLabRoot
-  if (!isAkariProtectedText && !isWorkspaceSource && !isPredictionLabText) continue
+  // Documentation outside docs/fork (including workspace guidance and Skills) is also
+  // a publication candidate. Git supplies the boundary: do not walk ignored data or
+  // dependencies, and do not treat generated/vendor Markdown as maintained guidance.
+  const isMaintainedMarkdown =
+    /\.(?:md|mdx|markdown)$/i.test(normalized) &&
+    !/(^|\/)(?:node_modules|vendor|\.yarn|out|dist|build|storybook-static|\.runtime|userData)(\/|$)/i.test(
+      normalized
+    )
+  if (!isAkariProtectedText && !isWorkspaceSource && !isPredictionLabText && !isMaintainedMarkdown)
+    continue
 
   const fullPath = path.join(repoRoot, file)
   if (!fs.existsSync(fullPath)) continue

@@ -83,3 +83,52 @@ test('nested independent Lab cannot bypass either entrypoint before a first comm
     }
   })
 })
+
+test('maintained Markdown candidates across repositories are checked without echoing values', () => {
+  withRepositories(({ workspace, akari }) => {
+    const lab = path.join(akari, 'packages/prediction-lab')
+    mkdirSync(lab, { recursive: true })
+    assert.equal(run('git', ['init', '--quiet'], lab).status, 0)
+    const skill = path.join(akari, '.agents/skills/synthetic')
+    mkdirSync(skill, { recursive: true })
+    const secret = 'synthetic-only-doc-secret'
+    writeFileSync(path.join(workspace, 'guide.mdx'), '"SyntheticPlayer#DEMO"\n')
+    writeFileSync(path.join(skill, 'SKILL.md'), `token = "${secret}"\n`)
+    writeFileSync(path.join(lab, 'guide.markdown'), `authorization = "${secret}"\n`)
+    assert.equal(run('git', ['add', 'guide.markdown'], lab).status, 0)
+    for (const entry of entrypoints) {
+      const result = run(process.execPath, [entry], akari)
+      assert.equal(result.status, 1)
+      assert.match(result.stderr, /guide\.mdx: Riot ID/)
+      assert.match(result.stderr, /SKILL\.md: credential assignment/)
+      assert.match(result.stderr, /guide\.markdown: credential assignment/)
+      assert.equal(result.stderr.includes(secret), false)
+      assert.equal(result.stderr.includes('SyntheticPlayer#DEMO'), false)
+    }
+  })
+})
+
+test('documentation scan honors Git ignores, vendor boundaries and ordinary privacy guidance', () => {
+  withRepositories(({ workspace, akari }) => {
+    writeFileSync(path.join(workspace, '.gitignore'), 'raw_data/\n*.log\nprivate-notes/\n')
+    mkdirSync(path.join(workspace, 'private-notes'))
+    writeFileSync(path.join(workspace, 'private-notes/guide.md'), '"SyntheticPlayer#DEMO"\n')
+    for (const folder of ['vendor', 'node_modules', 'out', 'userData']) {
+      mkdirSync(path.join(akari, folder))
+      writeFileSync(path.join(akari, folder, 'guide.md'), '"SyntheticPlayer#DEMO"\n')
+    }
+    writeFileSync(path.join(akari, 'AGENTS.md'), 'Never commit tokens or player data.\n')
+    writeFileSync(path.join(workspace, 'README.md'), 'Only synthetic fixtures belong in Git.\n')
+    for (const entry of entrypoints) {
+      const result = run(process.execPath, [entry], akari)
+      assert.equal(result.status, 0, result.stderr)
+    }
+    // Ignore does not protect a file already added to the index.
+    assert.equal(run('git', ['add', '-f', 'private-notes/guide.md'], workspace).status, 0)
+    for (const entry of entrypoints) {
+      const result = run(process.execPath, [entry], akari)
+      assert.equal(result.status, 1)
+      assert.match(result.stderr, /private-notes[\\/]guide\.md: Riot ID/)
+    }
+  })
+})
