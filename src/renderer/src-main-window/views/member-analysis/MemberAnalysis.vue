@@ -94,8 +94,13 @@
           <NButton secondary @click="memberAnalysis.reload()">{{ uiText('retry') }}</NButton>
         </NAlert>
 
-        <div v-else class="member-analysis-ready">
-          <NTabs v-model:value="primarySection" type="line">
+        <div
+          v-else
+          ref="primaryPanels"
+          class="member-analysis-ready"
+          @click.capture="primaryMotion.capture"
+        >
+          <NTabs :value="primarySection" type="line" @update:value="selectPrimarySection">
             <NTabPane
               v-for="section in sections"
               :key="section.key"
@@ -143,7 +148,7 @@
 import { useInstance } from '@renderer-shared/shards'
 import { useMediaQuery } from '@vueuse/core'
 import { NAlert, NButton, NEmpty, NProgress, NResult, NSpin, NTabPane, NTabs } from 'naive-ui'
-import { computed, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
@@ -165,6 +170,7 @@ import ScatterView from './ScatterView.vue'
 import { WinPrediction } from './prediction'
 import './member-analysis-visuals.css'
 import { uiText } from './ui-text'
+import { createPrimaryTabMotion } from './primary-tab-motion'
 
 const allSections = [
   { key: 'roles', label: '成员分路', description: '', component: MemberRoleView },
@@ -208,10 +214,31 @@ const primarySection = computed({
     activeSection.value = section === 'pairs' ? combinationSection.value : section
   }
 })
+const primaryPanels = ref<HTMLElement | null>(null)
+const reducedTabMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+const primaryMotion = createPrimaryTabMotion({
+  root: () => primaryPanels.value,
+  active: () => primarySection.value,
+  reduced: () => reducedTabMotion.value,
+  rendered: () => nextTick()
+})
+function selectPrimarySection(section: string | number) {
+  if (typeof section !== 'string') return
+  primarySection.value = section
+  void primaryMotion.enter(section)
+}
+watch(reducedTabMotion, () => primaryMotion.cancel())
+watch(
+  () => store.viewState,
+  () => primaryMotion.cancel()
+)
+onDeactivated(() => primaryMotion.cancel())
+onBeforeUnmount(() => primaryMotion.cancel())
 watch(
   () => store.matchNavigation,
   (request) => {
     if (!request) return
+    primaryMotion.cancel()
     activeSection.value = 'matches'
   },
   { flush: 'sync' }
@@ -339,9 +366,11 @@ watch(
     if (store.loading) return
     const next = String(section ?? '')
     if (next === 'prediction' && store.settings?.experimentalPredictionEnabled !== true) {
+      primaryMotion.cancel()
       activeSection.value = 'roles'
       void router.replace({ name: 'member-analysis', params: { section: 'roles' } })
     } else if (isKnownSection(next) && activeSection.value !== next) {
+      primaryMotion.cancel()
       activeSection.value = next
     }
   },

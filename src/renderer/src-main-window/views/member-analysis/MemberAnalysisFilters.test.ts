@@ -30,14 +30,21 @@ vi.mock('naive-ui', () => ({
   }),
   NSelect: defineComponent({
     props: {
-      options: Array
+      options: Array,
+      show: Boolean,
+      menuProps: Object
     },
     setup:
       (props, { attrs }) =>
       () =>
         h(
           'div',
-          { 'data-control': attrs['aria-label'] },
+          {
+            'data-control': attrs['aria-label'],
+            'data-menu-open': props.show,
+            'data-menu-inert': props.menuProps?.inert,
+            'data-menu-pointer': props.menuProps?.style?.pointerEvents
+          },
           (props.options as Array<{ label: string }> | undefined)
             ?.map((option) => option.label)
             .join('|')
@@ -46,6 +53,21 @@ vi.mock('naive-ui', () => ({
 }))
 
 describe('member analysis filters', () => {
+  test('initially closed menus stay noninteractive without modifying applied values', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useMemberAnalysisStore()
+    store.filters.matchRole = 'TOP'
+    store.sampleSize = 20
+    const before = JSON.stringify({ filters: store.filters, sample: store.sampleSize })
+    const app = createSSRApp(MemberAnalysisFilters)
+    app.use(pinia)
+    const html = await renderToString(app)
+    expect(html.match(/data-menu-open="false"/g)).toHaveLength(7)
+    expect(html.match(/data-menu-inert="true"/g)).toHaveLength(7)
+    expect(html.match(/data-menu-pointer="none"/g)).toHaveLength(7)
+    expect(JSON.stringify({ filters: store.filters, sample: store.sampleSize })).toBe(before)
+  })
   test.each([false, true])('keeps all controls visible with disabled=%s', async (disabled) => {
     const pinia = createPinia()
     setActivePinia(pinia)
