@@ -21,23 +21,58 @@
         <template #icon><NIcon :component="RefreshRound" /></template>
         刷新
       </NButton>
+      <NPopover
+        v-if="refreshReason"
+        v-model:show="reasonOpen"
+        trigger="click"
+        placement="bottom"
+        :style="{ maxWidth: '300px' }"
+      >
+        <template #trigger
+          ><NButton
+            ref="reasonTrigger"
+            size="small"
+            quaternary
+            :aria-label="uiText('refreshDisabledHelp')"
+            :aria-expanded="reasonOpen"
+            @keydown.esc.prevent="closeReason"
+            ><template #icon><NIcon :component="InfoOutlined" /></template></NButton
+        ></template>
+        <div @keydown.esc.prevent.stop="closeReason">
+          <p>{{ refreshReason.text }}</p>
+          <NButton
+            v-if="refreshReason.kind !== 'service'"
+            size="small"
+            @click="openReasonSettings"
+            >{{
+              uiText(refreshReason.kind === 'members' ? 'configureMembers' : 'openSettings')
+            }}</NButton
+          >
+          <NButton size="small" @click="closeReason">{{ uiText('closeHelp') }}</NButton>
+        </div>
+      </NPopover>
       <NButton aria-label="设置" secondary @click="$emit('settings')">
         <template #icon><NIcon :component="SettingsRound" /></template>
         设置
       </NButton>
     </div>
+    <p v-if="refreshReason?.kind === 'service'" class="refresh-unavailable" role="status">
+      {{ refreshReason.text }}
+    </p>
   </header>
 </template>
 
 <script setup lang="ts">
-import { AnalyticsRound, RefreshRound, SettingsRound } from '@vicons/material'
-import { NButton, NIcon } from 'naive-ui'
-import { computed } from 'vue'
+import { AnalyticsRound, InfoOutlined, RefreshRound, SettingsRound } from '@vicons/material'
+import { NButton, NIcon, NPopover } from 'naive-ui'
+import { computed, nextTick, ref, watch } from 'vue'
+import { uiText } from './ui-text'
 
 const props = defineProps<{
   generatedAt: string | null
   loading: boolean
   refreshDisabled: boolean
+  refreshReason?: { kind: 'closed' | 'members' | 'service'; text: string } | null
 }>()
 
 const formattedGeneratedAt = computed(() => {
@@ -53,10 +88,27 @@ const formattedGeneratedAt = computed(() => {
   }).format(value)
 })
 
-defineEmits<{
+const emit = defineEmits<{
   refresh: []
-  settings: []
+  settings: [section?: 'members' | null]
 }>()
+const reasonOpen = ref(false)
+const reasonTrigger = ref<InstanceType<typeof NButton> | null>(null)
+async function closeReason() {
+  reasonOpen.value = false
+  await nextTick()
+  reasonTrigger.value?.$el?.focus()
+}
+function openReasonSettings() {
+  reasonOpen.value = false
+  emit('settings', props.refreshReason?.kind === 'members' ? 'members' : null)
+}
+watch(
+  () => props.refreshReason?.kind,
+  () => {
+    reasonOpen.value = false
+  }
+)
 </script>
 
 <style scoped>
@@ -64,6 +116,7 @@ defineEmits<{
   display: flex;
   min-width: 0;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 14px;
   padding: 10px 20px;
@@ -121,5 +174,14 @@ defineEmits<{
   .member-analysis-header__actions :deep(.n-button__icon) {
     margin: 0;
   }
+}
+</style>
+
+<style scoped>
+.refresh-unavailable {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  color: var(--ma-muted);
 }
 </style>

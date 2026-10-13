@@ -42,6 +42,7 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
   const overview = ref<MemberAnalysisOverview | null>(null)
   const error = ref<MemberAnalysisError | null>(null)
   const settingsDrawerVisible = ref(false)
+  const settingsFocus = ref<'collection' | 'members' | null>(null)
   const job = ref<MemberAnalysisJob | null>(null)
   const storageStatus = ref<MemberAnalysisStorageStatus | null>(null)
   const cleanupPreview = ref<MemberAnalysisCleanupPreview | null>(null)
@@ -122,6 +123,7 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     overview,
     error,
     settingsDrawerVisible,
+    settingsFocus,
     job,
     storageStatus,
     cleanupPreview,

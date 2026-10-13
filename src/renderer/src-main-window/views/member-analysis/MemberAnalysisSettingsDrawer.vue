@@ -6,6 +6,7 @@
     placement="right"
     to=".member-analysis-page"
     @update:show="requestClose"
+    @after-enter="focusRequestedSection"
   >
     <NDrawerContent title="成员分析设置" closable>
       <div class="member-analysis-settings">
@@ -32,7 +33,7 @@
           <NSwitch v-model:value="draft.enabled" />
         </div>
 
-        <h3 class="settings-group-heading">采集范围</h3>
+        <h3 ref="collectionHeading" tabindex="-1" class="settings-group-heading">采集范围</h3>
         <NFormItem :label="uiText('collectionCount')">
           <div class="member-analysis-settings__field">
             <NSelect v-model:value="draft.historyDepth" :options="historyOptions" />
@@ -41,10 +42,17 @@
             </div>
           </div>
         </NFormItem>
-        <NFormItem :label="uiText('historyQueryLimit')">
-          <div class="member-analysis-settings__field">
+        <NFormItem
+          :label="uiText('historyQueryLimit')"
+          :validation-status="fieldError('scanLimitPerMember') ? 'error' : undefined"
+          :show-feedback="false"
+        >
+          <div class="member-analysis-settings__field" data-validation-key="scanLimitPerMember">
             <NInputNumber
               v-model:value="draft.scanLimitPerMember"
+              aria-label="每名成员最多查询场数"
+              :input-props="validationInputProps('scanLimitPerMember')"
+              @blur="touch('scanLimitPerMember')"
               :min="100"
               :max="5000"
               :step="100"
@@ -52,14 +60,39 @@
             <div class="member-analysis-settings__description">
               {{ uiText('historyQueryLimitHelp') }}
             </div>
+            <p
+              v-if="fieldError('scanLimitPerMember')"
+              :id="errorId('scanLimitPerMember')"
+              class="settings-field-error"
+            >
+              {{ fieldError('scanLimitPerMember') }}
+            </p>
           </div>
         </NFormItem>
-        <NFormItem label="比赛模式">
-          <div class="member-analysis-settings__field">
-            <NSelect v-model:value="draft.historyTag" :options="historyTagOptions" />
+        <NFormItem
+          label="比赛模式"
+          :validation-status="fieldError('historyTag') ? 'error' : undefined"
+          :show-feedback="false"
+        >
+          <div class="member-analysis-settings__field" data-validation-key="historyTag">
+            <NSelect
+              v-model:value="draft.historyTag"
+              :options="historyTagOptions"
+              aria-label="比赛模式"
+              :aria-invalid="Boolean(fieldError('historyTag'))"
+              :aria-describedby="fieldError('historyTag') ? errorId('historyTag') : undefined"
+              @blur="touch('historyTag')"
+            />
             <div class="member-analysis-settings__description">
               {{ uiText('collectionModeHelp') }}
             </div>
+            <p
+              v-if="fieldError('historyTag')"
+              :id="errorId('historyTag')"
+              class="settings-field-error"
+            >
+              {{ fieldError('historyTag') }}
+            </p>
           </div>
         </NFormItem>
 
@@ -96,29 +129,49 @@
           />
         </div>
 
-        <section ref="memberList">
+        <section ref="memberList" tabindex="-1" data-validation-key="members">
           <div class="member-analysis-settings__section-title">
             <span>固定成员列表</span>
             <NButton size="tiny" :disabled="draft.members.length >= 20" @click="addMember"
               >添加成员</NButton
             >
           </div>
-          <div v-if="!draft.members.length" class="member-analysis-settings__empty">
+          <p
+            v-if="draft.enabled && draft.members.length < 5"
+            class="settings-field-error"
+            role="status"
+          >
+            {{ uiText('settingsMemberCount', { count: draft.members.length }) }}
+          </p>
+          <div
+            v-if="!draft.enabled && !draft.members.length"
+            class="member-analysis-settings__empty"
+          >
             {{ uiText('membersRequired') }}
           </div>
           <div v-for="(member, index) in draft.members" :key="index" class="member-analysis-member">
-            <NInput
-              v-model:value="member.serverId"
-              aria-label="服务器 ID"
-              placeholder="服务器 ID"
-            />
-            <NInput
-              v-model:value="member.gameName"
-              :input-props="riotIdInputProps(member)"
-              aria-label="成员名称"
-              placeholder="Riot ID（可粘贴 名称#Tag）"
-            />
-            <NInput v-model:value="member.tagLine" aria-label="Tag" placeholder="Tag" />
+            <div
+              v-for="field in memberFields"
+              :key="field.key"
+              :data-validation-key="memberKey(index, field.key)"
+              class="member-input-field"
+            >
+              <NInput
+                v-model:value="member[field.key]"
+                :input-props="memberInputProps(member, index, field.key)"
+                :aria-label="field.label"
+                :placeholder="field.placeholder"
+                :status="fieldError(memberKey(index, field.key)) ? 'error' : undefined"
+                @blur="touch(memberKey(index, field.key))"
+              />
+              <p
+                v-if="fieldError(memberKey(index, field.key))"
+                :id="errorId(memberKey(index, field.key))"
+                class="settings-field-error"
+              >
+                {{ fieldError(memberKey(index, field.key)) }}
+              </p>
+            </div>
             <NButton quaternary type="error" @click="removeMember(index)">删除</NButton>
           </div>
         </section>
@@ -157,14 +210,22 @@
             </NAlert>
           </div>
         </section>
-
-        <p v-if="!valid" role="status">{{ uiText('membersRequired') }}</p>
       </div>
-      <template #footer
-        ><NButton type="primary" :loading="saving" :disabled="!valid" @click="$emit('save', draft)"
-          >保存设置</NButton
-        ></template
-      >
+      <template #footer>
+        <div class="settings-footer">
+          <div v-if="!valid" class="settings-validation-summary">
+            <span role="status">{{
+              uiText('settingsIssueCount', { count: validationIssues.length })
+            }}</span>
+            <NButton size="small" quaternary @click="showIssues">{{
+              uiText('settingsShowIssues')
+            }}</NButton>
+          </div>
+          <NButton type="primary" :loading="saving" :disabled="!valid" @click="$emit('save', draft)"
+            >保存设置</NButton
+          >
+        </div>
+      </template>
     </NDrawerContent>
   </NDrawer>
 </template>
@@ -182,7 +243,7 @@ import {
   NSwitch
 } from 'naive-ui'
 import { uiText } from './ui-text'
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId, watch } from 'vue'
 
 import { ALL_SGPTAG_VALUE, useSgpTagOptions } from '@renderer-shared/composables/useSgpTagOptions'
 
@@ -198,6 +259,7 @@ type Member = MemberAnalysisSettings['members'][number]
 
 const props = defineProps<{
   show: boolean
+  focusSection?: 'collection' | 'members' | null
   settings: MemberAnalysisSettings
   saving: boolean
   storageStatus: MemberAnalysisStorageStatus | null
@@ -269,16 +331,92 @@ watch(
   () => props.show,
   () => {
     confirmDiscard.value = false
+    touched.value.clear()
+    revealIssues.value = false
   }
 )
-const valid = computed(
-  () =>
-    (!draft.enabled || draft.members.length >= 5) &&
-    draft.members.every((member) => member.serverId && member.gameName && member.tagLine) &&
-    Boolean(draft.historyTag) &&
-    draft.scanLimitPerMember >= 100 &&
-    draft.scanLimitPerMember <= 5000
-)
+const formId = useId()
+const touched = ref(new Set<string>())
+const revealIssues = ref(false)
+const collectionHeading = ref<HTMLElement | null>(null)
+type MemberField = 'serverId' | 'gameName' | 'tagLine'
+const memberFields: { key: MemberField; label: string; placeholder: string }[] = [
+  { key: 'serverId', label: '服务器 ID', placeholder: '服务器 ID' },
+  { key: 'gameName', label: '成员名称', placeholder: 'Riot ID（可粘贴 名称#Tag）' },
+  { key: 'tagLine', label: 'Tag', placeholder: 'Tag' }
+]
+const memberKey = (index: number, field: MemberField) => 'member-' + index + '-' + field
+const errorId = (key: string) => formId + '-error-' + key
+const validationIssues = computed(() => {
+  const issues: { key: string; message: string }[] = []
+  if (draft.enabled && draft.members.length < 5)
+    issues.push({
+      key: 'members',
+      message: uiText('settingsMemberCount', { count: draft.members.length })
+    })
+  draft.members.forEach((member, index) => {
+    for (const field of memberFields) {
+      if (!member[field.key])
+        issues.push({
+          key: memberKey(index, field.key),
+          message: uiText(
+            field.key === 'serverId'
+              ? 'settingsServerRequired'
+              : field.key === 'gameName'
+                ? 'settingsNameRequired'
+                : 'settingsTagRequired'
+          )
+        })
+    }
+  })
+  if (!draft.historyTag) issues.push({ key: 'historyTag', message: uiText('settingsModeRequired') })
+  if (draft.scanLimitPerMember == null)
+    issues.push({ key: 'scanLimitPerMember', message: uiText('settingsScanRequired') })
+  else if (!(draft.scanLimitPerMember >= 100 && draft.scanLimitPerMember <= 5000))
+    issues.push({ key: 'scanLimitPerMember', message: uiText('settingsScanRange') })
+  return issues
+})
+const valid = computed(() => validationIssues.value.length === 0)
+function touch(key: string) {
+  touched.value.add(key)
+}
+function fieldError(key: string) {
+  return revealIssues.value || touched.value.has(key)
+    ? (validationIssues.value.find((issue) => issue.key === key)?.message ?? '')
+    : ''
+}
+function validationInputProps(key: string) {
+  const error = fieldError(key)
+  return { 'aria-invalid': Boolean(error), 'aria-describedby': error ? errorId(key) : undefined }
+}
+function memberInputProps(member: Member, index: number, field: MemberField) {
+  return {
+    ...validationInputProps(memberKey(index, field)),
+    ...(field === 'gameName' ? riotIdInputProps(member) : {})
+  }
+}
+async function showIssues() {
+  revealIssues.value = true
+  await nextTick()
+  const key = validationIssues.value[0]?.key
+  if (!key) return
+  const root = memberList.value?.closest('.member-analysis-settings')
+  const field = root?.querySelector<HTMLElement>('[data-validation-key="' + key + '"]')
+  field?.scrollIntoView({ block: 'center' })
+  const control =
+    field?.querySelector<HTMLElement>('input') ??
+    field?.querySelector<HTMLElement>('button, [tabindex="0"]') ??
+    field
+  control?.focus({ preventScroll: true })
+}
+async function focusRequestedSection() {
+  if (!props.show || !props.focusSection) return
+  await nextTick()
+  const target = props.focusSection === 'collection' ? collectionHeading.value : memberList.value
+  target?.scrollIntoView({ block: 'start' })
+  target?.focus({ preventScroll: true })
+}
+watch(() => props.focusSection, focusRequestedSection)
 const akariHistoryTagOptions = useSgpTagOptions()
 const historyTagOptions = computed(() =>
   (akariHistoryTagOptions.value as any[])
@@ -314,6 +452,7 @@ async function addMember() {
 }
 async function removeMember(index: number) {
   draft.members.splice(index, 1)
+  touched.value.clear()
   await nextTick()
   const rows = memberList.value?.querySelectorAll('.member-analysis-member')
   rows?.[Math.min(index, rows.length - 1)]?.querySelector<HTMLInputElement>('input')?.focus()
@@ -415,5 +554,32 @@ function formatBytes(value: number) {
   display: grid;
   gap: 12px;
   outline-offset: 3px;
+}
+</style>
+
+<style scoped>
+.settings-field-error {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ma-negative);
+  line-height: 1.5;
+}
+.member-input-field {
+  min-width: 0;
+}
+.settings-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.settings-validation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
 }
 </style>

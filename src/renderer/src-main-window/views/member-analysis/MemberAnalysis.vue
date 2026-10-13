@@ -3,13 +3,14 @@
     <MemberAnalysisHeader
       :generated-at="store.overview?.generatedAt ?? null"
       :loading="store.loading || jobRunning"
+      :refresh-reason="refreshReason"
       :refresh-disabled="
         !store.settings?.enabled ||
         store.settings.members.length < 5 ||
         !store.capabilities?.workerAvailable
       "
       @refresh="memberAnalysis.startRefresh"
-      @settings="store.settingsDrawerVisible = true"
+      @settings="openSettings"
     />
 
     <div class="member-analysis-scroll">
@@ -69,7 +70,7 @@
           description="在设置中重新启用后，才能更新和查看成员分析。"
         >
           <template #footer>
-            <NButton type="primary" @click="store.settingsDrawerVisible = true">打开设置</NButton>
+            <NButton type="primary" @click="openSettings()">打开设置</NButton>
           </template>
         </NResult>
 
@@ -80,7 +81,7 @@
           :description="uiText('firstRunHelp')"
         >
           <template #footer>
-            <NButton type="primary" @click="store.settingsDrawerVisible = true">配置成员</NButton>
+            <NButton type="primary" @click="openSettings('members')">配置成员</NButton>
           </template>
         </NResult>
 
@@ -131,6 +132,7 @@
       v-if="store.settings"
       v-model:show="store.settingsDrawerVisible"
       :settings="store.settings"
+      :focus-section="store.settingsFocus"
       :saving="savingSettings"
       :save-error="settingsError"
       :cleanup-error="cleanupError"
@@ -289,6 +291,23 @@ const jobProgressLabel = computed(() => {
   } as const
   return store.job ? labels[store.job.status] : ''
 })
+const refreshReason = computed(() => {
+  if (store.loading || jobRunning.value) return null
+  if (!store.settings?.enabled)
+    return { kind: 'closed' as const, text: uiText('refreshDisabledClosed') }
+  if (store.settings.members.length < 5)
+    return {
+      kind: 'members' as const,
+      text: uiText('refreshDisabledMembers', { count: store.settings.members.length })
+    }
+  if (!store.capabilities?.workerAvailable)
+    return { kind: 'service' as const, text: uiText('refreshDisabledService') }
+  return null
+})
+function openSettings(section: 'collection' | 'members' | null = null) {
+  store.settingsFocus = section
+  store.settingsDrawerVisible = true
+}
 const audit = computed(() => store.overview?.collectionAudit ?? null)
 const rendererAudit = computed(() => {
   const selection = selectMemberAnalysisSample(

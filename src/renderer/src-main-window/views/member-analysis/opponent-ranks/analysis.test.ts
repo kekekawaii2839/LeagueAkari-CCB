@@ -1,3 +1,6 @@
+// sort-imports-ignore
+import '../test-i18n'
+
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
 import {
   type OpponentRanks,

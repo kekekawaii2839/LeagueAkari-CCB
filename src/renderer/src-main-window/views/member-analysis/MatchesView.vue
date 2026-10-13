@@ -2,7 +2,7 @@
   <div ref="list" class="ma-panel ma-workspace match-list">
     <div class="ma-view-toolbar">
       <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
-      <span class="ma-view-meta">{{ games.length }} 场 · 最近对局在前</span>
+      <span class="ma-view-meta">{{ uiText('recentFirst') }}</span>
     </div>
     <p
       v-if="navigationSource || store.matchNavigationFeedback"

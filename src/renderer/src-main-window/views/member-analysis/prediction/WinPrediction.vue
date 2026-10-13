@@ -36,11 +36,39 @@
         :aria-label="uiText('predictionProgress')"
       />
       <p v-if="result?.status === 'unavailable'" ref="feedbackElement" tabindex="-1" role="status">
-        暂不能预测：{{ result.reason }}
+        {{
+          uiText(
+            predictionFailure === 'sample'
+              ? 'predictionInsufficient'
+              : predictionFailure === 'outcome'
+                ? 'predictionOutcomeMissing'
+                : 'predictionCalculationFailed'
+          )
+        }}
       </p>
-      <p v-if="result?.status === 'unavailable'">
+      <p v-if="result?.status === 'unavailable' && predictionFailure !== 'calculation'">
         {{ uiText('predictionHistoryMissing') }}
       </p>
+      <div v-if="result?.status === 'unavailable'" class="prediction-recovery">
+        <NButton
+          v-if="predictionFailure !== 'calculation'"
+          size="small"
+          secondary
+          @click="openCollectionSettings"
+          >{{ uiText('openCollectionSettings') }}</NButton
+        >
+        <NButton
+          v-else
+          size="small"
+          secondary
+          :disabled="!completeLineup || running"
+          @click="start"
+          >{{ uiText('retry') }}</NButton
+        >
+        <NButton size="small" quaternary @click="showValidationConditions">{{
+          uiText('viewValidationConditions')
+        }}</NButton>
+      </div>
       <section v-if="overallReference" aria-label="未完成预测时的总体历史参考">
         <h4>{{ sideLabel }} · 总体历史参考（不是阵容预测）</h4>
         <p>
@@ -59,16 +87,44 @@
         ref="resultElement"
         tabindex="-1"
         class="prediction-result"
-        aria-label="胜率预测结果"
+        :aria-label="
+          uiText(
+            result.estimateKind === 'reference'
+              ? 'predictionReferenceResult'
+              : 'predictionEstimateResult'
+          )
+        "
         aria-live="polite"
       >
-        <h4>所选五排阵容 · {{ sideLabel }} · 下一场团队预测</h4>
+        <h4>
+          {{
+            uiText(
+              result.estimateKind === 'reference'
+                ? 'predictionReferenceTitle'
+                : 'predictionEstimateTitle',
+              { side: sideLabel }
+            )
+          }}
+        </h4>
         <p>
           <strong
-            >{{ result.estimateKind === 'reference' ? '整体胜率参考' : '下一场团队获胜概率' }}
+            >{{
+              uiText(
+                result.estimateKind === 'reference'
+                  ? 'predictionReferenceRate'
+                  : 'predictionNextRate'
+              )
+            }}
             {{ percent(result.probability) }}</strong
           >
-          · {{ uiText('predictionInterval') }}：<strong>{{
+          ·
+          {{
+            uiText(
+              result.estimateKind === 'reference'
+                ? 'predictionReferenceInterval'
+                : 'predictionInterval'
+            )
+          }}：<strong>{{
             result.interval
               ? `${percent(result.interval[0])}–${percent(result.interval[1])}`
               : uiText('intervalUnavailable')
@@ -110,6 +166,15 @@
         }}</NButton
       >
       <div v-if="details" id="prediction-method">
+        <section
+          ref="validationConditions"
+          tabindex="-1"
+          :aria-label="uiText('predictionValidationConditions')"
+        >
+          <h4>{{ uiText('predictionValidationConditions') }}</h4>
+          <p>{{ uiText('predictionValidationRequirements') }}</p>
+          <p>{{ uiText('predictionEligibleRequirement') }}</p>
+        </section>
         <p>{{ uiText('predictionHistoryScope') }}</p>
         <p>{{ uiText('predictionLimit') }}</p>
         <p>{{ uiText('predictionIntervalLimit') }}</p>
@@ -210,6 +275,23 @@ const sideOptions = [
 const sideLabel = computed(() => sideOptions.find((option) => option.value === side.value)!.label)
 const details = ref(false)
 const result = ref<AdaptiveWinPredictionResult | null>(null)
+const predictionFailure = computed(() => {
+  if (result.value?.status !== 'unavailable') return null
+  if (result.value.reason.startsWith('回测样本不足')) return 'sample'
+  if (result.value.reason.includes('只有一种胜负')) return 'outcome'
+  return 'calculation'
+})
+const validationConditions = ref<HTMLElement | null>(null)
+async function showValidationConditions() {
+  details.value = true
+  await nextTick()
+  validationConditions.value?.scrollIntoView({ block: 'start' })
+  validationConditions.value?.focus({ preventScroll: true })
+}
+function openCollectionSettings() {
+  store.settingsFocus = 'collection'
+  store.settingsDrawerVisible = true
+}
 const predictionMethodName = computed(() => {
   if (result.value?.status !== 'available') return ''
   const key =
@@ -447,5 +529,16 @@ p {
 .prediction-calibration caption,
 .prediction-calibration th:first-child {
   text-align: left;
+}
+</style>
+
+<style scoped>
+.prediction-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+#prediction-method section {
+  scroll-margin-top: 80px;
 }
 </style>

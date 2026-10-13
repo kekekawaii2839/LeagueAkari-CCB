@@ -1,6 +1,13 @@
 <template>
   <div ref="root" class="ma-panel champion-view">
-    <template v-if="champions.length">
+    <div v-if="!champions.length" class="ma-empty champion-empty" role="status">
+      <strong>{{ uiText('championEmptyTitle') }}</strong>
+      <p>{{ uiText('championEmptyHelp') }}</p>
+      <NButton secondary @click="store.resetFilters()">{{
+        uiText('resetFilterConditions')
+      }}</NButton>
+    </div>
+    <template v-else>
       <div class="pool-toolbar">
         <span>{{ uiText('poolTopHeroes') }}</span>
         <NButton v-if="sort" size="small" quaternary @click="restoreOrder">{{
@@ -671,5 +678,11 @@ const championName = (name: string) => {
 }
 .pool-active {
   background: var(--ma-hover);
+}
+.champion-empty strong {
+  color: var(--la-color-text-primary);
+}
+.champion-empty p {
+  color: var(--ma-muted);
 }
 </style>

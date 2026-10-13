@@ -43,7 +43,12 @@
                 }}</small>
                 {{ snapshotTime(opponent.snapshot.fetchedAt)
                 }}<small v-if="opponent.snapshot.reason"
-                  >{{ rankFailureText(opponent.snapshot) }} · 尝试
+                  >{{ rankFailureText(opponent.snapshot) }} ·
+                  {{
+                    opponent.snapshot.reason === 'budget-exhausted'
+                      ? uiText('rankRecordedAt')
+                      : '尝试'
+                  }}
                   {{ snapshotTime(opponent.snapshot.attemptedAt) }}</small
                 >
               </td>

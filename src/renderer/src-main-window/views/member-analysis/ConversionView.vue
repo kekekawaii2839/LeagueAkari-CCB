@@ -11,7 +11,6 @@
           ></NRadioGroup
         >
       </div>
-      <span class="ma-view-meta">{{ games.length }} 场样本</span>
     </div>
     <div v-if="!conversion.length" class="ma-empty">当前筛选下没有事件结果。</div>
     <template v-else>
@@ -24,7 +23,8 @@
             <tr>
               <th scope="col">指标</th>
               <th v-for="row in comparison" :key="row.sideLabel" scope="col">
-                {{ row.sideLabel }} <small>· {{ row.games.length }} 场</small>
+                {{ row.sideLabel }}
+                <small v-if="row.sideLabel !== '总计'">· {{ row.games.length }} 场</small>
               </th>
             </tr>
           </thead>
