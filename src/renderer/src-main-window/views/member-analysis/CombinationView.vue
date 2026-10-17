@@ -1,26 +1,13 @@
 <template>
   <section ref="root" class="combination-workspace" :aria-label="uiText('combinationWorkspace')">
     <div class="combination-selector">
-      <div class="combination-switch">
-        <span
-          ref="switchIndicator"
-          class="combination-switch-indicator"
-          aria-hidden="true"
-          :style="{ transform: view === 'synergy' ? 'translateX(100%)' : 'translateX(0)' }"
-        />
-        <NRadioGroup
-          class="combination-switch-options"
-          :value="view"
-          :aria-label="uiText('combinationView')"
-          @update:value="changeView"
-        >
-          <NRadioButton value="pairs">{{ uiText('combinationRoles') }}</NRadioButton>
-          <NRadioButton value="synergy">{{ uiText('combinationMembers') }}</NRadioButton>
-        </NRadioGroup>
-      </div>
-      <span class="combination-scope">{{
-        uiText(view === 'pairs' ? 'combinationRoleScope' : 'combinationMemberScope')
-      }}</span>
+      <MemberAnalysisSegments
+        :model-value="view"
+        :options="viewOptions"
+        :slot-width="i18next.language.startsWith('en') ? 184 : 112"
+        :ariaLabel="uiText('combinationView')"
+        @update:model-value="changeView"
+      />
       <NPopover
         v-model:show="scopeHelp"
         trigger="click"
@@ -35,6 +22,7 @@
             class="combination-scope-help"
             :aria-expanded="scopeHelp"
             :aria-controls="scopeHelpId"
+            @keydown.esc.stop.prevent="closeScopeHelp"
             >{{ uiText('combinationScopeHelp') }}</NButton
           ></template
         >
@@ -45,25 +33,11 @@
         >
           <p>{{ uiText(view === 'pairs' ? 'combinationRoleScope' : 'combinationMemberScope') }}</p>
           <p v-if="contextNote">{{ contextNote }}</p>
-          <NButton size="small" quaternary @click="closeScopeHelp">{{
-            uiText('combinationCloseScopeHelp')
-          }}</NButton>
         </div>
       </NPopover>
     </div>
     <div v-if="linkedMembers" class="combination-link" role="status">
-      <span
-        >{{ short(linkedMembers[0]) }} × {{ short(linkedMembers[1]) }} ·
-        {{
-          roleContext
-            ? uiText('combinationLinkedSamples', {
-                role: roleName(roleContext.pairType),
-                roleGames,
-                jointGames
-              })
-            : uiText('combinationRelatedSamples', { count: related.length, jointGames })
-        }}
-      </span>
+      <span>{{ linkedMembers[0] }} × {{ linkedMembers[1] }}</span>
       <NButton v-if="origin" size="small" quaternary @click="returnToOrigin">{{
         uiText(origin.view === 'pairs' ? 'combinationReturnRoles' : 'combinationReturnMembers')
       }}</NButton>
@@ -84,10 +58,10 @@
 </template>
 
 <script setup lang="ts">
-import { NButton, NPopover, NRadioButton, NRadioGroup } from 'naive-ui'
-import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, useId, watch } from 'vue'
-import { useDocumentVisibility, useElementVisibility, useMediaQuery } from '@vueuse/core'
-import { createCombinationMotion } from './combination-motion'
+import { NButton, NPopover } from 'naive-ui'
+import { i18next } from '@renderer-shared/i18n'
+import { computed, nextTick, ref, useId, watch } from 'vue'
+import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 import PairView from './PairView.vue'
 import SynergyView from './SynergyView.vue'
 import {
@@ -114,54 +88,15 @@ async function closeScopeHelp() {
 }
 const roleView = ref<InstanceType<typeof PairView> | null>(null)
 const memberView = ref<InstanceType<typeof SynergyView> | null>(null)
-const switchIndicator = ref<HTMLElement | null>(null)
-const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
-const visible = useElementVisibility(root)
-const documentVisibility = useDocumentVisibility()
-const childMotion = createCombinationMotion({
-  active: () => props.view,
-  indicator: () => switchIndicator.value,
-  reduced: () => reducedMotion.value,
-  visible: () => visible.value && documentVisibility.value === 'visible',
-  rendered: nextTick
-})
-watch(
-  () => props.view,
-  (view) => void childMotion.changed(view)
-)
-watch([reducedMotion, visible, documentVisibility], () => childMotion.cancel())
-onDeactivated(childMotion.cancel)
-onBeforeUnmount(childMotion.cancel)
+const viewOptions = computed(() => [
+  { value: 'pairs', label: uiText('combinationRoles') },
+  { value: 'synergy', label: uiText('combinationMembers') }
+])
 const linkedMembers = ref<CombinationMembers | null>(null)
-const roleContext = ref<RolePairLink | null>(null)
 const origin = ref<{ view: View; trigger: HTMLElement | null } | null>(null)
 const { games, pairs, synergy } = useMemberAnalysisData()
-const roleName = (type: RolePairLink['pairType']) =>
-  uiText(
-    (
-      {
-        upper_pair: 'combinationUpperPair',
-        mid_jg_pair: 'combinationMidPair',
-        bot_pair: 'combinationBotPair'
-      } as const
-    )[type]
-  )
-const short = (name: string) => name.split('#')[0]
 const related = computed(() =>
   linkedMembers.value ? relatedRolePairs(pairs.value, games.value, linkedMembers.value) : []
-)
-const jointGames = computed(() =>
-  linkedMembers.value ? (relatedSynergy(synergy.value, linkedMembers.value)?.games ?? 0) : 0
-)
-const roleGames = computed(() =>
-  roleContext.value
-    ? (pairs.value.find(
-        (row) =>
-          row.sideLabel === '总计' &&
-          row.pairType === roleContext.value!.pairType &&
-          row.pair === roleContext.value!.pair
-      )?.games ?? 0)
-    : 0
 )
 
 // Session-only DOM state. Each population keeps its own reading position;
@@ -205,14 +140,12 @@ watch(
     scopeHelp.value = false
   }
 )
-function changeView(value: string | number | boolean) {
-  if (value === 'pairs' || value === 'synergy')
-    childMotion.request(value, () => emit('update:view', value))
+function changeView(value: string | number) {
+  if ((value === 'pairs' || value === 'synergy') && value !== props.view) emit('update:view', value)
 }
 async function openSynergy(link: RolePairLink) {
   origin.value = { view: 'pairs', trigger: document.activeElement as HTMLElement | null }
   linkedMembers.value = link.members
-  roleContext.value = link
   emit('update:view', 'synergy')
   await nextTick()
   await nextTick()
@@ -221,7 +154,6 @@ async function openSynergy(link: RolePairLink) {
 async function openRolePairs(members: CombinationMembers) {
   origin.value = { view: 'synergy', trigger: document.activeElement as HTMLElement | null }
   linkedMembers.value = members
-  roleContext.value = null
   emit('update:view', 'pairs')
   await nextTick()
   await nextTick()
@@ -237,11 +169,9 @@ async function returnToOrigin() {
 }
 function clearLink() {
   linkedMembers.value = null
-  roleContext.value = null
   origin.value = null
 }
 watch([pairs, synergy], () => {
-  childMotion.cancel()
   if (
     linkedMembers.value &&
     !relatedSynergy(synergy.value, linkedMembers.value) &&
@@ -255,52 +185,6 @@ watch([pairs, synergy], () => {
 .combination-workspace {
   min-width: 0;
 }
-.combination-switch {
-  position: relative;
-  padding: 3px;
-  max-width: 100%;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--la-card-muted-surface) 72%, transparent);
-}
-.combination-switch-indicator {
-  position: absolute;
-  top: 3px;
-  bottom: 3px;
-  left: 3px;
-  width: calc(50% - 3px);
-  border-radius: 4px;
-  background: var(--la-card-surface-95);
-  box-shadow: inset 0 0 0 1px var(--ma-grid);
-  pointer-events: none;
-}
-.combination-switch-options {
-  position: relative;
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.combination-switch-options :deep(.n-radio-button) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  box-shadow: none;
-  color: var(--ma-muted);
-}
-.combination-switch-options :deep(.n-radio-button--checked) {
-  color: var(--la-color-text-primary);
-  font-weight: 600;
-}
-.combination-switch-options :deep(.n-radio-button__state-border) {
-  display: none;
-}
-.combination-switch-options :deep(.n-radio-button:has(input:focus-visible)) {
-  outline: 1px solid var(--la-color-link);
-  outline-offset: -2px;
-}
 .combination-selector,
 .combination-link {
   display: flex;
@@ -308,14 +192,6 @@ watch([pairs, synergy], () => {
   flex-wrap: wrap;
   gap: 8px 12px;
   padding: 8px 16px;
-}
-.combination-selector {
-  border-bottom: 1px solid var(--ma-grid);
-}
-.combination-scope {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ma-muted);
 }
 .combination-link {
   font-size: 13px;
@@ -334,15 +210,15 @@ watch([pairs, synergy], () => {
   line-height: 1.5;
 }
 .combination-scope-content p {
-  margin: 0 0 8px;
+  margin: 0;
+}
+.combination-scope-content p + p {
+  margin-top: 8px;
 }
 @media (max-height: 600px) {
   .combination-selector {
     padding-top: 4px;
     padding-bottom: 4px;
-  }
-  .combination-scope {
-    display: none;
   }
   .combination-scope-help {
     display: inline-flex;

@@ -19,9 +19,55 @@ jobs:
     name: Build Windows x64 portable package
     runs-on: windows-2022
     steps:
+      - name: Require authorized private Lab read access
+        shell: pwsh
+        env:
+          LAB_READ_TOKEN: ${{ secrets.PREDICTION_LAB_READ_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:LAB_READ_TOKEN)) {
+            throw "Missing PREDICTION_LAB_READ_TOKEN prerequisite: private Lab contents read access required"
+          }
+
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve the fixed Lab gitlink
+        id: lab-pin
+        shell: pwsh
+        run: |
+          $entry = @(git ls-files --stage -- packages/prediction-lab)
+          if ($LASTEXITCODE -ne 0 -or $entry.Count -ne 1 -or [string]$entry[0] -notmatch '^160000 ([a-f0-9]{40}) 0\tpackages/prediction-lab$') {
+            throw "A resolved fixed Prediction Lab gitlink is required"
+          }
+          $sha = $Matches[1]
+          # Never send the private credential to a repository chosen by .gitmodules.
+          $labPath = git config --file .gitmodules --get submodule.prediction-lab.path
+          if ($LASTEXITCODE -ne 0 -or $labPath -ne 'packages/prediction-lab') {
+            throw "Prediction Lab path differs from the authorized fixed source"
+          }
+          $labUrl = git config --file .gitmodules --get submodule.prediction-lab.url
+          if ($LASTEXITCODE -ne 0 -or $labUrl -ne 'https://github.com/kekekawaii2839/akari-prediction-lab.git') {
+            throw "Prediction Lab URL differs from the authorized fixed source"
+          }
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+
+      - name: Initialize private Lab at the fixed gitlink
+        uses: actions/checkout@v7
+        with:
+          repository: kekekawaii2839/akari-prediction-lab
+          path: packages/prediction-lab
+          ref: ${{ steps.lab-pin.outputs.sha }}
+          token: ${{ secrets.PREDICTION_LAB_READ_TOKEN }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Require pinned and clean Lab
+        run: node scripts/checks/check-prediction-lab-submodule.mjs --require-pinned
+
+      - name: Verify exact source privacy candidates
+        run: node scripts/checks/check-member-analysis-data-leaks.mjs
 
       - name: Validate the release version
         shell: bash
@@ -44,23 +90,86 @@ jobs:
         run: corepack yarn install --immutable
 
       - name: Test and build
+        shell: pwsh
         run: |
           corepack yarn test --maxWorkers=2
+          if ($LASTEXITCODE -ne 0) { throw "Release tests failed" }
           corepack yarn build
+          if ($LASTEXITCODE -ne 0) { throw "Release application build failed" }
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.14'
+          architecture: x64
+
+      - name: Rebuild the source-current worker in isolation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $workspace = (Resolve-Path -LiteralPath $env:GITHUB_WORKSPACE).Path
+          $runnerTemp = (Resolve-Path -LiteralPath $env:RUNNER_TEMP).Path
+          $buildRoot = Join-Path $runnerTemp ("ccb-worker-" + [guid]::NewGuid().ToString('N'))
+          $resourceTarget = Join-Path $workspace 'resources/member-analysis'
+          if (-not $buildRoot.StartsWith($runnerTemp + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+              -not $resourceTarget.StartsWith($workspace + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Worker build paths must remain inside their intended roots"
+          }
+          New-Item -ItemType Directory -Path $buildRoot | Out-Null
+          $venv = Join-Path $buildRoot 'venv'
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw "Worker virtual environment creation failed" }
+          $python = Join-Path $venv 'Scripts/python.exe'
+          & $python -m pip install --require-hashes -r packaging/worker-build-requirements.lock
+          if ($LASTEXITCODE -ne 0) { throw "Pinned worker dependencies installation failed" }
+          $freshResources = Join-Path $buildRoot 'member-analysis'
+          node packaging/build-worker.mjs $python $freshResources (Join-Path $buildRoot 'work')
+          if ($LASTEXITCODE -ne 0) { throw "Source-current worker build failed" }
+          # Retain the old tracked resource directory only in this disposable runner,
+          # outside the packaging root. Never package it as a fallback.
+          if (Test-Path -LiteralPath $resourceTarget) {
+            if ((Get-Item -LiteralPath $resourceTarget -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+              throw "Worker resource target must not be a linked directory"
+            }
+            Move-Item -LiteralPath $resourceTarget -Destination (Join-Path $buildRoot 'original-resources')
+          }
+          Move-Item -LiteralPath $freshResources -Destination $resourceTarget
 
       - name: Package CCB
         shell: pwsh
         run: |
           corepack yarn build:ccb:win
+          if ($LASTEXITCODE -ne 0) { throw "Release packaging failed" }
           node packaging/scan-packaged-artifact.mjs .phase7-package/win-unpacked
+          if ($LASTEXITCODE -ne 0) { throw "Packaged artifact privacy or integrity scan failed" }
           $archive = Get-ChildItem .phase7-package -Filter *.7z -File
           if ($archive.Count -ne 1) { throw "Expected exactly one CCB archive" }
           $version = node -p "require('./package.json').version"
+          if ($LASTEXITCODE -ne 0) { throw "Package version lookup failed" }
           $canonicalArchive = Join-Path $archive.DirectoryName "League.Akari.CCB-$version-x64.7z"
           Move-Item -LiteralPath $archive.FullName -Destination $canonicalArchive
           $archive = Get-Item -LiteralPath $canonicalArchive
           $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($archive.Name)" | Set-Content -LiteralPath "$($archive.FullName).sha256" -Encoding utf8
+
+      - name: Verify the final packaged worker executable with the synthetic contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $worker = Join-Path $env:GITHUB_WORKSPACE '.phase7-package/win-unpacked/resources/member-analysis/worker/member-analysis-worker.exe'
+          if (-not (Test-Path -LiteralPath $worker -PathType Leaf)) {
+            throw "Final packaged worker executable is missing"
+          }
+          try {
+            $env:MEMBER_ANALYSIS_WORKER_EXECUTABLE = (Resolve-Path -LiteralPath $worker).Path
+            if ([string]::IsNullOrWhiteSpace($env:MEMBER_ANALYSIS_WORKER_EXECUTABLE)) {
+              throw "The executable contract must not fall back to source Python"
+            }
+            $tests = Join-Path $env:GITHUB_WORKSPACE 'python/member_analysis/tests'
+            python -I -m unittest discover -s $tests -p test_worker.py -k test_processes_manifest_and_stages_sqlite -v
+            if ($LASTEXITCODE -ne 0) { throw "Final packaged worker executable contract failed" }
+          } finally {
+            Remove-Item Env:MEMBER_ANALYSIS_WORKER_EXECUTABLE -ErrorAction SilentlyContinue
+          }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
@@ -71,7 +180,7 @@ jobs:
           include-hidden-files: true
           retention-days: 14
 
-      - name: Publish tagged release
+      - name: Upload tagged release as a draft pending exact-artifact acceptance
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
@@ -79,3 +188,4 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: true
           prerelease: false
+          draft: true

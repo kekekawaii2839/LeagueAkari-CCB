@@ -2,12 +2,25 @@
 extends: electron-builder.yml
 appId: com.ccb.leagueakari
 productName: League Akari CCB
+extraMetadata:
+  productName: League Akari CCB
 artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: .phase7-package
 files:
+  - '!logs{,/**}'
   - '!resources/member-analysis{,/**}'
   - '!packaging{,/**}'
+  - '!packages{,/**}'
+  - '!scripts{,/**}'
+  - '!.github{,/**}'
+  - '!.yarn{,/**}'
+  - '!{.gitmodules,.yarnrc.yml,.gitattributes,.gitignore}'
+  - '!python{,/**}'
+  - '!**/.cache{,/**}'
+  - '!**/*.map'
+  - '!**/tests{,/**}'
+  - '!**/*.{test,spec}.{js,ts,mjs,cjs}'
 extraResources:
   - from: resources/member-analysis
     to: member-analysis

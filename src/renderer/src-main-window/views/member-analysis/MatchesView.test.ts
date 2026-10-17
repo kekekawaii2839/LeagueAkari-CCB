@@ -1,5 +1,6 @@
 // sort-imports-ignore
 import './test-i18n'
+vi.mock('i18next-vue', () => ({ useTranslation: () => ({ t: vi.fn() }) }))
 
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
 import {
@@ -7,10 +8,16 @@ import {
   unavailableRank
 } from '@shared/shards/member-analysis/opponent-ranks'
 import { describe, expect, test, vi } from 'vitest'
-import { createSSRApp, h, ref } from 'vue'
+import { computed, createSSRApp, h, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import MatchesView from './MatchesView.vue'
+vi.mock('@renderer-shared/shards/app-common/store', () => ({
+  useAppCommonStore: () => ({ settings: { streamerMode: false } })
+}))
+vi.mock('@renderer-shared/theme/naive-ui', () => ({
+  getNaiveUiThemeOverrides: () => ({ Button: {} })
+}))
 
 const fixture = vi.hoisted(() => ({
   games: [] as MemberAnalysisGame[],
@@ -38,10 +45,39 @@ vi.mock('@renderer-shared/shards/league-client/store', () => ({
 }))
 vi.mock('@renderer-shared/components/widgets/ChampionIcon.vue', () => ({ default: () => null }))
 vi.mock('./MatchNativeDetails.vue', () => ({ default: () => null }))
+vi.mock('@vicons/material', () => ({ ArrowBackIosFilled: () => null }))
+vi.mock('@vicons/carbon', () => ({ Information: () => null }))
+vi.mock('./useMemberMatchDetails', () => ({
+  useMemberMatchDetailsPageOrder: vi.fn(),
+  useMemberMatchOverview: () => ({
+    match: ref(null),
+    loading: ref(false),
+    error: ref(false),
+    load: vi.fn()
+  })
+}))
 vi.mock('naive-ui', () => ({
+  useThemeVars: () =>
+    computed(() => ({
+      textColor2: 'currentColor',
+      buttonColor2Hover: 'transparent',
+      buttonColor2Pressed: 'transparent',
+      primaryColor: 'currentColor',
+      opacityDisabled: '0.5',
+      cubicBezierEaseInOut: 'ease'
+    })),
   NPagination: () => null,
-  NButton: (_: unknown, { slots }: { slots: Record<string, Function> }) =>
-    h('button', slots.default?.())
+  NIcon: (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.default?.(),
+  NTooltip: (_: unknown, { slots }: { slots: Record<string, Function> }) => [
+    slots.trigger?.(),
+    slots.default?.()
+  ],
+  NPopover: (_: unknown, { slots }: { slots: Record<string, Function> }) => [
+    slots.trigger?.(),
+    slots.default?.()
+  ],
+  NButton: (props: Record<string, unknown>, { slots }: { slots: Record<string, Function> }) =>
+    h('button', props, [slots.default?.(), slots.icon?.()])
 }))
 
 function game(): MemberAnalysisGame {
@@ -85,6 +121,12 @@ async function render(value: MemberAnalysisGame, active = false) {
 }
 
 describe('compact per-match opponent ranks', () => {
+  test('does not duplicate the native match-history navigation entry in the list toolbar', async () => {
+    const html = await render(game())
+    expect(html).not.toContain('打开对局查询')
+    expect(html).toContain('data-match-id="1"')
+    expect(html).toContain('展开')
+  })
   test('renders a bounded page without truncating the full sample or exact scope', async () => {
     fixture.games = Array.from({ length: 500 }, (_, i) => ({ ...game(), gameId: i + 1 }))
     const store = fixture.store as any
@@ -107,7 +149,7 @@ describe('compact per-match opponent ranks', () => {
       store.overviewGeneration = 3
       html = await renderToString(createSSRApp({ render: () => h(MatchesView) }))
       expect(html).not.toContain('<article')
-      expect(html).toContain('分析版本已变化')
+      expect(html).toContain('分析数据已更新')
     } finally {
       delete store.matchListScope
       delete store.overviewGeneration
@@ -134,17 +176,17 @@ describe('compact per-match opponent ranks', () => {
       }
     }
   )
-  test('retains both queue averages but no longer mixes a population summary into matches', async () => {
+  test('keeps the card explanation brief and leaves legacy rank diagnostics to expanded details', async () => {
     const html = await render(game())
-    expect(html).toContain('对手查询时平均段位')
-    expect(html).toContain('白银 II')
-    expect(html).toContain('黄金 IV')
-    expect(html.match(/可用 5\/5/g)).toHaveLength(2)
+    expect(html).not.toContain('对手查询时平均段位')
+    expect(html).not.toContain('白银 II')
+    expect(html).not.toContain('黄金 IV')
+    expect(html).not.toContain('聚焦个人段位')
     expect(html).not.toContain('对手段位汇总与统计口径')
     expect(html).not.toContain('分组胜率纳入')
     expect(html).toContain('展开')
   })
-  test('keeps per-queue usable sample counts explicit for partial snapshots', async () => {
+  test('does not repeat legacy averages or sample teaching text in the compact card', async () => {
     const value = game()
     value.opponentRanks!.opponents[0].snapshot = unavailableRank(
       'network-error',
@@ -152,15 +194,15 @@ describe('compact per-match opponent ranks', () => {
     )
     value.opponentRanks!.opponents[1].snapshot.flex = { status: 'unranked', rank: null }
     const html = await render(value)
-    expect(html).toContain('可用 4/5')
-    expect(html).toContain('可用 3/5')
+    expect(html).not.toContain('可用 4/5')
+    expect(html).not.toContain('可用 3/5')
   })
   test('does not substitute a rank for uncollected data', async () => {
     const value = game()
     delete value.opponentRanks
     const html = await render(value)
-    expect(html).toContain('未采集')
-    expect(html.match(/可用 0\/5/g)).toHaveLength(2)
+    expect(html).toContain('本局十人摘要不可用')
+    expect(html).not.toContain('可用 0/5')
     expect(html).not.toContain('黄金 IV')
   })
 })

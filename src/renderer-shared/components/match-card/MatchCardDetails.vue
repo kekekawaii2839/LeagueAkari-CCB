@@ -74,6 +74,7 @@
       <MatchCardTimelineTab v-else-if="selectedTab === 'timeline'" />
       <MatchCardBuildsTab v-else-if="selectedTab === 'builds'" />
     </KeepAlive>
+    <div v-if="extraTabLabel && selectedTab === 'extra'"><slot name="extra-tab" /></div>
   </div>
 </template>
 
@@ -123,6 +124,7 @@ const perksAvailable = computed(() => {
   )
 })
 
+const { extraTabLabel } = defineProps<{ extraTabLabel?: string }>()
 const selectedTab = ref('summary')
 const tabs = computed(() => {
   return [
@@ -151,11 +153,13 @@ const tabs = computed(() => {
     {
       label: t('matchCard.tabs.timeline'),
       value: 'timeline'
-    }
+    },
+    ...(extraTabLabel ? [{ label: extraTabLabel, value: 'extra' }] : [])
   ].filter((tab) => tab.show ?? true)
 })
 
 watchEffect(() => {
+  if (!extraTabLabel && selectedTab.value === 'extra') selectedTab.value = 'summary'
   if (basicInfo.value.dataSource !== 'sgp' && selectedTab.value === 'builds') {
     selectedTab.value = 'summary'
   }

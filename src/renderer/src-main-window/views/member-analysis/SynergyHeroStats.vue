@@ -9,18 +9,11 @@
       <h3>
         {{ uiText(scope === 'role-pair' ? 'combinationRoleHeroHeading' : 'synergyHeroHeading') }}
       </h3>
-      <p>
-        {{
-          uiText(scope === 'role-pair' ? 'combinationRoleHeroScope' : 'synergyHeroScope', {
-            count: stats.total
-          })
-        }}
-      </p>
     </header>
     <div class="hero-member-grid">
       <section v-for="(member, index) in stats.members" :key="member.player" class="hero-member">
         <header class="hero-heading">
-          <h4>{{ short(member.player) }}</h4>
+          <h4>{{ member.player }}</h4>
           <p>
             {{ uiText('synergyHeroCoverage', { valid: member.available, total: stats.total }) }}
           </p>
@@ -53,7 +46,24 @@
                     /><span v-else class="hero-missing" aria-hidden="true">—</span
                     ><span
                       ><b>{{ heroName(row.champion) }}</b
-                      ><small>{{ roleCounts(row.roles) }}</small></span
+                      ><small class="hero-role-counts">
+                        <span
+                          v-for="entry in row.roles"
+                          :key="entry.role ?? 'unknown'"
+                          class="hero-role-count"
+                        >
+                          <PositionIcon
+                            v-if="isCanonicalRole(entry.role)"
+                            class="hero-role-icon"
+                            :position="entry.role"
+                            aria-hidden="true"
+                          />
+                          <span
+                            >{{ roleLabel(entry.role) }}
+                            {{ uiText('synergyGames', { count: entry.games }) }}</span
+                          >
+                        </span>
+                      </small></span
                     ></span
                   >
                 </th>
@@ -122,7 +132,24 @@
                     >—</span
                   ><span
                     ><b>{{ heroName(champion) }}</b
-                    ><small>{{ pairRoles(row.rolePairs, index) }}</small></span
+                    ><small class="hero-role-counts">
+                      <span
+                        v-for="entry in pairRoles(row.rolePairs, index)"
+                        :key="entry.role ?? 'unknown'"
+                        class="hero-role-count"
+                      >
+                        <PositionIcon
+                          v-if="isCanonicalRole(entry.role)"
+                          class="hero-role-icon"
+                          :position="entry.role"
+                          aria-hidden="true"
+                        />
+                        <span
+                          >{{ roleLabel(entry.role) }}
+                          {{ uiText('synergyGames', { count: entry.games }) }}</span
+                        >
+                      </span>
+                    </small></span
                   ></span
                 >
               </th>
@@ -149,13 +176,11 @@
         :aria-label="uiText('synergyHeroPairPages')"
       />
     </section>
-    <p class="hero-note">
-      {{ uiText(scope === 'role-pair' ? 'combinationRoleHeroNote' : 'synergyHeroNote') }}
-    </p>
   </section>
 </template>
 <script setup lang="ts">
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
+import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 import { NPagination } from 'naive-ui'
 import { ref, watch } from 'vue'
@@ -188,16 +213,16 @@ const roleKeys = {
   UTILITY: 'synergyRoleUtility'
 } as const
 const roleLabel = (role: string | null) =>
-  uiText(roleKeys[role as keyof typeof roleKeys] ?? 'synergyUnknownRole')
-const roleCounts = (roles: SharedHeroRow['roles']) =>
-  roles.map((r) => `${roleLabel(r.role)} ${uiText('synergyGames', { count: r.games })}`).join(' · ')
+  uiText(isCanonicalRole(role) ? roleKeys[role] : 'synergyUnknownRole')
+const isCanonicalRole = (role: unknown): role is keyof typeof roleKeys =>
+  typeof role === 'string' && Object.hasOwn(roleKeys, role)
 const pairRoles = (roles: SharedHeroPairRow['rolePairs'], index: number) => {
   const counts = new Map<string | null, number>()
   for (const r of roles) {
     const key = index === 0 ? r.roleA : r.roleB
     counts.set(key, (counts.get(key) ?? 0) + r.games)
   }
-  return roleCounts([...counts].map(([role, games]) => ({ role, games })))
+  return [...counts].map(([role, games]) => ({ role, games }))
 }
 watch(
   () => props.stats,
@@ -222,12 +247,17 @@ watch(
 }
 .hero-heading h3,
 .hero-heading h4 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   margin: 0;
   font-size: 15px;
   font-weight: 600;
 }
-.hero-heading p,
-.hero-note {
+.hero-heading p {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: 12px;
   color: var(--ma-muted);
   line-height: 1.6;
@@ -241,7 +271,10 @@ watch(
 .hero-table-wrap {
   min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
+  /* Reserve one five-row page even on short/last pages; keep the footer outside scrolling. */
+  height: 340px;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 .hero-table-wrap:focus-visible {
   outline: 2px solid var(--la-color-link);
@@ -262,6 +295,10 @@ watch(
   vertical-align: middle;
 }
 .hero-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--la-color-bg-primary);
   font-size: 13px;
   color: var(--ma-muted);
   font-weight: 500;
@@ -292,6 +329,30 @@ watch(
   font-weight: 500;
   overflow-wrap: anywhere;
 }
+.hero-table .hero-role-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.hero-role-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.hero-role-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  font-size: 14px;
+  line-height: 1;
+}
+.hero-role-icon :deep(svg) {
+  display: block;
+}
 .hero-identity :deep(.champion-icon-container),
 .hero-missing {
   width: 28px;
@@ -313,9 +374,6 @@ watch(
 }
 .hero-pair-table thead th:nth-child(2) {
   text-align: left;
-}
-.hero-note {
-  margin-top: 12px;
 }
 .synergy-heroes :deep(.n-pagination) {
   margin-top: 12px;

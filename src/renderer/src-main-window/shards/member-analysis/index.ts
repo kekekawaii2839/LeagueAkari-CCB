@@ -1,10 +1,19 @@
 import { AkariIpcRenderer } from '@renderer-shared/shards/ipc'
 import { Dep, IAkariShardInitDispose, Shard } from '@shared/akari-shard'
+import {
+  type MemberAnalysisCurrentRankRefreshRequest,
+  MemberAnalysisCurrentRankRefreshRequestSchema,
+  type MemberAnalysisCurrentRankRefreshResult,
+  type MemberAnalysisRankObservationHistoryPage,
+  type MemberAnalysisRankObservationHistoryRequest,
+  MemberAnalysisRankObservationHistoryRequestSchema
+} from '@shared/shards/member-analysis'
 import type {
   MemberAnalysisCapabilities,
   MemberAnalysisCleanupPreview,
   MemberAnalysisJob,
   MemberAnalysisMatchDetails,
+  MemberAnalysisMatchOverview,
   MemberAnalysisOverview,
   MemberAnalysisResult,
   MemberAnalysisSettings,
@@ -22,6 +31,11 @@ import {
   PredictionOpportunityRequestSchema,
   type PredictionPilotSummary
 } from '@shared/shards/member-analysis/prediction'
+import {
+  type MemberAnalysisPublishedMemberIdentitiesPage,
+  type MemberAnalysisPublishedMemberIdentitiesRequest,
+  MemberAnalysisPublishedMemberIdentitiesRequestSchema
+} from '@shared/shards/member-analysis/published-member-identities'
 
 import { useMemberAnalysisStore } from './store'
 
@@ -120,6 +134,20 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
     return result
   }
 
+  refreshCurrentRanks(request: MemberAnalysisCurrentRankRefreshRequest) {
+    return this._call<MemberAnalysisCurrentRankRefreshResult>(
+      'refreshCurrentRanks',
+      MemberAnalysisCurrentRankRefreshRequestSchema.parse(request)
+    )
+  }
+
+  cancelCurrentRankRefresh(request: MemberAnalysisCurrentRankRefreshRequest) {
+    return this._call<{ cancelled: boolean }>(
+      'cancelCurrentRankRefresh',
+      MemberAnalysisCurrentRankRefreshRequestSchema.parse(request)
+    )
+  }
+
   async cancelRefresh() {
     const store = useMemberAnalysisStore()
     const result = await this._call<MemberAnalysisJob>(
@@ -131,8 +159,46 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
     return result
   }
 
+  getRankObservationHistory(request: MemberAnalysisRankObservationHistoryRequest) {
+    const parsed = MemberAnalysisRankObservationHistoryRequestSchema.safeParse(request)
+    if (!parsed.success)
+      return Promise.resolve<MemberAnalysisResult<MemberAnalysisRankObservationHistoryPage>>({
+        ok: false,
+        error: {
+          code: 'INVALID_ARGUMENT',
+          message: 'Invalid rank history request',
+          retryable: false
+        }
+      })
+    return this._call<MemberAnalysisRankObservationHistoryPage>(
+      'getRankObservationHistory',
+      parsed.data
+    )
+  }
+
+  getPublishedMemberIdentities(request: MemberAnalysisPublishedMemberIdentitiesRequest) {
+    const parsed = MemberAnalysisPublishedMemberIdentitiesRequestSchema.safeParse(request)
+    if (!parsed.success)
+      return Promise.resolve<MemberAnalysisResult<MemberAnalysisPublishedMemberIdentitiesPage>>({
+        ok: false,
+        error: {
+          code: 'INVALID_ARGUMENT',
+          message: 'Invalid member identities request',
+          retryable: false
+        }
+      })
+    return this._call<MemberAnalysisPublishedMemberIdentitiesPage>(
+      'getPublishedMemberIdentities',
+      parsed.data
+    )
+  }
+
   getMatchDetails(gameId: number) {
     return this._call<MemberAnalysisMatchDetails | null>('getMatchDetails', { gameId })
+  }
+
+  getMatchOverview(gameId: number) {
+    return this._call<MemberAnalysisMatchOverview | null>('getMatchOverview', { gameId })
   }
 
   startPredictionOpportunity(request: PredictionOpportunityRequest) {
@@ -197,7 +263,8 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
     const seen = new Set<string>()
     do {
       const page = await this._call<MemberAnalysisOverview>('getOverview', {
-        pagination: { cursor, pageSize: 100 }
+        pagination: { cursor, pageSize: 100 },
+        ...(combined?.publicationToken ? { publicationToken: combined.publicationToken } : {})
       })
       if (!page.ok) return page
       if (
@@ -208,6 +275,7 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
       if (combined === null) combined = page.value
       else {
         if (
+          (combined.publicationToken ?? null) !== (page.value.publicationToken ?? null) ||
           combined.generatedAt !== page.value.generatedAt ||
           combined.gameCount !== page.value.gameCount ||
           combined.source !== page.value.source

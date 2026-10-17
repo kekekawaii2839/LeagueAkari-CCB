@@ -57,6 +57,8 @@ export class MemberAnalysisPipeline {
   cancel(jobId?: string) {
     if (!this._job || (jobId && this._job.jobId !== jobId)) return null
     if (['completed', 'failed', 'cancelled'].includes(this._job.status)) return this.get(jobId)
+    // Publication is an atomic commit boundary, as the former synchronous path was.
+    if (this._job.status === 'publishing') return this.get(jobId)
     this._abortController?.abort(new Error('cancelled'))
     this._worker.cancel('cancelled')
     this._update({ message: 'cancelling' })
@@ -126,8 +128,11 @@ export class MemberAnalysisPipeline {
       if (signal.aborted || message.status === 'cancelled') throw new Error('cancelled')
       if (message.type !== 'result' || message.status !== 'completed')
         throw new Error('worker did not complete successfully')
-      this._update({ status: 'publishing', progress: 0.95, message: 'publishing' })
-      this._repository.publishStaging(collected.rankSnapshots)
+      await this._repository.publishStagingAsync(collected.rankSnapshots, {
+        signal,
+        onCommit: () =>
+          this._update({ status: 'publishing', progress: 0.95, message: 'publishing' })
+      })
       this._finish('completed', 'completed')
     } catch (error) {
       if (signal.aborted || (error instanceof Error && error.message === 'cancelled')) {

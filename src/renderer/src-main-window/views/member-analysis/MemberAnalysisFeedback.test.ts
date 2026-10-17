@@ -14,6 +14,14 @@ import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
 import MemberAnalysisSettingsDrawer from './MemberAnalysisSettingsDrawer.vue'
 import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
 
+// Decorative icons do not participate in these control/recovery assertions.
+vi.mock('@vicons/material', () => ({
+  AnalyticsRound: () => null,
+  InfoOutlined: () => null,
+  RefreshRound: () => null,
+  SettingsRound: () => null
+}))
+
 const callbacks = vi.hoisted(() => ({
   buttons: [] as { text: string; disabled: boolean; click?: Function }[]
 }))
@@ -207,13 +215,16 @@ describe('member-analysis feedback and recovery', () => {
     )
     expect(html).toContain('本轮尚未查询，可再次刷新。 · 记录时间')
     expect(html).toContain('网络或服务超时失败（已尝试） · 尝试')
-    expect(html).toContain('事后刷新快照（非比赛当时）')
+    expect(html).toContain('对手查询时段位')
+    expect(html).not.toContain('事后刷新快照（非比赛当时）')
     expect(html).toContain('来源：英雄联盟对局服务')
     expect(html).not.toContain('预算')
   })
 })
 
 test('page wires member recovery and ordinary settings to the same drawer without stale focus', async () => {
+  // Decoration is outside this real page/drawer wiring test's boundary.
+  vi.doMock('@vicons/carbon', () => ({ Close: () => null, ErrorFilled: () => null }))
   vi.doMock('@renderer-shared/shards', () => ({ useInstance: () => ({ reload: vi.fn() }) }))
   vi.doMock('vue-router', () => ({
     useRoute: () => ({ params: { section: 'roles' } }),
@@ -232,6 +243,10 @@ test('page wires member recovery and ordinary settings to the same drawer withou
     vi.doMock('./' + name + '.vue', () => ({ default: () => null }))
   vi.doMock('./opponent-ranks/OpponentRanksView.vue', () => ({ default: () => null }))
   vi.doMock('./prediction', () => ({ WinPrediction: () => null }))
+  // This recovery test does not render independent experimental trend panes.
+  // Their dedicated suites cover worker and history behavior.
+  vi.doMock('./lp-trend/LpTrendView.vue', () => ({ default: () => null }))
+  vi.doMock('./version-trend/VersionTrendPanel.vue', () => ({ default: () => null }))
   const { default: MemberAnalysis } = await import('./MemberAnalysis.vue')
   const pinia = createPinia()
   setActivePinia(pinia)
@@ -252,4 +267,36 @@ test('page wires member recovery and ordinary settings to the same drawer withou
   callbacks.buttons.find((button) => button.text === '设置')?.click?.()
   expect(store.settingsDrawerVisible).toBe(true)
   expect(store.settingsFocus).toBeNull()
+})
+
+test('header keeps title, slotted match controls and refresh/settings in reading order', async () => {
+  const app = createSSRApp({
+    render: () =>
+      h(
+        MemberAnalysisHeader,
+        {
+          generatedAt: '2026-10-14T00:00:00Z',
+          loading: false,
+          refreshDisabled: false
+        },
+        {
+          filters: () =>
+            h(
+              'div',
+              { role: 'group', 'aria-label': 'SYNTHETIC_FILTERS_TEST_ONLY' },
+              'Synthetic controls'
+            )
+        }
+      )
+  })
+  const html = await renderToString(app)
+  const heading = html.indexOf('member-analysis-title')
+  const filters = html.indexOf('aria-label="SYNTHETIC_FILTERS_TEST_ONLY"')
+  const refresh = html.indexOf('aria-label="刷新"')
+  const settings = html.indexOf('aria-label="设置"')
+  expect(heading).toBeGreaterThanOrEqual(0)
+  expect(filters).toBeGreaterThan(heading)
+  expect(refresh).toBeGreaterThan(filters)
+  expect(settings).toBeGreaterThan(refresh)
+  expect(html).toContain('datetime="2026-10-14T00:00:00Z"')
 })

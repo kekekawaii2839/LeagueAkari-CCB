@@ -1,8 +1,8 @@
 <template>
   <section
     class="member-analysis-filters"
+    :class="{ 'member-analysis-filters--embedded': embedded }"
     aria-label="成员分析筛选"
-    :aria-describedby="disabled ? 'member-analysis-prediction-filter-note' : undefined"
   >
     <div v-if="compact" class="compact-filter-summary">
       <NButton
@@ -14,12 +14,6 @@
         @click="toggleCompact"
         >{{ uiText(expanded ? 'combinationHideFilters' : 'combinationShowFilters') }}</NButton
       >
-      <span
-        >{{ sampleOptions.find((option) => option.value === store.sampleSize)?.label }} ·
-        {{ sideOptions.find((option) => option.value === store.analysisSide)?.label }} ·
-        {{ outcomeOptions.find((option) => option.value === store.filters.outcome)?.label }}</span
-      >
-      <p v-if="activeDescriptions.length">{{ activeDescriptions.join(' · ') }}</p>
     </div>
     <div
       ref="controls"
@@ -32,7 +26,7 @@
         v-model:value="store.filters.query"
         class="member-analysis-filters__query"
         clearable
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         aria-label="搜索对局、成员或英雄"
         placeholder="搜索对局、成员或英雄"
       />
@@ -41,9 +35,9 @@
         :menu-props="menuProps('sample')"
         :disabled="disabled"
         v-model:value="store.sampleSize"
-        class="member-analysis-filters__select"
+        class="member-analysis-filters__select member-analysis-filters__select--sample"
         :options="sampleOptions"
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         aria-label="样本范围"
       />
       <NSelect
@@ -53,7 +47,7 @@
         v-model:value="store.analysisSide"
         class="member-analysis-filters__select"
         :options="sideOptions"
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         aria-label="阵营"
       />
       <NSelect
@@ -63,24 +57,25 @@
         v-model:value="store.filters.outcome"
         class="member-analysis-filters__select"
         :options="outcomeOptions"
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         aria-label="结果"
       />
       <NButton
-        :disabled="disabled"
         ref="advancedButton"
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         quaternary
         :aria-expanded="advanced"
         aria-controls="member-analysis-advanced-filters"
         @click="toggleAdvanced"
+        @mouseleave="releaseAdvancedPointerFocus"
+        @keydown="advancedPointerClick = false"
       >
         {{ advanced ? '收起高级筛选' : `高级筛选${activeAdvanced ? ` · ${activeAdvanced}` : ''}` }}
       </NButton>
       <NButton
         :disabled="disabled"
         v-if="activeFilters"
-        size="small"
+        :size="embedded ? 'medium' : 'small'"
         quaternary
         type="warning"
         @click="store.resetFilters"
@@ -98,6 +93,7 @@
           <NSelect
             v-model:show="menus.participant"
             :menu-props="menuProps('participant')"
+            :consistent-menu-width="false"
             :disabled="disabled"
             v-model:value="store.filters.participant"
             class="member-analysis-filters__select"
@@ -111,6 +107,7 @@
             v-model:value="store.filters.matchRole"
             class="member-analysis-filters__select"
             :options="roleOptions"
+            :render-label="renderRoleSelectLabel"
             aria-label="分路"
           />
           <NSelect
@@ -120,6 +117,8 @@
             v-model:value="store.filters.champion"
             class="member-analysis-filters__select"
             :options="championOptions"
+            filterable
+            :filter="filterChampion"
             aria-label="英雄"
           />
           <NSelect
@@ -131,16 +130,32 @@
             :options="patchOptions"
             aria-label="版本"
           />
-          <NInputNumber
-            :disabled="disabled"
-            v-model:value="store.filters.durationMin"
-            class="member-analysis-filters__duration"
-            :min="0"
-            :max="180"
-            clearable
-            aria-label="最短对局分钟"
-            placeholder="最短分钟"
-          />
+          <div
+            class="member-analysis-filters__duration-range"
+            role="group"
+            aria-label="对局时长（分钟）"
+          >
+            <NInputNumber
+              :disabled="disabled"
+              v-model:value="store.filters.durationMin"
+              class="member-analysis-filters__duration"
+              :min="0"
+              :max="180"
+              clearable
+              aria-label="最短对局分钟"
+              placeholder="最短分钟"
+            />
+            <NInputNumber
+              :disabled="disabled"
+              v-model:value="store.filters.durationMax"
+              class="member-analysis-filters__duration"
+              :min="0"
+              :max="180"
+              clearable
+              aria-label="最长对局分钟"
+              placeholder="最长分钟"
+            />
+          </div>
           <NInput
             :disabled="disabled"
             v-model:value="store.filters.dateFrom"
@@ -155,37 +170,27 @@
             :input-props="{ type: 'date', 'aria-label': '结束日期' }"
             placeholder=""
           />
-          <NInputNumber
-            :disabled="disabled"
-            v-model:value="store.filters.durationMax"
-            class="member-analysis-filters__duration"
-            :min="0"
-            :max="180"
-            clearable
-            aria-label="最长对局分钟"
-            placeholder="最长分钟"
-          />
         </div>
       </div>
-      <p v-if="activeFilters && !advancedShown" class="active-filter-summary">
-        当前筛选：{{ activeDescriptions.join(' · ') }}
-      </p>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { NButton, NInput, NInputNumber, NSelect } from 'naive-ui'
+import { NButton, NInput, NInputNumber, NSelect, type SelectOption } from 'naive-ui'
 import { computed, nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { uiText } from './ui-text'
+import { renderRoleSelectLabel } from './role-select-label'
 import { createAdvancedFilterMotion } from './advanced-filter-motion'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
+import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 
 const store = useMemberAnalysisStore()
-const props = defineProps<{ disabled?: boolean; compact?: boolean }>()
+const league = useLeagueClientStore()
+const props = defineProps<{ disabled?: boolean; compact?: boolean; embedded?: boolean }>()
 const expanded = ref(false)
 const advanced = ref(false)
 const advancedShown = ref(false)
@@ -206,10 +211,16 @@ const menus = reactive({
   patch: false
 })
 const menuProps = (key: keyof typeof menus): HTMLAttributes => ({
-  class: 'member-analysis-filter-menu',
+  class:
+    key === 'participant'
+      ? 'member-analysis-filter-menu member-analysis-participant-menu'
+      : 'member-analysis-filter-menu',
   inert: !menus[key],
   'aria-hidden': !menus[key] || undefined,
-  style: { pointerEvents: menus[key] ? undefined : 'none' }
+  style: {
+    pointerEvents: menus[key] ? undefined : 'none',
+    ...(key === 'participant' ? { width: 'min(440px, calc(100vw - 32px))' } : {})
+  }
 })
 const controlsVisible = computed(() => !props.compact || expanded.value)
 let sequence = 0
@@ -225,8 +236,17 @@ function returnFocus(region: HTMLElement | null, button: InstanceType<typeof NBu
   if (typeof document !== 'undefined' && region?.contains(document.activeElement))
     (button?.$el as HTMLElement | undefined)?.focus({ preventScroll: true })
 }
-function toggleAdvanced() {
-  if (props.disabled) return
+// Naive focuses a button on mousedown. Retire only that pointer focus on exit;
+// keyboard activation keeps the native focus indication and tab order.
+let advancedPointerClick = false
+function releaseAdvancedPointerFocus(event: MouseEvent) {
+  if (!advancedPointerClick) return
+  advancedPointerClick = false
+  const button = event.currentTarget as HTMLElement
+  button.blur()
+}
+function toggleAdvanced(event?: MouseEvent) {
+  advancedPointerClick = (event?.detail ?? 0) > 0
   if (advanced.value) returnFocus(advancedControls.value, advancedButton.value)
   advanced.value = !advanced.value
 }
@@ -246,7 +266,7 @@ watch(
     }
     await nextTick()
     if (token !== sequence) return
-    if (!controlsVisible.value || props.disabled) {
+    if (!controlsVisible.value) {
       cancelMotion()
       return
     }
@@ -349,32 +369,36 @@ const participantOptions = computed(() => [
     .sort((a, b) => a.localeCompare(b, 'zh-CN'))
     .map((value) => ({ label: value, value }))
 ])
+const championSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
+// Same primary display source as the hero pool: client-provided gameData names.
+// Canonical values remain untouched; labels react to the client's localized map.
+const championLabels = computed(() => {
+  const labels = new Map<string, string>()
+  for (const champion of Object.values(league.gameData.champions)) {
+    if (!champion.name.trim()) continue
+    labels.set(championSearchText(champion.alias), champion.name)
+    labels.set(championSearchText(champion.name), champion.name)
+  }
+  return labels
+})
+const filterChampion = (pattern: string, option: SelectOption) => {
+  const query = championSearchText(pattern)
+  return [
+    typeof option.label === 'string' ? option.label : '',
+    typeof option.value === 'string' ? option.value : ''
+  ].some((value) => championSearchText(value).includes(query))
+}
 const championOptions = computed(() => [
   { label: '全部英雄', value: 'all' },
   ...Array.from(
     new Set(store.overview?.games.flatMap((game) => game.players.map((row) => row.champion)) ?? [])
   )
     .sort((a, b) => a.localeCompare(b, 'zh-CN'))
-    .map((value) => ({ label: value, value }))
+    .map((value) => ({
+      label: championLabels.value.get(championSearchText(value)) ?? value,
+      value
+    }))
 ])
-const activeDescriptions = computed(() => {
-  const f = store.filters
-  return [
-    f.query ? `搜索 ${f.query}` : '',
-    store.analysisSide !== 'all'
-      ? sideOptions.find((x) => x.value === store.analysisSide)?.label
-      : '',
-    f.outcome !== 'all' ? outcomeOptions.find((x) => x.value === f.outcome)?.label : '',
-    f.participant !== 'all' ? f.participant : '',
-    f.matchRole !== 'all' ? roleOptions.find((x) => x.value === f.matchRole)?.label : '',
-    f.champion !== 'all' ? f.champion : '',
-    f.patch !== 'all' ? `版本 ${f.patch}` : '',
-    f.durationMin !== null ? `至少 ${f.durationMin} 分钟` : '',
-    f.durationMax !== null ? `至多 ${f.durationMax} 分钟` : '',
-    f.dateFrom ? `从 ${f.dateFrom}` : '',
-    f.dateTo ? `至 ${f.dateTo}` : ''
-  ].filter(Boolean)
-})
 </script>
 
 <style scoped>
@@ -404,11 +428,6 @@ const activeDescriptions = computed(() => {
   font-size: 12px;
   line-height: 1.5;
 }
-.compact-filter-summary p {
-  flex-basis: 100%;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
 .member-analysis-filters__sample {
   color: color-mix(in srgb, var(--la-color-text-primary) 58%, transparent);
   font-size: 12px;
@@ -417,6 +436,7 @@ const activeDescriptions = computed(() => {
 .member-analysis-filters__advanced-shell {
   width: 100%;
   min-width: 0;
+  contain: layout style;
 }
 .member-analysis-filters__advanced {
   display: flex;
@@ -435,6 +455,18 @@ const activeDescriptions = computed(() => {
 }
 .member-analysis-filters__date {
   width: 145px;
+}
+
+.member-analysis-filters__duration-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.member-analysis-filters__duration-range > .member-analysis-filters__duration {
+  flex: 0 0 180px;
+  width: 180px;
+  min-width: 180px;
 }
 
 @media (max-width: 760px) {
@@ -460,12 +492,55 @@ const activeDescriptions = computed(() => {
   .member-analysis-filters__advanced > * {
     width: 100%;
   }
+  .member-analysis-filters__duration-range {
+    grid-column: 1 / -1;
+  }
 }
-.active-filter-summary {
-  flex-basis: 100%;
-  margin: 4px 0 0;
-  color: var(--ma-muted);
-  font-size: 12px;
+/* The same controls live in the header's middle grid column. No duplicate bar,
+   sticky owner or hidden field: a narrow column wraps before actions overflow. */
+.member-analysis-filters--embedded {
+  width: 100%;
+  padding: 0;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+}
+.member-analysis-filters--embedded
+  > .member-analysis-filter-controls
+  > .member-analysis-filters__query {
+  flex: 0 1 240px;
+  width: 240px;
+  min-width: 180px;
+  max-width: 300px;
+}
+.member-analysis-filters--embedded
+  > .member-analysis-filter-controls
+  > .member-analysis-filters__select {
+  flex: 0 0 128px;
+  width: 128px;
+  min-width: 128px;
+}
+.member-analysis-filters--embedded > .member-analysis-filter-controls > :deep(.n-button) {
+  flex-shrink: 0;
+}
+.member-analysis-filters--embedded
+  > .member-analysis-filter-controls
+  > .member-analysis-filters__select--sample {
+  flex-basis: 152px;
+  width: 152px;
+  min-width: 152px;
+}
+</style>
+
+<!-- The select menu is teleported; constrain only this member-name popup. -->
+<style>
+.member-analysis-filter-menu.member-analysis-participant-menu
+  .n-base-select-option
+  .n-base-select-option__content {
+  min-width: 0;
+  overflow: visible;
   overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 </style>

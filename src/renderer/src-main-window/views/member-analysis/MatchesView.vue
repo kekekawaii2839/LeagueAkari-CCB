@@ -1,16 +1,47 @@
-﻿<template>
-  <div ref="list" class="ma-panel ma-workspace match-list">
-    <div class="ma-view-toolbar">
-      <NButton size="small" secondary @click="openMatches">打开对局查询</NButton>
-      <span class="ma-view-meta">{{ uiText('recentFirst') }}</span>
-    </div>
+<template>
+  <div
+    ref="list"
+    class="ma-panel ma-workspace match-list"
+    role="region"
+    aria-label="对局列表"
+    tabindex="-1"
+  >
     <div
-      v-if="store.matchListScope"
+      v-if="store.matchListScope || scopedGames.length > MEMBER_ANALYSIS_MATCH_PAGE_SIZE"
       ref="scopeBanner"
-      class="ma-view-toolbar"
-      role="status"
+      class="ma-view-toolbar match-list-toolbar"
+      role="group"
+      aria-label="对局列表"
       tabindex="-1"
     >
+      <NButton
+        v-if="store.matchListScope"
+        size="small"
+        secondary
+        @click="store.clearMatchListScope()"
+        >{{ uiText('matchScopeClear') }}</NButton
+      >
+      <div
+        v-if="scopedGames.length > MEMBER_ANALYSIS_MATCH_PAGE_SIZE"
+        class="match-list-pagination"
+      >
+        <span class="ma-view-meta">{{
+          uiText('matchPageSummary', {
+            first: paging.start + 1,
+            last: paging.end,
+            total: scopedGames.length
+          })
+        }}</span>
+        <NPagination
+          :page="paging.page"
+          :page-size="MEMBER_ANALYSIS_MATCH_PAGE_SIZE"
+          :item-count="scopedGames.length"
+          :page-slot="3"
+          @update:page="changePage"
+        />
+      </div>
+    </div>
+    <div v-if="store.matchListScope" class="match-announcement" role="status" aria-live="polite">
       <span class="ma-view-meta">{{
         uiText('matchScopeSummary', {
           source: store.matchListScope.source,
@@ -19,113 +50,31 @@
           sample: games.length
         })
       }}</span>
-      <NButton size="small" secondary @click="store.clearMatchListScope()">{{
-        uiText('matchScopeClear')
-      }}</NButton>
     </div>
     <p v-if="listScope.expired" class="ma-chart-note" role="status">
       {{ uiText('matchScopeExpired') }}
     </p>
-    <div v-if="scopedGames.length > MEMBER_ANALYSIS_MATCH_PAGE_SIZE" class="ma-view-toolbar">
-      <span class="ma-view-meta">{{
-        uiText('matchPageSummary', {
-          first: paging.start + 1,
-          last: paging.end,
-          total: scopedGames.length
-        })
-      }}</span>
-      <NPagination
-        :page="paging.page"
-        :page-size="MEMBER_ANALYSIS_MATCH_PAGE_SIZE"
-        :item-count="scopedGames.length"
-        :page-slot="5"
-        @update:page="changePage"
-      />
-    </div>
     <p
       v-if="navigationSource || store.matchNavigationFeedback"
       ref="navigationFeedback"
       class="ma-chart-note"
+      :class="{ 'match-announcement': !navigationHasError }"
       role="status"
+      aria-live="polite"
       tabindex="-1"
     >
-      <template v-if="navigationSource">{{ navigationSource }} · </template>
       {{ store.matchNavigationFeedback || uiText('matchNavigationPending') }}
     </p>
-    <article
-      v-for="game in renderedGames"
-      :key="game.gameId"
-      :data-match-id="game.gameId"
-      class="match-card"
-      :class="game.win ? 'win' : 'loss'"
-    >
-      <div class="result">
-        <strong>{{ game.win ? '胜利' : '失败' }}</strong
-        ><span :class="game.side === 'Blue' ? 'ma-blue' : 'ma-red'">{{
-          game.side === 'Red' ? '红方' : '蓝方'
-        }}</span>
-      </div>
-      <div class="meta">
-        <strong>{{ formatTime(game.timestamp, game.date) }}</strong
-        ><span>#{{ game.gameId }} · {{ formatDuration(game.duration) }} · {{ game.patch }}</span>
-      </div>
-      <div class="roster">
-        <span v-for="player in fixedPlayers(game.players)" :key="player.role"
-          ><span class="roster-portrait"
-            ><ChampionIcon :champion-id="championId(player.champion)" /></span
-          ><span class="roster-copy"
-            ><b>{{ roleNames[player.role] }}</b
-            ><em>{{ player.player.split('#')[0] }}</em
-            ><small>{{ championName(player.champion) }}</small></span
-          ></span
-        >
-      </div>
-      <div class="actions">
-        <NButton
-          size="small"
-          quaternary
-          :aria-expanded="expanded.has(game.gameId)"
-          :aria-controls="`match-detail-${game.gameId}`"
-          :aria-label="`${expanded.has(game.gameId) ? '收起' : '展开'} ${formatTime(game.timestamp, game.date)} 的对局详情`"
-          @click="toggle(game.gameId)"
-          >{{ expanded.has(game.gameId) ? '收起' : '展开' }}</NButton
-        >
-      </div>
-      <div class="match-ranks" aria-label="本局对手平均段位">
-        <small>{{ uiText('rankMatchContext') }}</small>
-        <span v-for="queue in rankQueues" :key="queue.key">
-          <b>{{ queue.label }}</b>
-          {{ averageLabel(game, queue.key) }}
-          <small>{{
-            uiText('rankUsableOpponents', {
-              count: opponentRankAverage(game.opponentRanks, queue.key)?.count ?? 0
-            })
-          }}</small>
-        </span>
-      </div>
-      <p v-if="navigationTargetId === game.gameId" class="ma-chart-note match-navigation-context">
-        {{ navigationSource }}
-      </p>
-      <div v-if="expanded.has(game.gameId)" class="details" :id="`match-detail-${game.gameId}`">
-        <MatchNativeDetails :game-id="game.gameId" />
-        <div class="match-analysis-metrics">
-          <span
-            ><b>20 分钟经济差（金币）</b
-            ><em :class="toneClass(game.gold20Diff)">{{ formatSigned(game.gold20Diff) }}</em></span
-          ><span
-            ><b>20 分钟防御塔差（座）</b><em>{{ formatSigned(game.tower20Diff) }}</em></span
-          ><span
-            ><b>15 分钟资源团净击杀（次）</b
-            ><em>{{ formatSigned(game.objectiveFight15Diff) }}</em></span
-          ><span
-            ><b>击杀兑现</b><em>{{ conversion(game) }}</em></span
-          ><span
-            ><b>死亡代价</b><em>{{ formatMetric(game.eventDecision?.deathCostPoints) }}</em></span
-          >
-        </div>
-        <OpponentRankDetails :ranks="game.opponentRanks" />
-      </div>
-    </article>
+    <KeepAlive :key="pageCacheEpoch" :max="2">
+      <MatchListPage
+        :key="paging.page"
+        :games="renderedGames"
+        :active="props.active"
+        :expanded="expanded"
+        :format-time="formatTime"
+        @toggle="toggle"
+      />
+    </KeepAlive>
     <div v-if="!scopedGames.length && !listScope.expired" class="ma-empty">
       {{ store.matchListScope ? uiText('matchScopeEmpty') : '当前筛选条件下没有固定五人对局。' }}
     </div>
@@ -138,22 +87,20 @@ const consumedMatchScopes = new WeakMap<object, number>()
 </script>
 <script setup lang="ts">
 import { uiText } from './ui-text'
-import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
 import { NButton, NPagination } from 'naive-ui'
-import { computed, nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
-import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
-import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric } from './metric-defs'
-import { finiteOrNull, fixedFiveRoster, formatSigned } from './visualization'
 import {
-  opponentRankAverage,
-  rankLabel,
-  type RankQueue
-} from '@shared/shards/member-analysis/opponent-ranks'
-import MatchNativeDetails from './MatchNativeDetails.vue'
-import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
+  KeepAlive,
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onDeactivated,
+  reactive,
+  ref,
+  watch
+} from 'vue'
+import { useMemberAnalysisData } from './useMemberAnalysisData'
+import { useMemberMatchDetailsPageOrder } from './useMemberMatchDetails'
+import MatchListPage from './MatchListPage.vue'
 import {
   useMemberAnalysisStore,
   type MemberAnalysisMatchNavigation
@@ -169,7 +116,14 @@ const props = withDefaults(defineProps<{ active?: boolean }>(), { active: false 
 const store = useMemberAnalysisStore()
 const list = ref<HTMLElement | null>(null)
 const navigationSource = ref('')
-const navigationTargetId = ref<number | null>(null)
+const navigationHasError = computed(() =>
+  Boolean(
+    store.matchNavigationFeedback &&
+    ![uiText('matchNavigationPending'), uiText('matchNavigationLocated')].includes(
+      store.matchNavigationFeedback
+    )
+  )
+)
 const navigationFeedback = ref<HTMLElement | null>(null)
 const scopeBanner = ref<HTMLElement | null>(null)
 let scopeFocusToken = 0
@@ -220,6 +174,37 @@ const scopedGames = computed(() => listScope.value.games)
 const page = ref(1)
 const paging = computed(() => resolveMatchListPage(scopedGames.value.length, page.value))
 const renderedGames = computed(() => scopedGames.value.slice(paging.value.start, paging.value.end))
+// Two visited pages at most; a changed publication, scope, filter or sample
+// discards the entire DOM cache rather than retaining obsolete identities.
+const pageCacheEpoch = ref(0)
+watch(
+  [
+    scopedGames,
+    () => store.overviewGeneration,
+    () => ({ ...store.matchListScope }),
+    () => ({ ...store.filters }),
+    () => store.analysisSide,
+    () => store.sampleSize
+  ],
+  () => {
+    pageCacheEpoch.value++
+  },
+  { flush: 'sync' }
+)
+watch(
+  renderedGames,
+  () => {
+    const root = list.value
+    const focused = root?.ownerDocument?.activeElement as HTMLElement | null | undefined
+    if (focused?.closest('[data-match-id]') && root?.contains(focused))
+      root.focus({ preventScroll: true })
+  },
+  { flush: 'sync' }
+)
+useMemberMatchDetailsPageOrder(
+  () => renderedGames.value.map((game) => game.gameId),
+  () => props.active
+)
 watch(scopedGames, () => {
   page.value = paging.value.page
 })
@@ -233,16 +218,6 @@ watch(
 function changePage(value: number) {
   page.value = resolveMatchListPage(scopedGames.value.length, value).page
 }
-const rankQueues = [
-  { key: 'solo', label: '单双排' },
-  { key: 'flex', label: '灵活组排' }
-] as const
-const averageLabel = (game: MemberAnalysisGame, queue: RankQueue) => {
-  const average = opponentRankAverage(game.opponentRanks, queue)
-  return average ? rankLabel(average.rank) : game.opponentRanks ? '无可用段位' : '未采集'
-}
-const lcs = useLeagueClientStore()
-const router = useRouter()
 const expanded = reactive(new Set<number>())
 const navigation = createMatchNavigation<MemberAnalysisMatchNavigation>({
   current: (request) =>
@@ -253,7 +228,6 @@ const navigation = createMatchNavigation<MemberAnalysisMatchNavigation>({
   expand: (game) => {
     const targetPage = matchListPageForGame(scopedGames.value, game)
     if (targetPage !== null) page.value = targetPage
-    navigationTargetId.value = game.gameId
     expanded.add(game.gameId)
   },
   feedback: () => navigationFeedback.value,
@@ -276,11 +250,9 @@ watch(
     navigation.cancel()
     if (!request) {
       navigationSource.value = ''
-      navigationTargetId.value = null
     }
     if (!active || !request || store.viewState !== 'ready') return
     navigationSource.value = request.source
-    navigationTargetId.value = null
     void navigation.locate(request)
   },
   { immediate: true, flush: 'post' }
@@ -297,27 +269,6 @@ watch(games, (value) => {
   for (const id of expanded) if (!ids.has(id)) expanded.delete(id)
 })
 const toggle = (id: number) => (expanded.has(id) ? expanded.delete(id) : expanded.add(id))
-const openMatches = () => router.push({ name: 'player-tabs' })
-const fixedPlayers = (players: MemberAnalysisPlayerGame[]) => fixedFiveRoster(players)
-const normalizeChampion = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
-const championIndex = computed(() => {
-  const index = new Map<string, (typeof lcs.gameData.champions)[number]>()
-  for (const champion of Object.values(lcs.gameData.champions)) {
-    for (const key of [normalizeChampion(champion.alias), normalizeChampion(champion.name)])
-      if (!index.has(key)) index.set(key, champion)
-  }
-  return index
-})
-const championInfo = (value: string) => championIndex.value.get(normalizeChampion(value))
-const championId = (value: string) => championInfo(value)?.id ?? -1
-const championName = (value: string) => championInfo(value)?.name ?? value
-const roleNames = {
-  TOP: '上路',
-  JUNGLE: '打野',
-  MIDDLE: '中路',
-  BOTTOM: '下路',
-  UTILITY: '辅助'
-} as const
 const formatter = new Intl.DateTimeFormat('zh-CN', {
   year: 'numeric',
   month: '2-digit',
@@ -328,214 +279,43 @@ const formatter = new Intl.DateTimeFormat('zh-CN', {
 })
 const formatTime = (timestamp: number, fallback: string) =>
   timestamp > 0 ? formatter.format(new Date(timestamp)).replaceAll('/', '-') : fallback
-const formatDuration = (seconds: number) =>
-  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-const toneClass = (value: unknown) => {
-  const number = finiteOrNull(value)
-  return number === null || number === 0 ? '' : number > 0 ? 'ma-positive' : 'ma-negative'
-}
-const conversion = (game: MemberAnalysisGame) =>
-  game.eventDecision?.killEpisodes
-    ? formatMetric(
-        game.eventDecision.convertedKillEpisodes / game.eventDecision.killEpisodes,
-        'pct'
-      )
-    : '—'
 </script>
 <style scoped>
-.match-card {
-  scroll-margin-top: 12px;
-  display: grid;
-  grid-template-columns: 72px 165px minmax(400px, 1fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 8px 13px 12px;
-  border: 0;
-  border-bottom: 1px solid var(--ma-grid);
-  border-left: 2px solid var(--ma-negative);
-  background: transparent;
-}
-.match-card:hover {
-  background: var(--ma-hover);
-}
-.match-card.win {
-  border-left-color: var(--ma-positive);
-}
 .match-list {
   gap: 0;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  box-sizing: border-box;
 }
-.match-navigation-context {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-.result,
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.result span,
-.meta span {
-  color: var(--ma-muted);
-  font-size: 14px;
-}
-.roster {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(75px, 1fr));
-  gap: 5px;
-}
-.roster span {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 7px;
-}
-.roster-copy {
-  display: flex !important;
-  min-width: 0;
-  align-items: stretch !important;
-  flex: 1;
-  flex-direction: column;
-  gap: 0 !important;
-}
-.roster-portrait {
-  display: block !important;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
-  overflow: hidden;
-  border-radius: 5px;
-}
-.roster-portrait :deep(.champion-icon-container) {
-  width: 28px !important;
-  height: 28px !important;
-}
-.roster b {
-  color: var(--ma-muted);
-  font-size: 14px;
-}
-.roster em,
-.roster small {
-  overflow-wrap: anywhere;
-  font-size: 14px;
-  font-style: normal;
-}
-.roster small {
-  color: var(--ma-muted);
-}
-.actions {
-  flex-wrap: wrap;
-  display: flex;
-  gap: 3px;
-}
-.details {
-  display: grid;
-  grid-column: 1/-1;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 7px;
-  padding-top: 10px;
-  border-top: 1px solid var(--ma-grid);
-}
-.match-ranks {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 16px;
-  font-size: 14px;
-  line-height: 21px;
-  color: var(--la-color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-.match-ranks > span {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-.match-ranks b,
-.match-ranks small {
-  color: var(--ma-muted);
-  font-size: 13px;
-  font-weight: 400;
-}
-.match-ranks > span > small {
-  color: var(--la-color-text-primary);
-}
-.match-analysis-metrics {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+.match-list-toolbar {
+  flex-wrap: nowrap;
+  justify-content: space-between;
   gap: 12px;
+  overflow-x: auto;
 }
-.details {
-  grid-template-columns: minmax(0, 1fr);
-  min-width: 0;
-  scroll-margin-top: 64px;
+.match-list-toolbar > :deep(.n-button) {
+  flex: 0 0 auto;
 }
-.details span {
+.match-list-pagination {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 7px 0;
-  border-bottom: 1px solid var(--ma-grid);
-  font-size: 14px;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
-.details em {
-  font-style: normal;
-  font-variant-numeric: tabular-nums;
-}
-@media (max-width: 1100px) {
-  .match-card {
-    grid-template-columns: 70px 1fr auto;
-  }
-  .roster {
-    grid-column: 1/-1;
-  }
-  .details {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-@media (max-width: 760px) {
-  .match-card {
-    grid-template-columns: 60px 1fr;
-  }
-  .actions {
-    flex-wrap: wrap;
-    grid-column: 1/-1;
-  }
-  .roster {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .details {
-    grid-template-columns: 1fr;
-  }
-}
-.match-card {
-  margin-bottom: 8px;
-  padding: 16px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--la-color-bg-primary) 45%, transparent);
-}
-.roster small,
-.meta span {
-  font-size: 12px;
-}
-.result > b {
-  font-size: 17px;
-}
-.details {
-  padding: 16px 0 0;
-  gap: 16px;
-  grid-template-columns: minmax(0, 1fr);
-}
-.details b {
-  color: var(--ma-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-.details em {
-  font-size: 20px;
-  font-weight: 600;
+
+.match-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

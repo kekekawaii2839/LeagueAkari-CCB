@@ -61,9 +61,13 @@ export const PlayerRankSnapshotSchema = z
     status: z.enum(['ok', 'unavailable', 'stale']),
     reason: RankFailureSchema.nullable(),
     solo: QueueRankSchema,
-    flex: QueueRankSchema
+    flex: QueueRankSchema,
+    // Read compatibility only for removed version-axis annotations in old archives.
+    // Discard this one legacy key without weakening strict validation of rank facts.
+    versionEvidence: z.unknown().optional()
   })
   .strict()
+  .transform(({ versionEvidence: _legacyVersionEvidence, ...snapshot }) => snapshot)
   .superRefine((value, context) => {
     if (
       (value.status === 'ok' && (!value.fetchedAt || value.reason !== null)) ||

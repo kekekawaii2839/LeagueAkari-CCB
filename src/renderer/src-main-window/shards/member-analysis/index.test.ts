@@ -267,3 +267,95 @@ describe('member analysis renderer IPC boundary', () => {
     expect(ipc.call.mock.calls.map((call) => call[1])).toEqual(['startRefresh', 'cancelJob'])
   })
 })
+
+test('rank history renderer wrapper uses only the allowlisted typed method and preserves domain errors', async () => {
+  const failure = {
+    ok: false,
+    error: { code: 'INVALID_ARGUMENT', message: 'Unavailable cursor', retryable: false }
+  }
+  const ipc = { call: vi.fn(async () => failure) }
+  const shard = new MemberAnalysisRenderer(ipc as any)
+  expect(await shard.getRankObservationHistory({ memberSlot: 1, queue: 'solo' })).toEqual(failure)
+  expect(ipc.call).toHaveBeenCalledWith('member-analysis-main', 'getRankObservationHistory', {
+    memberSlot: 1,
+    queue: 'solo',
+    pageSize: 100,
+    cursor: null
+  })
+  ipc.call.mockClear()
+  expect(
+    await shard.getRankObservationHistory({ memberSlot: 1, queue: 'solo', puuid: 'forged' } as any)
+  ).toMatchObject({ ok: false, error: { code: 'INVALID_ARGUMENT' } })
+  expect(ipc.call).not.toHaveBeenCalled()
+})
+
+test('published identity wrapper rejects arbitrary identity arguments and forwards the bounded business request', async () => {
+  const ipc = { call: vi.fn(async () => ({ ok: true, value: {} })) }
+  const renderer = new MemberAnalysisRenderer(ipc as any)
+  const request = {
+    publicationToken: 'A'.repeat(32),
+    memberSlots: [1, 2],
+    pageSize: 25,
+    cursor: null
+  }
+  const invalid = await renderer.getPublishedMemberIdentities({
+    ...request,
+    puuid: 'SYNTHETIC_TEST_ONLY'
+  } as any)
+  expect(invalid.ok).toBe(false)
+  expect(ipc.call).not.toHaveBeenCalled()
+  await renderer.getPublishedMemberIdentities(request)
+  expect(ipc.call).toHaveBeenCalledWith(
+    'member-analysis-main',
+    'getPublishedMemberIdentities',
+    request
+  )
+})
+
+test.each(['changed-token', 'backend-rejected'] as const)(
+  'published token protects same-timestamp overview pagination: %s',
+  async (mode) => {
+    setActivePinia(createPinia())
+    const store = useMemberAnalysisStore()
+    const oldOverview = publishedOverview()
+    store.overview = oldOverview
+    const token = 'A'.repeat(32)
+    let page = 0
+    const ipc = {
+      call: vi.fn(async (_namespace, method) => {
+        if (method === 'getCapabilities')
+          return {
+            ok: true,
+            value: {
+              contractVersion: MEMBER_ANALYSIS_CONTRACT_VERSION,
+              dataVersion: MEMBER_ANALYSIS_DATA_VERSION
+            }
+          }
+        if (method === 'getSettings') return { ok: true, value: { enabled: true } }
+        if (method === 'getStorageStatus') return { ok: true, value: {} }
+        page++
+        if (page === 2 && mode === 'backend-rejected')
+          return {
+            ok: false,
+            error: { code: 'INVALID_ARGUMENT', message: 'Publication changed', retryable: true }
+          }
+        return {
+          ok: true,
+          value: {
+            ...publishedOverview(),
+            publicationToken: page === 1 ? token : 'B'.repeat(32),
+            pagination: { nextCursor: page === 1 ? 'next' : null }
+          }
+        }
+      })
+    }
+    await new MemberAnalysisRenderer(ipc as any).reload()
+    expect(ipc.call).toHaveBeenLastCalledWith('member-analysis-main', 'getOverview', {
+      pagination: { cursor: 'next', pageSize: 100 },
+      publicationToken: token
+    })
+    expect(store.overview).toEqual(oldOverview)
+    expect(store.error).not.toBeNull()
+    expect(store.loading).toBe(false)
+  }
+)

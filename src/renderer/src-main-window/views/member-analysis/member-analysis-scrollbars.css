@@ -1,0 +1,68 @@
+/* Feature-local only: native hit area remains 8px; the painted thumb is 4px.
+   Naive already owns its scroll container and 6px drag target, so retain it. */
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu)::-webkit-scrollbar,
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu) *::-webkit-scrollbar {
+  width: 8px;
+}
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu)::-webkit-scrollbar-thumb,
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu) *::-webkit-scrollbar-thumb {
+  /* Chromium's native scrollbar painting must receive the border on the
+     base thumb pseudo-element. Inline borders narrow vertical paint without
+     changing the horizontal scrollbar's height or either drag hit area. */
+  border-left: 2px solid transparent;
+  border-right: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: padding-box;
+  background-color: var(--la-color-scrollbar-thumb);
+}
+:is(
+    .member-analysis-page,
+    .pool-popover,
+    .member-analysis-filter-menu
+  )::-webkit-scrollbar-thumb:hover,
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu)
+  *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--la-color-scrollbar-thumb-hover);
+}
+:is(.member-analysis-page, .pool-popover, .member-analysis-filter-menu)
+  :is(.n-scrollbar-rail--vertical, .n-base-scrollbar-rail--vertical)
+  > :is(.n-scrollbar-rail__scrollbar, .n-base-scrollbar-rail__scrollbar) {
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+/* These are actual native table scroll owners, not a mask laid over the rail.
+   The measured inset follows the fixed header; body and thumb still scroll. */
+.member-analysis-page [data-ma-table-scroll]::-webkit-scrollbar-track:vertical {
+  margin-top: var(--ma-table-header-inset, 0px);
+}
+/* The scroll owner is the table frame: native gutters are outside the HTML
+   table's client width, but must remain inside its visible enclosing border. */
+.member-analysis-page .combination-workspace .combination-comparison-list {
+  border: 1px solid var(--ma-grid-strong);
+  border-radius: 4px;
+}
+/* Table thumbs finish at the frame's inner right edge. Keep the transparent
+   narrowing space on the content side instead of leaving a visible outer gap.
+   Cell padding is deliberately untouched. Non-table bars remain centred. */
+.member-analysis-page [data-ma-table-scroll]::-webkit-scrollbar-thumb {
+  border-left-width: 4px;
+  border-right-width: 0;
+}
+.member-analysis-page .ma-evidence .n-data-table-base-table-body > .n-scrollbar-rail--vertical {
+  right: 0;
+}
+.member-analysis-page
+  .ma-evidence
+  .n-data-table-base-table-body
+  > .n-scrollbar-rail--vertical
+  > .n-scrollbar-rail__scrollbar {
+  border-left-width: 2px;
+  border-right-width: 0;
+}
+/* Expanded evidence adds outer overflow. Reserve its actual gutter
+   before expansion so the comparison columns never have to shrink. */
+.member-analysis-page:is([data-active-section='jungle'], [data-active-section='prediction'])
+  .member-analysis-scroll {
+  scrollbar-gutter: stable;
+}

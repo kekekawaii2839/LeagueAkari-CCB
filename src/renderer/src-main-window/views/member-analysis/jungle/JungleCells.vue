@@ -28,7 +28,7 @@
           >{{ jungleText('invade') }} <b>{{ formatMetric(row?.invadeStartRate, 'pct') }}</b></span
         >
       </div>
-      <small>{{
+      <small class="ownership-samples">{{
         jungleText('campValid', {
           valid: evidence.camps,
           total: evidence.games
@@ -42,15 +42,11 @@
             })
           : jungleText('noOwner')
       }}</small>
-      <small
-        >{{
-          evidence.camps
-            ? jungleText('unknownCount', { count: evidence.unknownOwnership })
-            : jungleText('noCamp')
-        }}<template v-if="evidence.unknownOwnership">
-          · {{ jungleText('unknownDetail') }}</template
-        ></small
-      >
+      <small>{{
+        evidence.camps
+          ? jungleText('unknownCount', { count: evidence.unknownOwnership })
+          : jungleText('noCamp')
+      }}</small>
     </td>
     <td class="analysis-cell"><JungleCampTable :evidence="evidence" /></td>
   </template>
@@ -207,7 +203,7 @@ const zonesDescription = computed(() =>
 .analysis-cell {
   min-width: 0;
   vertical-align: top;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--ma-grid);
   font-size: 14px;
 }
@@ -217,6 +213,30 @@ const zonesDescription = computed(() =>
   font-size: 12px;
   line-height: 1.5;
   margin-top: 5px;
+}
+.ownership-cell .ownership-samples {
+  margin-top: 12px;
+}
+.analysis-cell :deep(.metric) {
+  display: grid;
+  row-gap: 3px;
+  margin-bottom: 8px;
+  line-height: 20px;
+}
+.analysis-cell :deep(.metric:last-child) {
+  margin-bottom: 0;
+}
+.analysis-cell :deep(.metric-scale) {
+  margin: 0;
+}
+.analysis-cell :deep(.metric small) {
+  margin-top: 0;
+  line-height: 18px;
+}
+.analysis-cell :deep(.camp-table th),
+.analysis-cell :deep(.camp-table td) {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 .composition-bar {
   border-radius: 3px;

@@ -1,6 +1,9 @@
 import type { RiotClientMain } from '@main/shards/riot-client'
 import type { SgpMain } from '@main/shards/sgp'
+import { EMPTY_PUUID } from '@shared/constants/common'
 import type { MemberAnalysisCollectionAudit } from '@shared/shards/member-analysis'
+import { isAxiosError } from 'axios'
+import { setTimeout as delay, setImmediate as yieldToEventLoop } from 'node:timers/promises'
 
 import { OpponentRankLoader, type RankGameTarget } from './opponent-ranks/loader'
 import type { GameRankSnapshot } from './opponent-ranks/repository'
@@ -39,6 +42,7 @@ type HistoryScan = ResolvedMember & {
 const HISTORY_PAGE_SIZE = 100
 const MAX_HISTORY_GAMES = 5_000
 const MAX_HISTORY_REQUESTS = 250
+const HISTORY_CONCURRENCY = 3
 
 export class MemberAnalysisCollector {
   constructor(
@@ -118,6 +122,35 @@ export class MemberAnalysisCollector {
         rankTargets.push({
           serverId,
           gameId,
+          participants: (() => {
+            const players = summary.json.participants ?? []
+            if (
+              players.length !== 10 ||
+              players.some(
+                (p: any) =>
+                  typeof p.puuid !== 'string' ||
+                  !p.puuid ||
+                  p.puuid === EMPTY_PUUID ||
+                  p.puuid.length > 256 ||
+                  p.puuid.trim() !== p.puuid ||
+                  ![100, 200].includes(p.teamId)
+              ) ||
+              new Set(players.map((p: any) => p.puuid)).size !== 10 ||
+              players.filter((p: any) => p.teamId === 100).length !== 5 ||
+              players.filter((p: any) => p.teamId === 200).length !== 5
+            )
+              return []
+            return players.map((p: any) => ({
+              puuid: p.puuid,
+              role: normalizeRole(p.teamPosition ?? p.individualPosition ?? p.lane),
+              champion:
+                typeof p.championName === 'string' &&
+                p.championName.length > 0 &&
+                p.championName.length <= 64
+                  ? p.championName
+                  : null
+            }))
+          })(),
           opponents: (summary.json.participants ?? [])
             .filter((participant: any) => Number(participant.teamId) !== teamId)
             .map((participant: any) => ({
@@ -168,6 +201,10 @@ export class MemberAnalysisCollector {
       }
       processed += 1
       options.onProgress(processed, selected.length, 'loading-details')
+      // Cached items have no network await. Yield after the complete atomic
+      // item so a warm refresh cannot monopolize main's event loop.
+      await yieldToEventLoop(undefined, { signal: options.signal })
+      this._throwIfCancelled(options.signal)
     }
 
     const ranks = await new OpponentRankLoader(this._sgp, this._repository.opponentRanks).load(
@@ -267,52 +304,55 @@ export class MemberAnalysisCollector {
   ): Promise<MemberAnalysisCollectionAudit['collectionStopReason']> {
     for (let request = 0; request < MAX_HISTORY_REQUESTS; request += 1) {
       this._throwIfCancelled(options.signal)
-      await Promise.all(
-        histories.map(async (history) => {
-          if (history.stopReason) return
-          const remaining = scanLimitPerMember - history.gameIds.size
-          if (remaining <= 0) {
-            history.stopReason = 'safety-limit'
-            return
-          }
-          const response =
-            await this._sgp.api.matchHistoryQuery.getMatchHistorySummaryByPlayerPuuid(
-              history.puuid,
-              {
-                __sgpServerId: history.target.serverId,
-                startIndex: history.nextIndex,
-                count: Math.min(HISTORY_PAGE_SIZE, remaining),
-                tag: options.historyTag,
-                tagsQueryType: 'AND' as const,
-                signal: options.signal
-              }
+      for (let offset = 0; offset < histories.length; offset += HISTORY_CONCURRENCY) {
+        this._throwIfCancelled(options.signal)
+        await Promise.all(
+          histories.slice(offset, offset + HISTORY_CONCURRENCY).map(async (history) => {
+            if (history.stopReason) return
+            const remaining = scanLimitPerMember - history.gameIds.size
+            if (remaining <= 0) {
+              history.stopReason = 'safety-limit'
+              return
+            }
+            const response = await this._retryHistoryRead(
+              () =>
+                this._sgp.api.matchHistoryQuery.getMatchHistorySummaryByPlayerPuuid(history.puuid, {
+                  __sgpServerId: history.target.serverId,
+                  startIndex: history.nextIndex,
+                  count: Math.min(HISTORY_PAGE_SIZE, remaining),
+                  tag: options.historyTag,
+                  tagsQueryType: 'AND' as const,
+                  signal: options.signal
+                }),
+              options.signal
             )
-          const rawGames = response.data.games
-          const games = rawGames.filter((game) => game?.json)
-          history.pages += 1
-          if (rawGames.length === 0) {
-            history.stopReason = 'source-exhausted'
-            return
-          }
-          const unseenInFeed = games.filter(
-            (game) => !history.feedGameIds.has(`${history.target.serverId}:${game.json.gameId}`)
-          )
-          if (games.length > 0 && unseenInFeed.length === 0) {
-            throw new Error(
-              `history pagination repeated a page for anonymous member ${history.member}`
+            const rawGames = response.data.games
+            const games = rawGames.filter((game) => game?.json)
+            history.pages += 1
+            if (rawGames.length === 0) {
+              history.stopReason = 'source-exhausted'
+              return
+            }
+            const unseenInFeed = games.filter(
+              (game) => !history.feedGameIds.has(`${history.target.serverId}:${game.json.gameId}`)
             )
-          }
-          history.nextIndex += rawGames.length
-          for (const game of unseenInFeed) {
-            const key = `${history.target.serverId}:${game.json.gameId}`
-            history.feedGameIds.add(key)
-            if (history.gameIds.has(key)) continue
-            history.gameIds.add(key)
-            history.games.push(game)
-          }
-          if (history.gameIds.size >= scanLimitPerMember) history.stopReason = 'safety-limit'
-        })
-      )
+            if (games.length > 0 && unseenInFeed.length === 0) {
+              throw new Error(
+                `history pagination repeated a page for anonymous member ${history.member}`
+              )
+            }
+            history.nextIndex += rawGames.length
+            for (const game of unseenInFeed) {
+              const key = `${history.target.serverId}:${game.json.gameId}`
+              history.feedGameIds.add(key)
+              if (history.gameIds.has(key)) continue
+              history.gameIds.add(key)
+              history.games.push(game)
+            }
+            if (history.gameIds.size >= scanLimitPerMember) history.stopReason = 'safety-limit'
+          })
+        )
+      }
       options.onProgress(
         histories.reduce((total, history) => total + history.gameIds.size, 0),
         scanLimitPerMember * histories.length,
@@ -332,6 +372,25 @@ export class MemberAnalysisCollector {
     }
     for (const history of histories) history.stopReason ??= 'safety-limit'
     return 'safety-limit'
+  }
+
+  private async _retryHistoryRead<T>(read: () => Promise<T>, signal: AbortSignal): Promise<T> {
+    for (let attempt = 0; ; attempt += 1) {
+      this._throwIfCancelled(signal)
+      try {
+        return await read()
+      } catch (error) {
+        this._throwIfCancelled(signal)
+        const retryable =
+          isAxiosError(error) &&
+          ([429, 500, 502, 503, 504].includes(error.response?.status ?? 0) ||
+            ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED'].includes(error.code ?? ''))
+        // Retry the same read-only page, never advance the cursor or convert
+        // a failed source into an empty feed. Authentication/validation errors fail immediately.
+        if (!retryable || attempt >= 2) throw error
+        await delay(500 * 2 ** attempt, undefined, { signal })
+      }
+    }
   }
 
   private _classify(histories: HistoryScan[], resolved: ResolvedMember[], historyTag: string) {

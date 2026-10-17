@@ -1,27 +1,29 @@
 <template>
   <div ref="root" class="ma-panel ma-workspace jungle-view">
     <div class="jungle-toolbar ma-view-toolbar">
-      <NRadioGroup v-model:value="state.group" size="small"
-        ><NRadioButton v-for="(value, key) in jungleGroups" :key="key" :value="key">{{
-          value.label
-        }}</NRadioButton></NRadioGroup
-      >
-      <span class="ma-view-meta">{{
-        jungleText('members', { members: totals.length, games: totalGames })
-      }}</span>
-      <label v-if="store.analysisSide === 'all'" class="side-toggle"
-        >{{ jungleText('sideToggle') }}<NSwitch v-model:value="store.sideBreakdown" size="small"
-      /></label>
-    </div>
-    <div class="group-note">
-      <span>{{ jungleText(`${state.group}Note`) }}</span>
-      <NButton
-        secondary
-        :aria-expanded="state.method"
-        aria-controls="jungle-method"
-        @click="state.method = !state.method"
-        >{{ jungleText(state.method ? 'hideHelp' : 'help') }}</NButton
-      >
+      <MemberAnalysisSegments
+        :model-value="state.group"
+        :options="groupOptions"
+        :slot-width="144"
+        ariaLabel="打野分析类别"
+        @update:model-value="selectGroup"
+      />
+      <div class="jungle-summary">
+        <span class="ma-view-meta">{{
+          jungleText('members', { members: totals.length, games: totalGames })
+        }}</span>
+        <label v-if="store.analysisSide === 'all'" class="side-toggle"
+          >{{ jungleText('sideToggle') }}<NSwitch v-model:value="store.sideBreakdown" size="small"
+        /></label>
+        <NButton
+          ref="methodButton"
+          secondary
+          :aria-expanded="state.method"
+          aria-controls="jungle-method"
+          @click="state.method = !state.method"
+          >{{ jungleText(state.method ? 'hideHelp' : 'help') }}</NButton
+        >
+      </div>
     </div>
     <div v-if="state.group === 'opening'" class="jungle-legend">
       <span v-for="(_, i) in campIds" :key="i"
@@ -79,8 +81,12 @@
             <tr class="member-row">
               <th scope="row" class="identity">
                 <div class="member-name">
-                  <span class="member-badge">{{ memberNumber(row.player) }}</span
-                  ><button
+                  <MemberProfileAvatar
+                    :icon-id="store.memberProfileIcons[row.player] ?? null"
+                    :size="24"
+                    bordered
+                  />
+                  <button
                     :ref="(el) => setTrigger(row.player, el)"
                     type="button"
                     class="member-trigger"
@@ -156,7 +162,6 @@
       class="jungle-details"
       aria-labelledby="jungle-details-heading"
       tabindex="-1"
-      @keydown.esc.prevent.stop="closeDetails"
     >
       <header>
         <h3 id="jungle-details-heading">
@@ -164,23 +169,27 @@
         </h3>
         <NButton secondary @click="closeDetails">{{ jungleText('closeButton') }}</NButton>
       </header>
-      <p>
-        {{
-          jungleText('sample', {
-            games: selected.games,
-            wins: selected.wins,
-            losses: selected.games - selected.wins
-          })
-        }}
-        ·
-        {{ jungleText('winRate', { rate: formatMetric(selected.winRate, 'pct') }) }}
-        ·
-        {{
-          jungleText('interval', {
-            low: formatMetric(selectedInterval?.low, 'pct'),
-            high: formatMetric(selectedInterval?.high, 'pct')
-          })
-        }}
+      <p class="jungle-detail-summary">
+        <strong
+          >{{
+            jungleText('sample', {
+              games: selected.games,
+              wins: selected.wins,
+              losses: selected.games - selected.wins
+            })
+          }}
+          ·
+          {{ jungleText('winRate', { rate: formatMetric(selected.winRate, 'pct') }) }}</strong
+        >
+        <span
+          >·
+          {{
+            jungleText('interval', {
+              low: formatMetric(selectedInterval?.low, 'pct'),
+              high: formatMetric(selectedInterval?.high, 'pct')
+            })
+          }}</span
+        >
       </p>
       <h4>{{ jungleText('campDetails') }}</h4>
       <div
@@ -231,21 +240,6 @@
           ></template>
         </div>
       </div>
-      <p class="scale-note">{{ jungleText('source') }}</p>
-      <NSelect
-        v-model:value="evidenceMetric"
-        :options="evidenceMetricOptions"
-        :aria-label="uiText('evidenceMetricSelect')"
-        size="small"
-      />
-      <EvidenceMatchAction :evidence="matchEvidence" />
-      <NSelect
-        v-if="showSides"
-        v-model:value="evidenceSide"
-        :options="evidenceSideOptions"
-        :aria-label="uiText('evidenceSideSelect')"
-        size="small"
-      />
     </section>
     <section v-if="state.method" id="jungle-method" class="jungle-method">
       <h3>{{ jungleText('definitions') }}</h3>
@@ -271,10 +265,8 @@ import type { JungleGroup } from './jungle'
 const sessions = new WeakMap<object, { group: JungleGroup; selected: string; method: boolean }>()
 </script>
 <script setup lang="ts">
-import { NButton, NRadioGroup, NRadioButton, NSwitch, NSelect } from 'naive-ui'
-import EvidenceMatchAction from './EvidenceMatchAction.vue'
-import { jungleEvidenceGames, type JungleEvidenceMetric } from './evidence-selection'
-import { uiText } from './ui-text'
+import { NButton, NSwitch } from 'naive-ui'
+import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 import {
   computed,
   nextTick,
@@ -286,10 +278,11 @@ import {
 } from 'vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import type { JungleAggregate, SideLabel } from './analytics'
-import { formatMetric, jungleGroups, jungleMeta } from './metric-defs'
+import { formatMetric, jungleGroups } from './metric-defs'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { memberOrder, wilsonInterval } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
+import MemberProfileAvatar from './MemberProfileAvatar.vue'
 import {
   campIds,
   commonExtent,
@@ -307,12 +300,41 @@ const { jungle, games } = useMemberAnalysisData()
 const state =
   sessions.get(store) ?? reactive({ group: 'opening' as JungleGroup, selected: '', method: false })
 sessions.set(store, state)
+const groupOptions = Object.entries(jungleGroups).map(([value, group]) => ({
+  value,
+  label: group.label
+}))
+function selectGroup(value: string | number) {
+  if (
+    value === 'opening' ||
+    value === 'gank' ||
+    value === 'objectives' ||
+    value === 'development'
+  ) {
+    if (state.group !== value) cancelDetailScroll()
+    state.group = value
+  }
+}
 const root = ref<HTMLElement | null>(null)
 const comparison = ref<HTMLElement | null>(null)
 const details = ref<HTMLElement | null>(null)
+const methodButton = ref<ComponentPublicInstance | null>(null)
 const selectionGone = ref(false)
 const triggers = new Map<string, HTMLElement>()
 let detailTrigger: HTMLElement | null = null
+let detailScrollOwner: HTMLElement | null = null
+let detailScrollEpoch = 0
+function cancelDetailScroll() {
+  detailScrollEpoch++
+  if (detailScrollOwner?.isConnected) {
+    detailScrollOwner.scrollTo({
+      top: detailScrollOwner.scrollTop,
+      left: detailScrollOwner.scrollLeft,
+      behavior: 'instant'
+    })
+  }
+  detailScrollOwner = null
+}
 const setTrigger = (player: string, el: Element | ComponentPublicInstance | null) => {
   if (el instanceof HTMLElement) triggers.set(player, el)
   else triggers.delete(player)
@@ -342,11 +364,6 @@ const populations = computed(() => jungleEvidence(games.value))
 const evidenceFor = (player: string, side: SideLabel) =>
   populations.value.get(evidenceKey(player, side)) ?? emptyEvidence()
 const evidence = (row: JungleAggregate) => evidenceFor(row.player, row.sideLabel)
-const memberNumber = (player: string) => {
-  const configured =
-    store.settings?.members.findIndex((m) => `${m.gameName}#${m.tagLine}` === player) ?? -1
-  return configured >= 0 ? configured + 1 : totals.value.findIndex((r) => r.player === player) + 1
-}
 const selected = computed(() => totals.value.find((row) => row.player === state.selected))
 const selectedInterval = computed(() =>
   wilsonInterval(selected.value?.wins ?? 0, selected.value?.games ?? 0)
@@ -371,55 +388,6 @@ const headers = computed(
 const detailMetrics = [
   ...new Set(Object.values(jungleGroups).flatMap((g) => [...g.columns]))
 ].filter((k) => !['games', 'winRate', 'startDistribution'].includes(k))
-const evidenceMetric = ref<JungleEvidenceMetric>('games')
-const evidenceSide = ref<SideLabel>('总计')
-const evidenceSideOptions = computed(() => [
-  {
-    value: selected.value?.sideLabel ?? '总计',
-    label: selected.value?.sideLabel ?? uiText('evidenceAllSides')
-  },
-  ...(showSides.value ? sides.map((side) => ({ value: side, label: side })) : [])
-])
-watch(
-  evidenceSideOptions,
-  (options) => {
-    if (!options.some((option) => option.value === evidenceSide.value))
-      evidenceSide.value = options[0].value
-  },
-  { immediate: true }
-)
-const evidenceMetricOptions = computed(() => [
-  { value: 'games', label: jungleMeta.games.label },
-  ...detailMetrics.map((key) => ({ value: key, label: jungleMeta[key].label }))
-])
-const matchEvidence = computed(() => {
-  const row =
-    evidenceSide.value === selected.value?.sideLabel
-      ? selected.value
-      : selected.value
-        ? sideRow(selected.value, evidenceSide.value)
-        : undefined
-  const metricLabel =
-    evidenceMetricOptions.value.find((option) => option.value === evidenceMetric.value)?.label ?? ''
-  const available =
-    !!row &&
-    typeof row[evidenceMetric.value] === 'number' &&
-    Number.isFinite(row[evidenceMetric.value])
-  return {
-    publishedGeneration: store.overviewGeneration,
-    metricLabel,
-    available,
-    source: `${row?.player ?? ''} · ${row?.sideLabel ?? ''} · ${metricLabel}`,
-    games:
-      row && available
-        ? jungleEvidenceGames(games.value, {
-            player: row.player,
-            metric: evidenceMetric.value,
-            side: row.sideLabel === '蓝方' ? 'Blue' : row.sideLabel === '红方' ? 'Red' : undefined
-          })
-        : []
-  }
-})
 const campColors = [
   'var(--ma-red)',
   'var(--ma-blue)',
@@ -434,14 +402,23 @@ async function toggle(player: string, event: MouseEvent) {
     await closeDetails()
     return
   }
+  cancelDetailScroll()
+  const request = detailScrollEpoch
   detailTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null
   state.selected = player
   await nextTick()
-  if (state.selected !== player) return
+  if (state.selected !== player || request !== detailScrollEpoch || !root.value?.isConnected) return
+  detailScrollOwner = root.value.closest<HTMLElement>('.member-analysis-scroll')
   if (event.detail === 0) details.value?.focus({ preventScroll: true })
-  details.value?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  details.value?.scrollIntoView({
+    block: 'start',
+    behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      ? 'instant'
+      : 'smooth'
+  })
 }
 async function closeDetails() {
+  cancelDetailScroll()
   const player = state.selected
   const trigger = detailTrigger?.isConnected ? detailTrigger : triggers.get(player)
   detailTrigger = null
@@ -460,18 +437,36 @@ async function closeDetails() {
     if (obscured > 0) comparison.value.scrollTop -= obscured
   }
 }
+async function closeMethod() {
+  state.method = false
+  await nextTick()
+  if (state.method || !root.value?.isConnected) return
+  const trigger = methodButton.value?.$el
+  if (trigger instanceof HTMLElement) {
+    trigger.focus({ preventScroll: true })
+    trigger.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' })
+  }
+}
 function escape(event: KeyboardEvent) {
-  if (event.key === 'Escape' && state.selected && root.value?.contains(event.target as Node)) {
+  if (event.key !== 'Escape' || !root.value?.contains(event.target as Node)) return
+  if (state.method) {
+    event.preventDefault()
+    void closeMethod()
+  } else if (state.selected) {
     event.preventDefault()
     void closeDetails()
   }
 }
 onMounted(() => document.addEventListener('keydown', escape))
-onBeforeUnmount(() => document.removeEventListener('keydown', escape))
+onBeforeUnmount(() => {
+  cancelDetailScroll()
+  document.removeEventListener('keydown', escape)
+})
 watch(
   () => totals.value.map((row) => row.player),
   (names) => {
     if (state.selected && !names.includes(state.selected)) {
+      cancelDetailScroll()
       state.selected = ''
       detailTrigger = null
       selectionGone.value = true
@@ -492,28 +487,28 @@ watch(
   gap: 12px;
   flex-wrap: wrap;
 }
+.jungle-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-left: auto;
+}
+.jungle-summary .ma-view-meta,
 .side-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-}
-.group-note {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  color: var(--ma-muted);
-  font-size: 14px;
-}
-.group-note :deep(.n-button) {
-  flex: none;
+  line-height: 20px;
+  min-height: 32px;
 }
 .jungle-legend {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
   font-size: 13px;
+  line-height: 18px;
   color: var(--ma-muted);
 }
 .jungle-legend i {
@@ -530,6 +525,8 @@ watch(
 }
 .jungle-scroll {
   /* One local scroller for both axes; short lists retain their natural height. */
+  /* Keep sticky header/identity layers below the page navigation. */
+  isolation: isolate;
   max-height: 55dvh;
   overflow: auto;
   max-width: 100%;
@@ -546,6 +543,11 @@ watch(
 }
 .jungle-comparison.is-objectives {
   min-width: 1260px;
+}
+.jungle-comparison .member-row,
+.jungle-comparison .side-row {
+  /* Shared minimum density for all four groups; table rows still grow with wrapped content. */
+  height: 192px;
 }
 .identity-column {
   width: 200px;
@@ -579,24 +581,13 @@ watch(
 }
 .jungle-comparison tbody .identity {
   vertical-align: top;
-  padding: 14px 16px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--ma-grid);
 }
 .member-name {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-}
-.member-badge {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 24px;
-  height: 24px;
-  text-align: center;
-  border: 1px solid var(--ma-grid-strong);
-  border-radius: 50%;
-  font-size: 13px;
 }
 .member-trigger {
   border: 0;
@@ -658,6 +649,11 @@ watch(
   align-items: center;
   gap: 16px;
 }
+.jungle-details header h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  margin: 0;
+}
 .jungle-view h3 {
   margin: 0 0 12px;
   font-size: 16px;
@@ -667,8 +663,21 @@ watch(
   font-size: 14px;
   margin: 20px 0 12px;
 }
-.jungle-details p {
+.jungle-detail-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 4px 0 16px;
   font-size: 14px;
+  line-height: 1.5;
+}
+.jungle-detail-summary strong {
+  font-weight: 600;
+}
+.jungle-detail-summary span {
+  font-size: 13px;
+  color: var(--ma-muted);
 }
 .detail-camp-scroll {
   max-width: 100%;
@@ -711,9 +720,6 @@ watch(
   }
 }
 @media (max-width: 900px) {
-  .group-note {
-    gap: 10px;
-  }
   .full-metrics {
     grid-template-columns: 1fr;
   }

@@ -38,5 +38,21 @@ export function queueRankText(snapshot: PlayerRankSnapshot, queue: RankQueue) {
           : '未获取'
   return snapshot.status === 'stale' ? `${text}（旧快照）` : text
 }
-export const snapshotTime = (time: string | null) =>
-  time ? new Date(time).toLocaleString('zh-CN', { hour12: false }) : '未查询成功'
+let localSnapshotFormatter: Intl.DateTimeFormat | undefined
+export function snapshotTime(time: string | null | undefined, missing = '未查询成功') {
+  if (!time) return missing
+  const date = new Date(time)
+  // Date#toLocaleString returns "Invalid Date" instead of throwing for this
+  // legacy input. Keep that behavior; a formatter's format() would throw.
+  if (Number.isNaN(date.getTime())) return date.toString()
+  localSnapshotFormatter ??= new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false
+  })
+  return localSnapshotFormatter.format(date)
+}

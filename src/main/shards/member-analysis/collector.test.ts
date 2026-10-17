@@ -1,4 +1,5 @@
-﻿import { describe, expect, test, vi } from 'vitest'
+﻿import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
+import { describe, expect, test, vi } from 'vitest'
 
 import { MemberAnalysisCollector } from './collector'
 
@@ -61,9 +62,11 @@ function harness(known: string | null, targetCount = 5) {
   }
   const repository = {
     opponentRanks: {
+      readGamePlayer: vi.fn(() => null),
+      wasGamePlayerCapturedLive: vi.fn(() => false),
       readGame: vi.fn(),
       readPlayer: vi.fn(() => null),
-      prune: vi.fn(),
+      pruneAsync: vi.fn(async () => {}),
       publishGames: vi.fn()
     },
     recordMember: vi.fn(),
@@ -77,6 +80,83 @@ function harness(known: string | null, targetCount = 5) {
 }
 
 describe('member analysis main-only collector', () => {
+  test('retries a transient history 500 on the same page without losing samples', async () => {
+    const value = harness('checksum')
+    const read = value.sgp.api.matchHistoryQuery.getMatchHistorySummaryByPlayerPuuid
+    const original = read.getMockImplementation()!
+    read.mockRejectedValueOnce({ isAxiosError: true, response: { status: 500 } })
+    read.mockImplementation(original)
+    const collector = new MemberAnalysisCollector(
+      value.riotClient as any,
+      value.sgp as any,
+      value.repository as any
+    )
+    const result = await collector.collect({
+      members: MEMBERS,
+      historyDepth: 100,
+      historyTag: 'ranked',
+      signal: new AbortController().signal,
+      onProgress: vi.fn()
+    })
+    expect(result.items).toHaveLength(1)
+    const firstMemberReads = read.mock.calls.filter(([puuid]) => puuid === 'target-1')
+    expect(firstMemberReads.map(([, options]) => options.startIndex)).toEqual([0, 0, 1])
+  })
+
+  test.each([
+    [500, 3],
+    [401, 1]
+  ])(
+    'bounds retries for HTTP %s and never treats failure as exhaustion',
+    async (status, attempts) => {
+      const value = harness('checksum')
+      const read = value.sgp.api.matchHistoryQuery.getMatchHistorySummaryByPlayerPuuid
+      const failure = { isAxiosError: true, response: { status } }
+      read.mockRejectedValue(failure)
+      const collector = new MemberAnalysisCollector(
+        value.riotClient as any,
+        value.sgp as any,
+        value.repository as any
+      )
+      await expect(
+        collector.collect({
+          members: MEMBERS,
+          historyDepth: 100,
+          historyTag: 'ranked',
+          signal: new AbortController().signal,
+          onProgress: vi.fn()
+        })
+      ).rejects.toBe(failure)
+      expect(read.mock.calls.filter(([puuid]) => puuid === 'target-1')).toHaveLength(attempts)
+      expect(value.repository.storeRaw).not.toHaveBeenCalled()
+    }
+  )
+
+  test('cancels during history retry backoff without another request', async () => {
+    const value = harness('checksum')
+    const abort = new AbortController()
+    const read = value.sgp.api.matchHistoryQuery.getMatchHistorySummaryByPlayerPuuid
+    read.mockImplementation(async () => {
+      setImmediate(() => abort.abort(new Error('cancelled')))
+      throw { isAxiosError: true, response: { status: 503 } }
+    })
+    const collector = new MemberAnalysisCollector(
+      value.riotClient as any,
+      value.sgp as any,
+      value.repository as any
+    )
+    await expect(
+      collector.collect({
+        members: MEMBERS,
+        historyDepth: 100,
+        historyTag: 'ranked',
+        signal: abort.signal,
+        onProgress: vi.fn()
+      })
+    ).rejects.toThrow()
+    expect(read.mock.calls.filter(([puuid]) => puuid === 'target-1')).toHaveLength(1)
+  })
+
   test('reuses cached DETAILS but refreshes the configured-five annotations', async () => {
     const value = harness('checksum')
     const collector = new MemberAnalysisCollector(
@@ -98,6 +178,13 @@ describe('member analysis main-only collector', () => {
       skipped: 0,
       memberErrors: 0
     })
+    expect(result.rankSnapshots[0].playerSnapshots).toHaveLength(10)
+    expect(new Set(result.rankSnapshots[0].playerSnapshots?.map((p) => p.puuid)).size).toBe(10)
+    expect(
+      result.rankSnapshots[0].playerSnapshots?.every(
+        (p) => p.snapshot.reason === 'disconnected' && !p.capturedDuringGame
+      )
+    ).toBe(true)
     expect(result.rankSnapshots[0].ranks.opponents).toHaveLength(5)
     expect(
       result.rankSnapshots[0].ranks.opponents.every(
@@ -419,6 +506,95 @@ describe('member analysis main-only collector', () => {
   })
 })
 
+describe('cached raw item event-loop boundaries', () => {
+  function cachedBatch() {
+    const history = Array.from({ length: 16 }, (_, index) => syntheticSummary(index + 1, true))
+    const value = pagedHarness(Array.from({ length: 5 }, () => history))
+    const repository = {
+      ...value.repository,
+      knownChecksum: vi.fn((_server: string, id: number) => `checksum-${id}`),
+      catalogItem: vi.fn((serverId: string, gameId: number) => ({
+        serverId,
+        gameId,
+        queueId: 420,
+        checksum: `checksum-${gameId}`,
+        summaryPath: `raw/${serverId}/${gameId}/summary.json.gz`,
+        detailsPath: `raw/${serverId}/${gameId}/details.json.gz`
+      }))
+    }
+    return { ...value, repository }
+  }
+
+  test('lets a queued event-loop callback run before a fully cached batch finishes without changing collection facts', async () => {
+    const value = cachedBatch()
+    let observedWrites: number | null = null
+    let observer: Promise<void> | null = null
+    const progress: number[] = []
+    const result = await new MemberAnalysisCollector(
+      value.riotClient as any,
+      value.sgp as any,
+      value.repository as any
+    ).collect({
+      members: MEMBERS,
+      historyDepth: 20,
+      scanLimitPerMember: 100,
+      historyTag: 'ranked',
+      signal: new AbortController().signal,
+      onProgress: (processed, _total, message) => {
+        if (message !== 'loading-details') return
+        progress.push(processed)
+        if (processed === 1)
+          observer = yieldToEventLoop().then(() => {
+            observedWrites = value.repository.updateRawSummary.mock.calls.length
+          })
+      }
+    })
+    expect(observedWrites).toBe(1)
+    await observer
+    expect(progress).toEqual(Array.from({ length: 16 }, (_, i) => i + 1))
+    expect(result.items.map((item) => item.gameId)).toEqual(
+      Array.from({ length: 16 }, (_, i) => 16 - i)
+    )
+    expect(result.changed).toEqual([])
+    expect(result.audit.cacheHits).toBe(16)
+    expect(result.audit.detailFetched).toBe(0)
+    expect(value.repository.updateRawSummary).toHaveBeenCalledTimes(16)
+    expect(value.repository.storeRaw).not.toHaveBeenCalled()
+    expect(value.sgp.api.matchHistoryQuery.getGameDetailsByGameId).not.toHaveBeenCalled()
+  })
+
+  test('honors cancellation during a yield after one complete cached item, before the next item', async () => {
+    const value = cachedBatch()
+    const control = new AbortController()
+    let cancellation: Promise<void> | null = null
+    await expect(
+      new MemberAnalysisCollector(
+        value.riotClient as any,
+        value.sgp as any,
+        value.repository as any
+      ).collect({
+        members: MEMBERS,
+        historyDepth: 20,
+        scanLimitPerMember: 100,
+        historyTag: 'ranked',
+        signal: control.signal,
+        onProgress: (processed, _total, message) => {
+          if (message === 'loading-details' && processed === 1)
+            cancellation = yieldToEventLoop().then(() => {
+              control.abort(new Error('Synthetic cancellation'))
+            })
+        }
+      })
+    ).rejects.toMatchObject({ name: 'AbortError' })
+    await cancellation
+    expect(value.repository.updateRawSummary).toHaveBeenCalledTimes(1)
+    expect(value.repository.catalogItem).toHaveBeenCalledWith('TEST', 16)
+    expect(value.repository.opponentRanks.publishGames).not.toHaveBeenCalled()
+    expect(value.repository.storeRaw).not.toHaveBeenCalled()
+    expect(value.sgp.api.matchHistoryQuery.getGameDetailsByGameId).not.toHaveBeenCalled()
+  })
+})
+
 function syntheticSummary(gameId: number, sameTeam: boolean, queueId = 420) {
   return {
     json: {
@@ -509,7 +685,11 @@ function pagedHarness(
       }
     },
     repository: {
-      opponentRanks: { readGame: vi.fn(), prune: vi.fn(), publishGames: vi.fn() },
+      opponentRanks: {
+        readGame: vi.fn(),
+        pruneAsync: vi.fn(async () => {}),
+        publishGames: vi.fn()
+      },
       recordMember: vi.fn(),
       checksum: vi.fn((summary: any) => `checksum-${summary.json.gameId}`),
       knownChecksum: vi.fn(() => null),

@@ -3,6 +3,8 @@ import type { AkariLogger } from '@main/shards/logger-factory'
 import type { SetterSettingService } from '@main/shards/setting-factory/setter-setting-service'
 import type { WindowManagerMain } from '@main/shards/window-manager'
 
+import type { CurrentProfileIcons } from './current-profile-icons'
+import type { CurrentRankRefresh } from './current-rank-refresh'
 import type { MemberAnalysisPipeline } from './execution'
 import type { MemberAnalysisRepository } from './repository'
 import type { MemberAnalysisRuntimeState, MemberAnalysisSettingsState } from './state'
@@ -19,4 +21,6 @@ export interface MemberAnalysisMainContext {
   settingService: SetterSettingService<MemberAnalysisSettingsState>
   pipeline: MemberAnalysisPipeline
   repository: MemberAnalysisRepository
+  currentProfileIcons?: CurrentProfileIcons
+  currentRankRefresh?: CurrentRankRefresh
 }

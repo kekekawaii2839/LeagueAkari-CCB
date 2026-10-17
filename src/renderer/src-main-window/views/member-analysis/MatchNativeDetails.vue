@@ -4,64 +4,58 @@
     <div v-else-if="error" role="alert">
       {{ error }} <NButton size="small" @click="load">重试</NButton>
     </div>
-    <p v-else-if="!match">本局原始战绩缓存不可用，可能已清理。请刷新分析重新获取。</p>
+    <p v-else-if="!match">{{ uiText('matchNativeUnavailable') }}</p>
     <template v-else>
       <p v-if="!match.details">{{ uiText('timelineUnavailable') }}</p>
       <div class="native-match-scroll" tabindex="0" role="region" aria-label="完整战绩，可横向滚动">
         <MatchCard
           :summary="match.summary"
           :details="match.details"
+          :extra-details-tab-label="uiText('matchOpponentRankTab')"
           is-expanded
           :hide-privacy="appStore.settings.streamerMode"
           @load-details="load"
           @navigate-to-summoner-by-puuid="navigate"
-        />
+        >
+          <template #extra-details-tab
+            ><OpponentRankDetails :ranks="opponentRanks" embedded
+          /></template>
+        </MatchCard>
       </div>
     </template>
   </section>
 </template>
 <script setup lang="ts">
 import { uiText } from './ui-text'
+import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
+import type { OpponentRanks } from '@shared/shards/member-analysis/opponent-ranks'
 import MatchCard from '@renderer-shared/components/match-card/MatchCard.vue'
 import { useInstance } from '@renderer-shared/shards'
 import { useAppCommonStore } from '@renderer-shared/shards/app-common/store'
-import type { MemberAnalysisMatchDetails } from '@shared/shards/member-analysis'
 import { NButton, NSpin } from 'naive-ui'
-import { onBeforeUnmount, ref, shallowRef, watch } from 'vue'
-import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
+import { computed } from 'vue'
 import { PlayerTabsRenderer } from '@main-window/shards/player-tabs'
+import { useMemberMatchDetails } from './useMemberMatchDetails'
 
-const props = defineProps<{ gameId: number }>()
-const memberAnalysis = useInstance(MemberAnalysisRenderer)
+const props = withDefaults(
+  defineProps<{ gameId: number; active?: boolean; opponentRanks?: OpponentRanks }>(),
+  { active: true }
+)
 const { navigateToTabByPuuidAndSgpServerId } = useInstance(PlayerTabsRenderer).useNavigateToTab()
 const appStore = useAppCommonStore()
-const match = shallowRef<MemberAnalysisMatchDetails | null>(null)
-const loading = ref(false)
-const error = ref('')
-let generation = 0
-async function load() {
-  const current = ++generation
-  match.value = null
-  error.value = ''
-  loading.value = true
-  try {
-    const result = await memberAnalysis.getMatchDetails(props.gameId)
-    if (current !== generation) return
-    if (result.ok) match.value = result.value
-    else error.value = '无法读取本局战绩详情。'
-  } catch {
-    if (current === generation) error.value = '无法读取本局战绩详情。'
-  } finally {
-    if (current === generation) loading.value = false
-  }
-}
+const {
+  match,
+  loading,
+  error: readError,
+  load
+} = useMemberMatchDetails(
+  () => props.gameId,
+  () => props.active
+)
+const error = computed(() => (readError.value ? '无法读取本局战绩详情。' : ''))
 function navigate(puuid: string) {
   if (match.value) void navigateToTabByPuuidAndSgpServerId(puuid, match.value.serverId)
 }
-watch(() => props.gameId, load, { immediate: true })
-onBeforeUnmount(() => {
-  generation++
-})
 </script>
 <style scoped>
 .native-match {

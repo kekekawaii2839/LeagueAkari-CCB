@@ -6,6 +6,7 @@ import {
   MemberAnalysisGameSchema,
   MemberAnalysisJobSchema,
   MemberAnalysisPayloadSchema,
+  MemberAnalysisPlayerGameSchema,
   MemberAnalysisSettingsSchema,
   MemberAnalysisUpdateSettingsRequestSchema,
   migrateLegacyMemberAnalysisPayload,
@@ -111,6 +112,19 @@ const anonymousLegacyPayload = {
 }
 
 describe('member analysis contract', () => {
+  test('preserves exact match-local participant IDs without inventing them for legacy rows', () => {
+    const payload = migrateLegacyMemberAnalysisPayload(anonymousLegacyPayload)
+    const player = payload.games[0].players[0]
+    expect(MemberAnalysisPlayerGameSchema.parse(player).participantId).toBeUndefined()
+    expect(
+      MemberAnalysisPlayerGameSchema.parse({ ...player, participantId: 6 }).participantId
+    ).toBe(6)
+    for (const participantId of [0, 11, 1.5]) {
+      expect(MemberAnalysisPlayerGameSchema.safeParse({ ...player, participantId }).success).toBe(
+        false
+      )
+    }
+  })
   test('migrates and validates the legacy dashboard payload at the explicit legacy boundary', () => {
     const payload = migrateLegacyMemberAnalysisPayload(anonymousLegacyPayload)
     expect(payload.contractVersion).toBe(MEMBER_ANALYSIS_CONTRACT_VERSION)
@@ -315,4 +329,46 @@ test('a mixed compatibility payload keeps each game semantics and unavailable fi
   expect(payload.games[0].gold20Diff).toBeNull()
   expect(payload.games[1].gold20Diff).toBe(200)
   expect(payload.games.map((g) => g.metricSemantics)).toEqual(['legacy-unknown', 'current-v5'])
+})
+
+test('LP trend experiment is additive, optional for old settings and strictly boolean', () => {
+  expect(
+    MemberAnalysisUpdateSettingsRequestSchema.safeParse({ experimentalLpTrendEnabled: true })
+      .success
+  ).toBe(true)
+  expect(
+    MemberAnalysisUpdateSettingsRequestSchema.safeParse({ experimentalLpTrendEnabled: 'true' })
+      .success
+  ).toBe(false)
+  expect(MemberAnalysisUpdateSettingsRequestSchema.safeParse({}).success).toBe(true)
+})
+
+test('optional match avatar metadata preserves old players and rejects malformed identity/icon values without weakening strict rows', () => {
+  const player = migrateLegacyMemberAnalysisPayload(anonymousLegacyPayload).games[0].players[0]
+  expect(MemberAnalysisPlayerGameSchema.parse(player).profileIconId).toBeUndefined()
+  expect(
+    MemberAnalysisPlayerGameSchema.parse({
+      ...player,
+      profileIdentity: 'a'.repeat(64),
+      profileIconId: 0
+    }).profileIconId
+  ).toBe(0)
+  expect(
+    MemberAnalysisPlayerGameSchema.parse({ ...player, profileIdentity: null, profileIconId: null })
+      .profileIconId
+  ).toBeNull()
+  for (const profileIconId of [-1, 0.1, Infinity, '1', Number.MAX_SAFE_INTEGER + 1])
+    expect(MemberAnalysisPlayerGameSchema.safeParse({ ...player, profileIconId }).success).toBe(
+      false
+    )
+  expect(
+    MemberAnalysisPlayerGameSchema.safeParse({ ...player, profileIdentity: 'raw-puuid' }).success
+  ).toBe(false)
+  expect(
+    MemberAnalysisPlayerGameSchema.safeParse({
+      ...player,
+      profileIconId: 0,
+      arbitraryPath: '/tmp/icon'
+    }).success
+  ).toBe(false)
 })

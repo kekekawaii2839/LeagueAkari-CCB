@@ -1,3 +1,4 @@
+import { EMPTY_PUUID } from '@shared/constants/common'
 import {
   MEMBER_ANALYSIS_MIN_DURATION_SEC,
   type MemberAnalysisCleanupPreview,
@@ -7,14 +8,16 @@ import {
   type MemberAnalysisGame,
   MemberAnalysisGameSchema,
   type MemberAnalysisMatchDetails,
+  type MemberAnalysisMatchOverview,
   type MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
 import { normalizeLegacyMemberAnalysisGame } from '@shared/shards/member-analysis/schemas'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import {
   closeSync,
   copyFileSync,
   existsSync,
+  promises as fileSystem,
   fsyncSync,
   lstatSync,
   mkdirSync,
@@ -29,9 +32,14 @@ import {
 } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { setTimeout as delay, setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
+import { matchDetailRanks } from './match-detail-ranks'
+import { executeRankPublication } from './opponent-ranks/rank-publication-executor'
 import { type GameRankSnapshot, OpponentRankRepository } from './opponent-ranks/repository'
+import { PublishedIdentitiesExecutor } from './published-identities-executor'
+import type { PublishedIdentityTask } from './published-identities-source'
 
 export type CatalogItem = {
   serverId: string
@@ -56,6 +64,7 @@ CREATE TABLE IF NOT EXISTS catalog_games (
   PRIMARY KEY(server_id, game_id)
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_games_queue ON catalog_games(queue_id, game_id DESC);
+CREATE INDEX IF NOT EXISTS idx_catalog_games_game_server ON catalog_games(game_id, server_id);
 CREATE INDEX IF NOT EXISTS idx_catalog_games_fetched ON catalog_games(fetched_at, server_id, game_id);
 CREATE TABLE IF NOT EXISTS members (
   server_id TEXT NOT NULL,
@@ -97,10 +106,15 @@ export class MemberAnalysisRepository {
   readonly stagingAnalysisPath: string
   readonly opponentRanks: OpponentRankRepository
 
+  private _publicationEpoch = 0
+  private _publicationScope: { fingerprint: string; token: string } | null = null
   private _catalog: DatabaseSync | null = null
   private _cleanupPlan: CleanupPlan | null = null
   private _cleanupRunning = false
   private _overviewCounts: { scope: string; total: number; playerCount: number } | null = null
+
+  private _publicationWait: Promise<void> | null = null
+  private _publicationRecoveryRequired = false
 
   constructor(readonly dataRoot: string) {
     this.dataRoot = resolve(dataRoot)
@@ -114,6 +128,7 @@ export class MemberAnalysisRepository {
   }
 
   initialize() {
+    this._publicationEpoch++
     this._overviewCounts = null
     mkdirSync(this.rawRoot, { recursive: true })
     mkdirSync(this.jobsRoot, { recursive: true })
@@ -125,8 +140,9 @@ export class MemberAnalysisRepository {
       ).user_version
       if (catalogVersion > 2) throw new Error('Unsupported member analysis catalog version')
       this._catalog.exec(CATALOG_SCHEMA)
-      this._migrateAnalysisDatabase()
       this.opponentRanks.initialize()
+      this._recoverRankPublication()
+      this._migrateAnalysisDatabase()
     } catch (error) {
       this._catalog?.close()
       this._catalog = null
@@ -183,6 +199,7 @@ export class MemberAnalysisRepository {
 
   /** Main-only initial prediction source reconciliation; never scans current derived outcomes. */
   readPredictionSource(gameId: number): { serverId: string; summary: unknown } {
+    this._assertPublishedReadable()
     if (!Number.isSafeInteger(gameId) || gameId <= 0) throw new Error('Invalid prediction source')
     const servers = this._db()
       .prepare('SELECT server_id FROM catalog_games WHERE game_id=? LIMIT 2')
@@ -220,6 +237,7 @@ export class MemberAnalysisRepository {
 
   /** Future-only expansion: inspect raw start before loading any derived outcome payload. */
   readFuturePredictionGames(studyCreatedAtMs: number, cutoffMs: number) {
+    this._assertPublishedReadable()
     if (
       !Number.isSafeInteger(studyCreatedAtMs) ||
       !Number.isSafeInteger(cutoffMs) ||
@@ -267,7 +285,22 @@ export class MemberAnalysisRepository {
     return { games, queueEntries, studyCreatedAtMs, observedAtMs: Date.now() }
   }
 
+  readMatchOverview(gameId: number): MemberAnalysisMatchOverview | null {
+    const result = this._readCachedMatch(gameId, false)
+    if (!result) return null
+    const { details: _details, ...overview } = result
+    return overview
+  }
+
   readMatchDetails(gameId: number): MemberAnalysisMatchDetails | null {
+    return this._readCachedMatch(gameId, true)
+  }
+
+  private _readCachedMatch(
+    gameId: number,
+    includeDetails: boolean
+  ): MemberAnalysisMatchDetails | null {
+    this._assertPublishedReadable()
     if (!existsSync(this.currentAnalysisPath)) return null
     const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
     let rows: { server_id: string }[]
@@ -284,8 +317,16 @@ export class MemberAnalysisRepository {
     // Do not guess the region when legacy datasets contain a colliding game ID.
     if (rows.length !== 1) return null
     const serverId = rows[0].server_id
-    const item = this.catalogItem(serverId, gameId)
-    if (!item) return null
+    // Overview does not even select or inspect the catalog's timeline path.
+    const item = includeDetails ? this.catalogItem(serverId, gameId) : null
+    const summaryPath = includeDetails
+      ? item?.summaryPath
+      : (
+          this._db()
+            .prepare('SELECT summary_path FROM catalog_games WHERE server_id = ? AND game_id = ?')
+            .get(serverId, gameId) as { summary_path: string } | undefined
+        )?.summary_path
+    if (summaryPath === undefined) return null
     const read = (name: 'summary' | 'details', indexedPath: string) => {
       const expected = this.safePath(
         join('raw', this.safeSegment(serverId), String(gameId), `${name}.json.gz`)
@@ -299,7 +340,7 @@ export class MemberAnalysisRepository {
         gunzipSync(readFileSync(actual), { maxOutputLength: 32 * 1024 * 1024 }).toString('utf8')
       )
     }
-    const summary = read('summary', item.summaryPath)
+    const summary = read('summary', summaryPath)
     if (!summary) return null
     if (
       summary.json?.gameId !== gameId ||
@@ -307,11 +348,18 @@ export class MemberAnalysisRepository {
       !Array.isArray(summary.json?.teams)
     )
       throw new Error('Invalid cached match summary')
-    const details = read('details', item.detailsPath)
+    const details = includeDetails && item ? read('details', item.detailsPath) : null
     if (details && (details.json?.gameId !== gameId || !Array.isArray(details.json?.frames)))
       throw new Error('Invalid cached match timeline')
+    let participantRanks: MemberAnalysisMatchDetails['participantRanks']
+    try {
+      participantRanks = matchDetailRanks(serverId, gameId, summary.json, this.opponentRanks)
+    } catch {
+      // Optional local rank enrichment must not hide an otherwise readable match.
+    }
     return {
       serverId,
+      ...(participantRanks ? { participantRanks } : {}),
       summary: { source: 'sgp', gameId, data: summary },
       details: details ? { source: 'sgp', gameId, data: details } : null
     }
@@ -363,6 +411,75 @@ export class MemberAnalysisRepository {
     return item
   }
 
+  /** Exact last-successful configured identity; never infer from an alias/role. */
+  resolveConfiguredMember(
+    serverId: string,
+    gameName: string,
+    tagLine: string
+  ): { puuid: string; resolvedAt: string } | null {
+    const row = this._db()
+      .prepare(
+        'SELECT puuid,updated_at FROM members WHERE server_id=? AND game_name=? AND tag_line=? AND last_error IS NULL'
+      )
+      .get(serverId, gameName, tagLine) as { puuid: unknown; updated_at: unknown } | undefined
+    if (
+      !row ||
+      typeof row.puuid !== 'string' ||
+      !row.puuid ||
+      row.puuid === EMPTY_PUUID ||
+      row.puuid.length > 256 ||
+      row.puuid.trim() !== row.puuid ||
+      typeof row.updated_at !== 'string' ||
+      !Number.isFinite(Date.parse(row.updated_at))
+    )
+      return null
+    return { puuid: row.puuid, resolvedAt: new Date(row.updated_at).toISOString() }
+  }
+
+  /** Main-only fresh configuration snapshot; no identity or statement-result cache. */
+  resolveConfiguredMembers(
+    members: readonly { serverId: string; gameName: string; tagLine: string }[]
+  ): ({ puuid: string; resolvedAt: string } | null)[] {
+    if (members.length > 20) throw new Error('Invalid configured member batch')
+    if (!members.length) return []
+    const rows = this._db()
+      .prepare(
+        `WITH requested(ordinal,server_id,game_name,tag_line) AS (
+          VALUES ${members.map(() => '(?,?,?,?)').join(',')}
+        )
+        SELECT requested.ordinal, members.puuid, members.updated_at
+        FROM requested LEFT JOIN members
+          ON members.server_id=requested.server_id
+          AND members.game_name=requested.game_name
+          AND members.tag_line=requested.tag_line
+          AND members.last_error IS NULL
+        ORDER BY requested.ordinal`
+      )
+      .all(
+        ...members.flatMap((member, ordinal) => [
+          ordinal,
+          member.serverId,
+          member.gameName,
+          member.tagLine
+        ])
+      ) as { ordinal: number; puuid: unknown; updated_at: unknown }[]
+    if (rows.length !== members.length || rows.some((row, index) => row.ordinal !== index))
+      throw new Error('Invalid configured member rows')
+    return rows.map((row) => {
+      if (
+        typeof row.puuid !== 'string' ||
+        !row.puuid ||
+        row.puuid === EMPTY_PUUID ||
+        row.puuid.length > 256 ||
+        row.puuid.trim() !== row.puuid ||
+        typeof row.updated_at !== 'string' ||
+        !Number.isFinite(Date.parse(row.updated_at))
+      )
+        return null
+      return { puuid: row.puuid, resolvedAt: new Date(row.updated_at).toISOString() }
+    })
+  }
+
   recordMember(
     serverId: string,
     gameName: string,
@@ -393,12 +510,16 @@ export class MemberAnalysisRepository {
   }
 
   publishStaging(rankSnapshots: GameRankSnapshot[] = []) {
+    this._assertPublishedReadable()
+    this._publicationEpoch++
     // A publication attempt (including rollback) ends any prior count scope.
     this._overviewCounts = null
     if (!existsSync(this.stagingAnalysisPath)) throw new Error('analysis staging database missing')
     const staging = new DatabaseSync(this.stagingAnalysisPath)
     let count: number
     try {
+      if (this._identityLayout(staging, true))
+        throw new Error('Identity facts require asynchronous verified publication')
       staging.exec('PRAGMA wal_checkpoint(TRUNCATE)')
       const integrity = (
         staging.prepare('PRAGMA integrity_check').get() as { integrity_check: string }
@@ -435,6 +556,437 @@ export class MemberAnalysisRepository {
     return count
   }
 
+  async waitForPublication() {
+    if (this._publicationWait) await this._publicationWait
+    if (this._publicationRecoveryRequired)
+      throw new Error('Member analysis publication recovery required')
+  }
+
+  private _assertPublishedReadable() {
+    if (this._publicationWait || this._publicationRecoveryRequired)
+      throw new Error('Member analysis publication is pending')
+  }
+
+  async publishStagingAsync(
+    rankSnapshots: GameRankSnapshot[] = [],
+    options: { signal?: AbortSignal; onCommit?: () => void } = {}
+  ): Promise<number> {
+    this._assertPublishedReadable()
+    let release: () => void = () => {}
+    this._publicationWait = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    try {
+      return await this.opponentRanks.withExternalPublication(() =>
+        this._publishStagingWithWorker(rankSnapshots, options)
+      )
+    } finally {
+      this._publicationWait = null
+      release()
+    }
+  }
+
+  private async _publicationFileOperation(operation: () => Promise<unknown>) {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await operation()
+        return
+      } catch (error) {
+        if (
+          attempt >= 20 ||
+          !['EACCES', 'EBUSY', 'EPERM'].includes((error as NodeJS.ErrnoException).code ?? '')
+        )
+          throw error
+        await delay(100)
+      }
+    }
+  }
+
+  private async _removePublicationDatabase(path: string) {
+    for (const suffix of ['', '-wal', '-shm'])
+      await this._publicationFileOperation(() => fileSystem.rm(`${path}${suffix}`, { force: true }))
+  }
+
+  private async _publishStagingWithWorker(
+    rankSnapshots: GameRankSnapshot[],
+    options: { signal?: AbortSignal; onCommit?: () => void }
+  ) {
+    this._publicationEpoch++
+    this._overviewCounts = null
+    if (existsSync(join(this.dbRoot, 'rank-publication.pending.json')))
+      this._recoverRankPublication()
+    if (!existsSync(this.stagingAnalysisPath)) throw new Error('analysis staging database missing')
+    const stagingFile = lstatSync(this.stagingAnalysisPath)
+    if (!stagingFile.isFile() || stagingFile.isSymbolicLink())
+      throw new Error('Invalid analysis staging file')
+    await this._verifyStagingIdentityFacts(options.signal)
+    options.signal?.throwIfAborted()
+    options.onCommit?.()
+    const staging = new DatabaseSync(this.stagingAnalysisPath)
+    let count: number
+    try {
+      staging.exec('PRAGMA wal_checkpoint(TRUNCATE)')
+      const integrity = staging.prepare('PRAGMA integrity_check').get() as {
+        integrity_check: string
+      }
+      if (integrity.integrity_check !== 'ok')
+        throw new Error('analysis staging integrity check failed')
+      count = (
+        staging.prepare('SELECT COUNT(*) AS count FROM derived_games').get() as { count: number }
+      ).count
+    } finally {
+      staging.close()
+    }
+    const previous = join(this.dbRoot, 'analysis.previous.sqlite3')
+    const journal = join(this.dbRoot, 'rank-publication.pending.json')
+    await this._removePublicationDatabase(previous)
+    const publicationId = randomUUID()
+    const hadCurrent = existsSync(this.currentAnalysisPath)
+    if (hadCurrent) {
+      const currentFile = lstatSync(this.currentAnalysisPath)
+      if (!currentFile.isFile() || currentFile.isSymbolicLink())
+        throw new Error('Invalid current analysis file')
+    }
+    this._atomicWrite(journal, Buffer.from(JSON.stringify({ publicationId, hadCurrent })))
+    this._publicationRecoveryRequired = true
+    try {
+      for (const file of [this.stagingAnalysisPath, this.currentAnalysisPath])
+        for (const suffix of ['-wal', '-shm'])
+          await this._publicationFileOperation(() =>
+            fileSystem.rm(`${file}${suffix}`, { force: true })
+          )
+      if (hadCurrent)
+        await this._publicationFileOperation(() =>
+          fileSystem.rename(this.currentAnalysisPath, previous)
+        )
+      await this._publicationFileOperation(() =>
+        fileSystem.rename(this.stagingAnalysisPath, this.currentAnalysisPath)
+      )
+      try {
+        await executeRankPublication({
+          path: this.opponentRanks.path,
+          publicationId,
+          games: rankSnapshots
+        })
+      } catch {
+        // Exit/ack alone cannot tell whether SQLite committed. The durable
+        // receipt is inserted in the exact same transaction as all rank facts.
+        if (!this.opponentRanks.publicationReceipt(publicationId))
+          throw new Error('Rank publication failed before commit')
+      }
+      if (!this.opponentRanks.publicationReceipt(publicationId))
+        throw new Error('Rank publication commit is unconfirmed')
+      this._publicationRecoveryRequired = false
+      try {
+        await this._removePublicationDatabase(previous)
+        await this._publicationFileOperation(() => fileSystem.rm(journal, { force: true }))
+      } catch {
+        // A known committed publication remains successful. Keep its journal
+        // for startup housekeeping; never roll committed rank facts backwards.
+      }
+      return count
+    } catch (error) {
+      this._recoverRankPublication()
+      throw error
+    }
+  }
+
+  private _recoverRankPublication() {
+    const journal = join(this.dbRoot, 'rank-publication.pending.json')
+    if (!existsSync(journal)) {
+      this._publicationRecoveryRequired = false
+      return
+    }
+    this._publicationRecoveryRequired = true
+    const info = lstatSync(journal)
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 512)
+      throw new Error('Invalid rank publication journal')
+    const value = JSON.parse(readFileSync(journal, 'utf8')) as {
+      publicationId: unknown
+      hadCurrent: unknown
+    }
+    if (
+      !value ||
+      Object.keys(value).length !== 2 ||
+      typeof value.publicationId !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        value.publicationId
+      ) ||
+      typeof value.hadCurrent !== 'boolean'
+    )
+      throw new Error('Invalid rank publication journal')
+    const previous = join(this.dbRoot, 'analysis.previous.sqlite3')
+    if (this.opponentRanks.publicationReceipt(value.publicationId)) {
+      if (!existsSync(this.currentAnalysisPath))
+        throw new Error('Committed analysis is unavailable')
+      const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+      try {
+        const integrity = database.prepare('PRAGMA integrity_check').get() as {
+          integrity_check: string
+        }
+        if (integrity.integrity_check !== 'ok') throw new Error('Committed analysis is invalid')
+      } finally {
+        database.close()
+      }
+      this._removeDatabaseFile(previous)
+    } else if (existsSync(previous)) {
+      this._removeDatabaseFile(this.currentAnalysisPath)
+      this._renameWithRetry(previous, this.currentAnalysisPath)
+    } else if (!value.hadCurrent) {
+      this._removeDatabaseFile(this.currentAnalysisPath)
+    } else if (!existsSync(this.currentAnalysisPath)) {
+      throw new Error('Previous analysis is unavailable')
+    }
+    rmSync(journal)
+    this._publicationRecoveryRequired = false
+  }
+
+  publicationToken(): string | null {
+    if (this._publicationWait || this._publicationRecoveryRequired) return null
+    // Revalidate both files on every boundary, without redundant exists/stat calls.
+    // Missing files return undefined; permission and other IO errors still reject.
+    const database = statSync(this.currentAnalysisPath, { bigint: true, throwIfNoEntry: false })
+    if (!database) {
+      this._publicationScope = null
+      return null
+    }
+    const wal = statSync(`${this.currentAnalysisPath}-wal`, { bigint: true, throwIfNoEntry: false })
+    const fingerprint = JSON.stringify([
+      this._publicationEpoch,
+      ...[database, wal?.size === 0n ? undefined : wal].map((value) =>
+        // Read-only WAL connections may create an empty sidecar without changing data.
+        value ? [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs].map(String) : null
+      )
+    ])
+    if (this._publicationScope?.fingerprint !== fingerprint)
+      this._publicationScope = { fingerprint, token: randomBytes(24).toString('base64url') }
+    return this._publicationScope.token
+  }
+
+  private _identityLayout(database: DatabaseSync, allowCandidate = false): boolean {
+    const object = database
+      .prepare("SELECT type FROM sqlite_master WHERE name='game_identity_facts'")
+      .get() as { type: string } | undefined
+    const table = object?.type === 'table'
+    const metadata = database
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='metadata'")
+      .get()
+    const marker = metadata
+      ? (database.prepare("SELECT value FROM metadata WHERE key='identity_facts_state'").get() as
+          { value: unknown } | undefined)
+      : undefined
+    const signals = metadata
+      ? database.prepare("SELECT key FROM metadata WHERE key LIKE 'identity_facts_%' LIMIT 1").get()
+      : undefined
+    if (!object && !signals) return false
+    if (
+      !table ||
+      !marker ||
+      (marker.value !== 'verified-v1' && !(allowCandidate && marker.value === 'candidate-v1'))
+    )
+      throw new Error('Invalid published identity facts layout')
+    const coverage = database
+      .prepare("SELECT value FROM metadata WHERE key='identity_facts_count'")
+      .get() as { value: unknown } | undefined
+    const counts = database
+      .prepare(
+        'SELECT (SELECT COUNT(*) FROM derived_games) AS games, (SELECT COUNT(*) FROM game_identity_facts) AS facts'
+      )
+      .get() as { games: number; facts: number }
+    if (
+      typeof coverage?.value !== 'string' ||
+      !/^(0|[1-9][0-9]*)$/.test(coverage.value) ||
+      Number(coverage.value) !== counts.games ||
+      counts.facts !== counts.games
+    )
+      throw new Error('Invalid published identity facts coverage')
+    return true
+  }
+
+  private _attachIdentityFacts<T extends { server_id: string; game_id: number; checksum: string }>(
+    database: DatabaseSync,
+    rows: T[],
+    allowCandidate = false
+  ): (T & Pick<PublishedIdentityTask, 'identityFacts'>)[] {
+    if (!this._identityLayout(database, allowCandidate)) return rows
+    if (!rows.length) return rows
+    const facts = database
+      .prepare(
+        `SELECT server_id,game_id,source_checksum,summary_digest,method_version,payload_json FROM game_identity_facts WHERE ${rows.map(() => '(server_id=? AND game_id=?)').join(' OR ')}`
+      )
+      .all(...rows.flatMap((row) => [row.server_id, row.game_id])) as {
+      server_id: string
+      game_id: number
+      source_checksum: unknown
+      summary_digest: unknown
+      method_version: unknown
+      payload_json: unknown
+    }[]
+    const indexed = new Map(
+      facts.map((fact) => [JSON.stringify([fact.server_id, fact.game_id]), fact])
+    )
+    return rows.map((row) => {
+      const fact = indexed.get(JSON.stringify([row.server_id, row.game_id]))
+      if (
+        !fact ||
+        fact.method_version !== 1 ||
+        fact.source_checksum !== row.checksum ||
+        typeof fact.payload_json !== 'string' ||
+        typeof fact.summary_digest !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(fact.summary_digest)
+      )
+        throw new Error('Invalid published identity facts row')
+      return {
+        ...row,
+        identityFacts: {
+          methodVersion: 1,
+          checksum: row.checksum,
+          summaryDigest: fact.summary_digest,
+          payload: fact.payload_json
+        }
+      }
+    })
+  }
+
+  private async _verifyStagingIdentityFacts(signal?: AbortSignal) {
+    signal?.throwIfAborted()
+    const database = new DatabaseSync(this.stagingAnalysisPath)
+    let reader: PublishedIdentitiesExecutor | null = null
+    const abort = () => {
+      void reader?.dispose().catch(() => undefined)
+    }
+    try {
+      if (!this._identityLayout(database, true)) return
+      // A persisted marker is not a verification receipt for a new publication.
+      database
+        .prepare("UPDATE metadata SET value='candidate-v1' WHERE key='identity_facts_state'")
+        .run()
+      const fingerprint = () =>
+        JSON.stringify(
+          [this.stagingAnalysisPath, `${this.stagingAnalysisPath}-wal`].map((file) => {
+            const value = statSync(file, { bigint: true, throwIfNoEntry: false })
+            return value && value.size !== 0n
+              ? [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs].map(String)
+              : null
+          })
+        )
+      const initial = fingerprint()
+      const assertCurrent = () => {
+        signal?.throwIfAborted()
+        if (fingerprint() !== initial)
+          throw new Error('Identity staging changed during verification')
+      }
+      reader = new PublishedIdentitiesExecutor()
+      signal?.addEventListener('abort', abort, { once: true })
+      assertCurrent()
+      for (let offset = 0; ; offset += 25) {
+        const rows = database
+          .prepare(
+            'SELECT server_id,game_id,checksum,payload_json FROM derived_games ORDER BY game_id DESC,server_id ASC LIMIT 25 OFFSET ?'
+          )
+          .all(offset) as {
+          server_id: string
+          game_id: number
+          checksum: string
+          payload_json: string
+        }[]
+        if (!rows.length) break
+        const tasks = this._attachIdentityFacts(database, rows, true).map((row) => ({
+          serverId: row.server_id,
+          gameId: row.game_id,
+          checksum: row.checksum,
+          payload: row.payload_json,
+          ambiguous: 1,
+          identityFacts: row.identityFacts
+        }))
+        const results = await reader.execute(
+          { dataRoot: this.dataRoot, tasks, members: [], verifyFacts: true },
+          assertCurrent
+        )
+        if (results.some((result) => result.status !== 'available'))
+          throw new Error('Identity source verification failed')
+        assertCurrent()
+      }
+      assertCurrent()
+      await reader.dispose()
+      reader = null
+      assertCurrent()
+      database
+        .prepare("UPDATE metadata SET value='verified-v1' WHERE key='identity_facts_state'")
+        .run()
+    } finally {
+      signal?.removeEventListener('abort', abort)
+      try {
+        await reader?.dispose()
+      } finally {
+        database.close()
+      }
+    }
+  }
+
+  readPublishedIdentityRows(cursor: string | null, pageSize: number) {
+    this._assertPublishedReadable()
+    const previous = this._decodeCursor(cursor)
+    const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+    try {
+      const rows = database
+        .prepare(
+          `SELECT server_id, game_id, checksum, payload_json,
+        (SELECT COUNT(*) FROM (SELECT 1 FROM derived_games other WHERE other.game_id=derived_games.game_id LIMIT 2)) AS ambiguous
+        FROM derived_games WHERE json_extract(payload_json,'$.duration') >= ?
+        ${previous ? 'AND (game_id < ? OR (game_id = ? AND server_id > ?))' : ''}
+        ORDER BY game_id DESC,server_id ASC LIMIT ?`
+        )
+        .all(
+          MEMBER_ANALYSIS_MIN_DURATION_SEC,
+          ...(previous ? [previous.gameId, previous.gameId, previous.serverId] : []),
+          pageSize + 1
+        ) as {
+        server_id: string
+        game_id: number
+        checksum: string
+        payload_json: string
+        ambiguous: number
+      }[]
+      return this._attachIdentityFacts(database, rows)
+    } finally {
+      database.close()
+    }
+  }
+
+  readPublishedProfileRows(gameIds: number[]) {
+    this._assertPublishedReadable()
+    if (
+      !gameIds.length ||
+      gameIds.length > 100 ||
+      gameIds.some((id) => !Number.isSafeInteger(id) || id <= 0)
+    )
+      throw new Error('invalid profile page')
+    const database = new DatabaseSync(this.currentAnalysisPath, { readOnly: true })
+    try {
+      const rows = database
+        .prepare(
+          `SELECT server_id,game_id,checksum,payload_json,
+        (SELECT COUNT(*) FROM (SELECT 1 FROM derived_games other WHERE other.game_id=derived_games.game_id LIMIT 2)) AS ambiguous
+        FROM derived_games WHERE game_id IN (${gameIds.map(() => '?').join(',')})`
+        )
+        .all(...gameIds) as {
+        server_id: string
+        game_id: number
+        checksum: string
+        payload_json: string
+        ambiguous: number
+      }[]
+      return this._attachIdentityFacts(database, rows)
+    } finally {
+      database.close()
+    }
+  }
+
+  publishedIdentityCursor(gameId: number, serverId: string) {
+    return this._encodeCursor(gameId, serverId)
+  }
+
   readGames(input?: {
     filters?: MemberAnalysisFilters
     cursor?: string | null
@@ -447,11 +999,14 @@ export class MemberAnalysisRepository {
     playerCount: number
     nextCursor: string | null
     collectionAudit: MemberAnalysisCollectionAudit | null
+    publicationToken: string | null
   } {
+    this._assertPublishedReadable()
     if (!existsSync(this.currentAnalysisPath)) {
       this._overviewCounts = null
       return {
         generatedAt: null,
+        publicationToken: null,
         source: 'SGP 对局历史与详情',
         games: [],
         total: 0,
@@ -533,6 +1088,7 @@ export class MemberAnalysisRepository {
         : null
       return {
         generatedAt: generatedAt?.value ?? null,
+        publicationToken: this.publicationToken(),
         source: source?.value?.trim() || '来源未知',
         games: rows.slice(0, pageSize).map((row) => {
           const game =
@@ -561,6 +1117,74 @@ export class MemberAnalysisRepository {
   storageStatus(limitGiB: number): MemberAnalysisStorageStatus {
     const totalBytes = this._treeBytes(this.dataRoot)
     const rawBytes = this._treeBytes(this.rawRoot)
+    const catalogGames = (
+      this._db().prepare('SELECT COUNT(*) AS count FROM catalog_games').get() as { count: number }
+    ).count
+    const limitBytes = limitGiB * GIB
+    return { totalBytes, rawBytes, limitBytes, overLimit: totalBytes > limitBytes, catalogGames }
+  }
+
+  async storageStatusAsync(limitGiB: number): Promise<MemberAnalysisStorageStatus> {
+    const pending = [{ path: this.dataRoot, inRaw: false }]
+    let totalBytes = 0
+    let rawBytes = 0
+    let visited = 0
+    let failed = false
+    let failure: unknown
+    const inspect = async (current: (typeof pending)[number]) => {
+      let info
+      try {
+        info = await fileSystem.lstat(current.path)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+        throw error
+      }
+      if (failed || info.isSymbolicLink()) return
+      const inRaw = current.inRaw || current.path === this.rawRoot
+      if (info.isFile()) {
+        totalBytes += info.size
+        if (inRaw) rawBytes += info.size
+        return
+      }
+      let names
+      try {
+        names = await fileSystem.readdir(current.path)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+        throw error
+      }
+      if (!failed) for (const name of names) pending.push({ path: join(current.path, name), inRaw })
+    }
+    // Metadata IO may overlap, but never enqueue a directory's children before
+    // its own lstat/link check. Keep every stat and bound both IO and error drain.
+    const running = new Map<number, Promise<number>>()
+    try {
+      while (pending.length > 0 || running.size > 0) {
+        while (pending.length > 0 && running.size < 4 && !failed) {
+          if (visited > 0 && visited % 64 === 0) await yieldToEventLoop()
+          if (failed) break
+          const id = ++visited
+          const task = inspect(pending.pop()!).then(
+            () => id,
+            (error: unknown) => {
+              if (!failed) {
+                failed = true
+                failure = error
+              }
+              return id
+            }
+          )
+          running.set(id, task)
+        }
+        if (failed) throw failure
+        const completed = await Promise.race(running.values())
+        running.delete(completed)
+        if (failed) throw failure
+      }
+    } finally {
+      // Do not leave metadata requests running after a failed storage request.
+      await Promise.allSettled(running.values())
+    }
     const catalogGames = (
       this._db().prepare('SELECT COUNT(*) AS count FROM catalog_games').get() as { count: number }
     ).count

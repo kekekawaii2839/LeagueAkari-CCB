@@ -1,3 +1,5 @@
+import { predictionObservationsFromGames } from '@shared/shards/member-analysis/performance-metrics'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
@@ -5,10 +7,38 @@ import { DatabaseSync } from 'node:sqlite'
 import { gunzipSync } from 'node:zlib'
 import { expect, test, vi } from 'vitest'
 
-import { predictionObservationsFromGames } from '@shared/shards/member-analysis/performance-metrics'
 import { MemberAnalysisCollector } from './collector'
 import { MemberAnalysisPipeline } from './execution'
+import { OpponentRankRepository } from './opponent-ranks/repository'
 import { MemberAnalysisRepository } from './repository'
+
+// Adapt only the async rank-commit unit-test boundary, as in execution/pipeline.test.ts.
+// Publication/receipts remain real SQLite; native worker/packaging is not tested here.
+vi.mock('./opponent-ranks/rank-publication-executor', () => ({
+  executeRankPublication: async (request: {
+    path: string
+    publicationId: string
+    games: Parameters<OpponentRankRepository['publishGames']>[0]
+  }) => {
+    const ranks = new OpponentRankRepository(request.path)
+    ranks.openExisting()
+    try {
+      ranks.publishGames(request.games, request.publicationId)
+    } finally {
+      ranks.close()
+    }
+    // Reopen to require a durable, payload-bound receipt, never a fixed success.
+    const verification = new OpponentRankRepository(request.path)
+    verification.openExisting()
+    try {
+      expect(verification.publicationReceipt(request.publicationId)).toBe(
+        createHash('sha256').update(JSON.stringify(request.games)).digest('hex')
+      )
+    } finally {
+      verification.close()
+    }
+  }
+}))
 
 const roles = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] as const
 const members = roles.map((_, index) => ({

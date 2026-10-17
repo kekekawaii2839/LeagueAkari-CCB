@@ -10,6 +10,8 @@
       </div>
     </div>
 
+    <div v-if="$slots.filters" class="member-analysis-header__filters"><slot name="filters" /></div>
+
     <div class="member-analysis-header__actions">
       <NButton
         aria-label="刷新"
@@ -38,7 +40,7 @@
             @keydown.esc.prevent="closeReason"
             ><template #icon><NIcon :component="InfoOutlined" /></template></NButton
         ></template>
-        <div @keydown.esc.prevent.stop="closeReason">
+        <div class="refresh-reason-content" @keydown.esc.prevent.stop="closeReason">
           <p>{{ refreshReason.text }}</p>
           <NButton
             v-if="refreshReason.kind !== 'service'"
@@ -48,7 +50,6 @@
               uiText(refreshReason.kind === 'members' ? 'configureMembers' : 'openSettings')
             }}</NButton
           >
-          <NButton size="small" @click="closeReason">{{ uiText('closeHelp') }}</NButton>
         </div>
       </NPopover>
       <NButton aria-label="设置" secondary @click="$emit('settings')">
@@ -113,14 +114,20 @@ watch(
 
 <style scoped>
 .member-analysis-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  flex: none;
   min-width: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 14px;
+  align-items: start;
+  column-gap: 24px;
+  row-gap: 12px;
   padding: 10px 20px;
   border-bottom: 1px solid rgb(var(--la-card-border-rgb) / 0.14);
+}
+
+.member-analysis-header__filters {
+  min-width: 0;
+  width: 100%;
 }
 
 .member-analysis-heading {
@@ -153,35 +160,38 @@ watch(
 
 .member-analysis-header__actions {
   display: flex;
+  grid-column: 3;
   flex: none;
   gap: 8px;
 }
 
 @media (max-width: 720px) {
   .member-analysis-header {
-    align-items: flex-start;
-    padding: 14px 16px 12px;
+    column-gap: 16px;
+    row-gap: 8px;
+    padding: 8px 12px;
   }
-
-  .member-analysis-heading__subtitle time {
-    display: none;
-  }
-
-  .member-analysis-header__actions :deep(.n-button__content) {
-    font-size: 0;
-  }
-
-  .member-analysis-header__actions :deep(.n-button__icon) {
-    margin: 0;
+  .member-analysis-heading {
+    gap: 8px;
   }
 }
 </style>
 
 <style scoped>
 .refresh-unavailable {
+  grid-column: 1 / -1;
   flex-basis: 100%;
   margin: 0;
   font-size: 12px;
   color: var(--ma-muted);
+}
+.refresh-reason-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.refresh-reason-content p {
+  margin: 0;
 }
 </style>

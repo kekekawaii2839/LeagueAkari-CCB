@@ -764,6 +764,7 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
         players.append(
             {
                 "player": name,
+                "participantId": int(row["participantId"]),
                 "role": role,
                 "champion": str(row.get("championName") or row.get("championId") or "Unknown"),
                 "minutes": minutes,

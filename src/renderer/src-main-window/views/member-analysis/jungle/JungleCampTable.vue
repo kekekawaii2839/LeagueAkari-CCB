@@ -38,24 +38,10 @@
         </tr>
       </tbody>
     </table>
-    <small
-      >{{
-        jungleText('denominator', {
-          valid: evidence.camps,
-          total: evidence.games
-        })
-      }}<template v-if="evidence.missingCamps">
-        ·
-        {{ jungleText('unknownCamps', { count: evidence.missingCamps }) }}</template
-      ></small
-    >
-    <small v-if="evidence.camps"
-      >{{ jungleText('ratio', { total: evidence.camps })
-      }}<template v-if="!complete && evidence.unknownOwnership">
-        {{ jungleText('incomplete') }}</template
-      ></small
-    >
-    <small v-else>{{ jungleText('noRecords') }}</small>
+    <small v-if="evidence.missingCamps">{{
+      jungleText('unknownCamps', { count: evidence.missingCamps })
+    }}</small>
+    <small v-if="!evidence.camps">{{ jungleText('noRecords') }}</small>
   </div>
 </template>
 <script setup lang="ts">

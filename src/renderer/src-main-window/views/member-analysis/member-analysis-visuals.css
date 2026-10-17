@@ -13,6 +13,14 @@
   --ma-grid: rgb(var(--la-card-border-rgb) / 0.14);
   --ma-grid-strong: rgb(var(--la-card-border-rgb) / 0.24);
   --ma-muted: color-mix(in srgb, var(--la-color-text-primary) 80%, var(--la-color-bg-primary));
+  --ma-champion-portrait-radius: 6px;
+}
+/* Pool dialogs teleport outside the page; round pick-share portraits keep their circular ring. */
+.member-analysis-page .champion-icon-container:not(.round),
+.pool-popover .champion-icon-container:not(.round),
+.member-analysis-page .hero-missing {
+  border-radius: var(--ma-champion-portrait-radius, 6px);
+  overflow: hidden;
 }
 .ma-panel {
   display: flex;

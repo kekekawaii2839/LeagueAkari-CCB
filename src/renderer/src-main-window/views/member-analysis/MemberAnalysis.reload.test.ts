@@ -22,24 +22,43 @@ import {
 } from '@shared/shards/member-analysis'
 import MemberAnalysis from './MemberAnalysis.vue'
 
+// Keep decorative icon-barrel initialization outside lifecycle assertions.
+vi.mock('@vicons/carbon', () => ({ Close: () => null, ErrorFilled: () => null }))
+
 const fixture = vi.hoisted(() => ({
   mounts: 0,
   unmounts: 0,
   alertMounts: 0,
   reload: vi.fn(),
-  startRefresh: vi.fn()
+  startRefresh: vi.fn(),
+  routeSection: 'roles',
+  routerReplace: vi.fn()
 }))
 vi.mock('@renderer-shared/shards', () => ({ useInstance: () => fixture }))
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ params: { section: 'roles' } }),
-  useRouter: () => ({ replace: vi.fn() })
+  useRoute: () => ({ params: { section: fixture.routeSection } }),
+  useRouter: () => ({ replace: fixture.routerReplace })
 }))
-vi.mock('./MemberAnalysisHeader.vue', () => ({ default: () => null }))
-vi.mock('./MemberAnalysisFilters.vue', () => ({ default: () => null }))
+vi.mock('./MemberAnalysisHeader.vue', () => ({
+  default: (_props: unknown, { slots }: any) => h('analysis-header-probe', slots.filters?.())
+}))
+vi.mock('./MemberAnalysisFilters.vue', () => ({
+  default: {
+    props: { disabled: Boolean, embedded: Boolean },
+    setup: (props: { disabled: boolean; embedded: boolean }) => () =>
+      h('global-analysis-filters', { disabled: props.disabled, embedded: props.embedded })
+  }
+}))
 vi.mock('./MemberAnalysisSettingsDrawer.vue', () => ({ default: () => null }))
+// This synthetic host has no DOM geometry/observers. The native rail observer
+// has its own focused lifecycle tests; keep this suite on shell reading state.
+vi.mock('./table-scrollbar-inset', () => ({
+  observeTableScrollbarInsets: () => () => {}
+}))
 vi.mock('./MemberRoleView.vue', () => ({
   default: {
-    setup() {
+    props: { active: Boolean },
+    setup(props: { active: boolean }) {
       fixture.mounts++
       const choice = ref('initial')
       onBeforeUnmount(() => fixture.unmounts++)
@@ -48,6 +67,7 @@ vi.mock('./MemberRoleView.vue', () => ({
           'button',
           {
             'data-probe': true,
+            'data-role-active': props.active,
             onClick: () => {
               choice.value = 'sorted-selected-expanded'
             }
@@ -66,6 +86,13 @@ vi.mock('./opponent-ranks/OpponentRanksView.vue', () => ({ default: () => null }
 vi.mock('./CombinationView.vue', () => ({ default: () => null }))
 vi.mock('./ScatterView.vue', () => ({ default: () => null }))
 vi.mock('./prediction', () => ({ WinPrediction: () => null }))
+vi.mock('./version-trend/VersionTrendPanel.vue', () => ({
+  default: (props: { active: boolean }) => h('version-trend-probe', { active: props.active })
+}))
+vi.mock('./lp-trend/LpTrendView.vue', () => ({
+  default: (props: { active: boolean }) =>
+    h('lp-trend-probe', { active: props.active }, 'Synthetic own history empty state')
+}))
 vi.mock('naive-ui', () => {
   const stub =
     (kind: string) =>
@@ -154,11 +181,31 @@ MemberAnalysis.render = new Function(
   }).code
 )(Vue)
 
-function harness(count = 1) {
+function harness(
+  count = 1,
+  options: {
+    section?: string
+    lpEnabled?: boolean
+    versionEnabled?: boolean
+    initialized?: boolean
+    enabled?: boolean
+    noOverview?: boolean
+  } = {}
+) {
   setActivePinia(createPinia())
   const store = useMemberAnalysisStore()
-  store.loading = false
-  store.settings = { enabled: true, members: [] } as any
+  store.loading = options.initialized === false
+  store.settings =
+    options.initialized === false
+      ? null
+      : ({
+          enabled: options.enabled ?? true,
+          members: [],
+          experimentalLpTrendEnabled: options.lpEnabled ?? false,
+          experimentalVersionTrendEnabled: options.versionEnabled ?? false
+        } as any)
+  fixture.routeSection = options.section ?? 'roles'
+  fixture.routerReplace.mockReset()
   store.overview = {
     contractVersion: MEMBER_ANALYSIS_CONTRACT_VERSION,
     dataVersion: MEMBER_ANALYSIS_DATA_VERSION,
@@ -185,6 +232,7 @@ function harness(count = 1) {
       : []
   }
   fixture.mounts = fixture.unmounts = fixture.alertMounts = 0
+  if (options.noOverview) store.overview = null
   fixture.reload.mockReset()
   fixture.startRefresh.mockReset()
   const renderer = createRenderer<HostNode, HostNode>({
@@ -232,12 +280,251 @@ const notices = (host: ReturnType<typeof harness>) =>
     .filter(
       (n) =>
         n.props.role === 'status' &&
+        !n.props.class?.includes('member-analysis-success') &&
         descendants(n).some((child) => child.props['aria-label'] === '关闭提示')
     )
 const closeNotice = (notice: HostNode) =>
   descendants(notice).find((n) => n.props['aria-label'] === '关闭提示')!.props.onClick
 
 describe('published analysis background reload lifecycle', () => {
+  test('primary navigation exposes one tab stop and keyboard activation with focus restoration', async () => {
+    const host = harness()
+    try {
+      await nextTick()
+      const focus = vi.fn(),
+        scrollIntoView = vi.fn()
+      const panels = host.all().find((n) => n.props.class === 'member-analysis-ready')!
+      Object.assign(panels, { querySelector: () => ({ focus, scrollIntoView }) })
+      const panes = () => host.all().filter((n) => n.props.kind === 'NTabPane')
+      const tab = (name: string) => {
+        const pane = panes().find((n) => n.props.name === name)!
+        return pane.props.tabProps ?? pane.props['tab-props']
+      }
+      const press = async (name: string, key: string) => {
+        const preventDefault = vi.fn()
+        tab(name).onKeydown({ key, preventDefault })
+        await nextTick()
+        await nextTick()
+        expect(preventDefault).toHaveBeenCalledOnce()
+      }
+      expect(tab('roles')).toMatchObject({ role: 'tab', tabindex: 0, 'aria-selected': true })
+      expect(tab('champions').tabindex).toBe(-1)
+      await press('roles', 'ArrowRight')
+      expect(tab('champions').tabindex).toBe(0)
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+      expect(scrollIntoView).not.toHaveBeenCalled()
+      await press('champions', 'End')
+      expect(tab('matches').tabindex).toBe(0)
+      await press('matches', 'Home')
+      expect(tab('roles').tabindex).toBe(0)
+      await press('roles', 'ArrowLeft')
+      expect(tab('matches').tabindex).toBe(0)
+      await press('matches', ' ')
+      await press('matches', 'Enter')
+      expect(tab('matches')['aria-selected']).toBe(true)
+    } finally {
+      host.dispose()
+    }
+  })
+  test('restores independent page scroll positions after rendering and rapid tab changes', async () => {
+    const host = harness()
+    try {
+      await nextTick()
+      const owner = host.all().find((n) => n.props.class === 'member-analysis-scroll')!
+      const switchTab = (section: string) =>
+        host
+          .all()
+          .find((n) => n.props.kind === 'NTabs')!
+          .props['onUpdate:value'](section)
+      owner.scrollTop = 1240
+      owner.props.onScroll()
+      switchTab('champions')
+      // Simulate the browser clamping shared scrollTop for a shorter pane.
+      owner.scrollTop = 0
+      await nextTick()
+      await nextTick()
+      expect(owner.scrollTop).toBe(0)
+      owner.scrollTop = 320
+      owner.props.onScroll()
+      switchTab('roles')
+      await nextTick()
+      await nextTick()
+      expect(owner.scrollTop).toBe(1240)
+      switchTab('champions')
+      switchTab('roles')
+      await nextTick()
+      await nextTick()
+      expect(owner.scrollTop).toBe(1240)
+      switchTab('champions')
+      await nextTick()
+      await nextTick()
+      expect(owner.scrollTop).toBe(320)
+    } finally {
+      host.dispose()
+    }
+  })
+
+  test('waits for the layout frame and ignores clamped intermediate scroll events across rapid switches', async () => {
+    const frames = new Map<number, FrameRequestCallback>()
+    let sequence = 0
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      frames.set(++sequence, callback)
+      return sequence
+    })
+    vi.stubGlobal('cancelAnimationFrame', (id: number) => frames.delete(id))
+    const frame = () => {
+      const pending = [...frames.values()]
+      frames.clear()
+      pending.forEach((callback) => callback(0))
+    }
+    const host = harness()
+    try {
+      await nextTick()
+      const owner = host.all().find((n) => n.props.class === 'member-analysis-scroll')!
+      const style = { overflowAnchor: 'auto' }
+      Object.assign(owner, { style })
+      const switchTab = (section: string) =>
+        host
+          .all()
+          .find((n) => n.props.kind === 'NTabs')!
+          .props['onUpdate:value'](section)
+      owner.scrollTop = 1240
+      owner.props.onScroll()
+      switchTab('champions')
+      owner.scrollTop = 0
+      owner.props.onScroll()
+      await nextTick()
+      expect(style.overflowAnchor).toBe('none')
+      frame()
+      frame()
+      expect(style.overflowAnchor).toBe('auto')
+      owner.scrollTop = 320
+      owner.props.onScroll()
+      switchTab('roles')
+      await nextTick()
+      // The child pane's layout is not ready at nextTick: the browser has
+      // clamped to the outgoing short extent. Restore on the rendering frame.
+      owner.scrollTop = 100
+      owner.props.onScroll()
+      expect(owner.scrollTop).toBe(100)
+      frame()
+      expect(owner.scrollTop).toBe(1240)
+      switchTab('champions')
+      switchTab('roles')
+      owner.scrollTop = 0
+      owner.props.onScroll()
+      await nextTick()
+      frame()
+      frame()
+      expect(owner.scrollTop).toBe(1240)
+      expect(style.overflowAnchor).toBe('auto')
+      switchTab('champions')
+      await nextTick()
+      frame()
+      frame()
+      expect(owner.scrollTop).toBe(320)
+    } finally {
+      host.dispose()
+      expect(frames.size).toBe(0)
+      vi.unstubAllGlobals()
+    }
+  })
+
+  test('opens the independent LP pane without an overview and never instantiates legacy result panes', async () => {
+    const host = harness(0, { section: 'lp-trend', lpEnabled: true, noOverview: true })
+    try {
+      await nextTick()
+      expect(host.all().find((n) => n.type === 'lp-trend-probe')?.props.active).toBe(true)
+      expect(fixture.mounts).toBe(0)
+      expect(host.all().some((n) => n.props.title === '尚未生成分析数据')).toBe(false)
+      expect(fixture.routerReplace).not.toHaveBeenCalled()
+    } finally {
+      host.dispose()
+    }
+  })
+
+  test('keeps legacy empty, loading and error states protected while the LP tab is enabled', async () => {
+    const host = harness(0, { lpEnabled: true, noOverview: true })
+    try {
+      expect(host.all().some((n) => n.props.title === '尚未生成分析数据')).toBe(true)
+      expect(fixture.mounts).toBe(0)
+      host.store.loading = true
+      await nextTick()
+      expect(host.all().some((n) => n.props.kind === 'NSpin')).toBe(true)
+      expect(fixture.mounts).toBe(0)
+      host.store.loading = false
+      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic', retryable: true }
+      await nextTick()
+      expect(host.all().some((n) => n.props.title === '成员分析暂时不可用')).toBe(true)
+      expect(fixture.mounts).toBe(0)
+    } finally {
+      host.dispose()
+    }
+  })
+
+  test.each([{ initialized: false }, { enabled: false }])(
+    'retains the initialization/disabled boundary for an LP deep link: %j',
+    async (options) => {
+      const host = harness(0, {
+        ...options,
+        section: 'lp-trend',
+        lpEnabled: true,
+        noOverview: true
+      })
+      try {
+        expect(host.all().some((n) => n.type === 'lp-trend-probe')).toBe(false)
+        expect(fixture.mounts).toBe(0)
+        expect(
+          host
+            .all()
+            .some((n) =>
+              options.initialized === false
+                ? n.props.kind === 'NSpin'
+                : n.props.title === '成员分析已关闭'
+            )
+        ).toBe(true)
+        expect(fixture.routerReplace).not.toHaveBeenCalled()
+      } finally {
+        host.dispose()
+      }
+    }
+  )
+
+  test('closing the current LP experiment keeps the route and displays a closed state; enabling does not navigate', async () => {
+    const host = harness(0, { section: 'lp-trend', lpEnabled: true, noOverview: true })
+    try {
+      host.store.settings!.experimentalLpTrendEnabled = false
+      await nextTick()
+      expect(host.all().some((n) => n.props.description === '段位变化已关闭')).toBe(true)
+      expect(host.all().some((n) => n.type === 'lp-trend-probe')).toBe(false)
+      expect(fixture.routerReplace).not.toHaveBeenCalled()
+      host.store.settings!.experimentalLpTrendEnabled = true
+      await nextTick()
+      expect(host.all().find((n) => n.type === 'lp-trend-probe')?.props.active).toBe(true)
+      expect(fixture.routerReplace).not.toHaveBeenCalled()
+    } finally {
+      host.dispose()
+    }
+  })
+
+  test('enabling LP preserves an already-ready legacy component and its local reading state', async () => {
+    const host = harness()
+    try {
+      const probe = host.all().find((n) => n.props['data-probe'])!
+      probe.props.onClick()
+      host.store.settings!.experimentalLpTrendEnabled = true
+      await nextTick()
+      expect(host.all().find((n) => n.props['data-probe'])).toBe(probe)
+      expect(probe.text).toBe('sorted-selected-expanded')
+      expect(fixture.mounts).toBe(1)
+      expect(fixture.unmounts).toBe(0)
+      expect(fixture.routerReplace).not.toHaveBeenCalled()
+      expect(host.all().find((n) => n.type === 'lp-trend-probe')?.props.active).toBe(false)
+    } finally {
+      host.dispose()
+    }
+  })
+
   test('job retry uses collection refresh with the same availability guards, not an overview read', async () => {
     const host = harness()
     try {
@@ -507,6 +794,57 @@ describe('published analysis background reload lifecycle', () => {
     }
   })
 
+  test('dismisses only the current success notice and revives it only for a new publication', async () => {
+    const host = harness()
+    const success = () => host.all().find((n) => n.props.class?.includes('member-analysis-success'))
+    try {
+      host.store.overview = { ...host.store.overview!, generatedAt: '2026-10-13T01:00:00Z' }
+      await nextTick()
+      expect(success()).toBeTruthy()
+      const firstClose = closeNotice(success()!)
+      const overview = host.store.overview
+      firstClose()
+      await nextTick()
+      expect(success()).toBeUndefined()
+      expect(host.store.overview).toBe(overview)
+      expect(host.store.error).toBeNull()
+      expect(host.store.job).toBeNull()
+      // A settings reread of the same timestamp/counts/source is not new data.
+      host.store.loading = true
+      await nextTick()
+      host.store.overview = { ...host.store.overview! }
+      host.store.loading = false
+      await nextTick()
+      expect(success()).toBeUndefined()
+      // Identical timestamp alone is not the identity: changed publication counts
+      // create a new notice, and an old close callback must not dismiss it.
+      host.store.overview = {
+        ...host.store.overview!,
+        playerCount: host.store.overview!.playerCount + 1
+      }
+      await nextTick()
+      expect(success()).toBeTruthy()
+      firstClose()
+      await nextTick()
+      expect(success()).toBeTruthy()
+      closeNotice(success()!)()
+      await nextTick()
+      expect(success()).toBeUndefined()
+      host.store.loading = true
+      await nextTick()
+      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic failure', retryable: true }
+      host.store.loading = false
+      await nextTick()
+      expect(success()).toBeUndefined()
+      expect(notices(host)).toHaveLength(1)
+      expect(host.store.error?.code).toBe('INTERNAL_ERROR')
+      expect(fixture.reload).not.toHaveBeenCalled()
+      expect(fixture.startRefresh).not.toHaveBeenCalled()
+    } finally {
+      host.dispose()
+    }
+  })
+
   test('does not imply a new publication when re-reading the same overview generation', async () => {
     const host = harness()
     try {
@@ -589,4 +927,98 @@ describe('published analysis background reload lifecycle', () => {
       host.dispose()
     }
   })
+})
+
+test('version experiment has its own empty-state entry and closing does not navigate', async () => {
+  const host = harness(0, { section: 'version-trend', versionEnabled: true, noOverview: true })
+  try {
+    await nextTick()
+    expect(host.all().some((n) => n.type === 'version-trend-probe')).toBe(true)
+    expect(fixture.mounts).toBe(0)
+    host.store.settings!.experimentalVersionTrendEnabled = false
+    await nextTick()
+    expect(host.all().some((n) => n.type === 'version-trend-probe')).toBe(false)
+    expect(fixture.routerReplace).not.toHaveBeenCalled()
+    host.store.settings!.experimentalVersionTrendEnabled = true
+    await nextTick()
+    expect(host.all().some((n) => n.type === 'version-trend-probe')).toBe(true)
+    expect(fixture.routerReplace).not.toHaveBeenCalled()
+  } finally {
+    host.dispose()
+  }
+})
+test.each([{ initialized: false }, { enabled: false }])(
+  'version deep link respects initial/disabled boundary %j',
+  async (options) => {
+    const host = harness(0, {
+      ...options,
+      section: 'version-trend',
+      versionEnabled: true,
+      noOverview: true
+    })
+    try {
+      await nextTick()
+      expect(host.all().some((n) => n.type === 'version-trend-probe')).toBe(false)
+    } finally {
+      host.dispose()
+    }
+  }
+)
+
+test.each(['lp-trend', 'version-trend'])(
+  'independent trends preserve global match controls but truly disable them: %s',
+  async (section) => {
+    const host = harness(0, { section, lpEnabled: true, versionEnabled: true, noOverview: true })
+    try {
+      await nextTick()
+      expect(host.all().find((n) => n.type === 'global-analysis-filters')?.props.disabled).toBe(
+        true
+      )
+      expect(fixture.routerReplace).not.toHaveBeenCalled()
+    } finally {
+      host.dispose()
+    }
+  }
+)
+
+test('global source/context explanation is removed while overview metadata and controls remain', async () => {
+  const host = harness()
+  try {
+    await nextTick()
+    expect(host.all().some((n) => n.props['aria-label'] === '当前分析范围')).toBe(false)
+    expect(host.all().some((n) => n.type === 'global-analysis-filters')).toBe(true)
+    expect(host.store.overview?.source).toBe('Synthetic')
+  } finally {
+    host.dispose()
+  }
+})
+
+test('the one global filter set is inside the top header instead of an independent scroll row', async () => {
+  const host = harness()
+  try {
+    await nextTick()
+    const filters = host.all().filter((n) => n.type === 'global-analysis-filters')
+    expect(filters).toHaveLength(1)
+    expect(filters[0].props.embedded).toBe(true)
+    expect(filters[0].parent?.type).toBe('analysis-header-probe')
+  } finally {
+    host.dispose()
+  }
+})
+
+test('roles receives explicit false active state after leaving its lazy pane', async () => {
+  const host = harness()
+  try {
+    await nextTick()
+    expect(host.all().find((n) => n.props['data-probe'])?.props['data-role-active']).toBe(true)
+    host
+      .all()
+      .find((n) => n.props.kind === 'NTabs')!
+      .props['onUpdate:value']('matches')
+    await nextTick()
+    expect(host.all().find((n) => n.props['data-probe'])?.props['data-role-active']).toBe(false)
+    expect(fixture.mounts).toBe(1)
+  } finally {
+    host.dispose()
+  }
 })

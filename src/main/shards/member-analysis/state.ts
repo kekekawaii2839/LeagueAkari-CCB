@@ -10,6 +10,8 @@ export class MemberAnalysisSettingsState {
   storageLimitGiB = 10
   opggEnabled = false
   experimentalPredictionEnabled = false
+  experimentalLpTrendEnabled = false
+  experimentalVersionTrendEnabled = false
 
   constructor() {
     makeAutoObservable(this)

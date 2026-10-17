@@ -22,6 +22,13 @@ const renderer = vi.hoisted(() => ({
   activeTab: ''
 }))
 
+// Decorative icon barrels are outside this shell-layout test boundary.
+vi.mock('@vicons/carbon', () => ({ Close: () => null, ErrorFilled: () => null }))
+vi.mock('./MetricHelp.vue', () => ({ default: () => null }))
+// Match the LP view's focused harness: decorative icon barrels are outside
+// shell SSR assertions; real panes, Chart components and original checks stay live.
+vi.mock('@vicons/material', () => ({ RefreshRound: () => null, CloseRound: () => null }))
+
 vi.mock('@renderer-shared/shards', () => ({
   useInstance: () => renderer
 }))
@@ -32,7 +39,9 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ replace: renderer.replace })
 }))
 
-vi.mock('./MemberAnalysisHeader.vue', () => ({ default: { setup: () => () => null } }))
+vi.mock('./MemberAnalysisHeader.vue', () => ({
+  default: (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.filters?.()
+}))
 vi.mock('./MemberAnalysisFilters.vue', () => ({
   default: defineComponent({
     props: { disabled: Boolean },
@@ -59,6 +68,8 @@ vi.mock('naive-ui', () => {
     NAlert: Stub,
     NIcon: Stub,
     NButton: Stub,
+    NInputNumber: Stub,
+    NCheckbox: Stub,
     NPagination: Stub,
     useThemeVars: () => ref({ fontFamily: 'system-ui', primaryColor: '#587c66' }),
     useMessage: () => ({ error: vi.fn() }),
@@ -75,8 +86,9 @@ vi.mock('naive-ui', () => {
     NStatistic: Stub,
     NSwitch: Stub,
     NTabPane: Stub,
+    NTab: Stub,
     NTabs: (props: Record<string, unknown>, context: { slots: Record<string, Function> }) => {
-      renderer.activeTab = String(props.value)
+      if (props.type === 'line') renderer.activeTab = String(props.value)
       return Stub(props, context)
     }
   }
@@ -172,11 +184,11 @@ describe('member analysis native page', () => {
 
   test('keeps detailed metrics and gank evidence available alongside the comparison', async () => {
     const html = await renderState('ready')
-    expect(html).toContain('15 分钟经济差')
-    expect(html).toContain('完整指标与事件明细')
+    expect(html).toContain('金币')
+    expect(html).toContain('aria-label="完整指标"')
     expect(html).toContain('蓝红方拆分')
     expect(html).toContain('被抓统计')
-    expect(html).not.toContain('aria-label="五排阵容胜率预测"')
+    expect(html).not.toContain('aria-label="五排阵容娱乐预测"')
     expect(html).not.toContain('预测方位')
     expect(html).toContain('对局列表')
     expect(html).not.toContain('逐场对手快照')
@@ -196,7 +208,7 @@ describe('member analysis native page', () => {
       renderer.route.params.section = 'prediction'
       const html = await renderState('ready', undefined, enabled)
       expect(renderer.activeTab).toBe('roles')
-      expect(html).not.toContain('aria-label="五排阵容胜率预测"')
+      expect(html).not.toContain('aria-label="五排阵容娱乐预测"')
       expect(renderer.replace).toHaveBeenCalledWith({
         name: 'member-analysis',
         params: { section: 'roles' }
@@ -208,7 +220,7 @@ describe('member analysis native page', () => {
     renderer.route.params.section = 'prediction'
     const html = await renderState('ready', undefined, true)
     expect(renderer.activeTab).toBe('prediction')
-    expect(html.match(/aria-label="五排阵容胜率预测"/g)).toHaveLength(1)
+    expect(html.match(/aria-label="五排阵容娱乐预测"/g)).toHaveLength(1)
     expect(html).toContain('预测方位')
     expect(renderer.replace).not.toHaveBeenCalled()
   })
@@ -218,7 +230,7 @@ describe('member analysis native page', () => {
     const html = await renderState('ready')
     expect(renderer.activeTab).toBe('opponent-ranks')
     expect(renderer.replace).not.toHaveBeenCalled()
-    expect(html).toContain('查询时段位（非比赛当时）')
+    expect(html).toContain('aria-label="当前选中分组"')
   })
 
   test.each(['pairs', 'synergy'])(
@@ -235,22 +247,18 @@ describe('member analysis native page', () => {
           ? '按分路搭配统计；样本不一定等于二人全部共同出场。'
           : '二人全部共同出场，与各自全部出场的个人基线比较。'
       )
-      expect(html).toContain('aria-label="当前分析范围"')
     }
   )
 
   test.each(['roles', 'prediction', 'matches', 'opponent-ranks'])(
-    'preserves the toolbar and range on %s',
+    'preserves the single header toolbar on %s',
     async (section) => {
       renderer.route.params.section = section
       const html = await renderState('ready', undefined, section === 'prediction')
       const filter = html.match(/<input[^>]*aria-label="复盘筛选测试入口"[^>]*>/)?.[0]
       expect(filter).toBeDefined()
       expect(/\bdisabled(?:=|\s|>)/.test(filter!)).toBe(section === 'prediction')
-      expect(html).toContain('aria-label="当前分析范围"')
-      expect(html).toContain('复盘范围 0 场')
-      if (section === 'prediction') expect(html).toContain('顶部复盘筛选及范围不用于预测')
-      else expect(html).not.toContain('顶部复盘筛选及范围不用于预测')
+      expect(html.match(/aria-label="复盘筛选测试入口"/g)).toHaveLength(1)
     }
   )
 
@@ -268,4 +276,11 @@ describe('member analysis native page', () => {
     expect(html).toContain(`data-theme=\"${mode}\"`)
     expect(html).toContain(`data-theme-id=\"${id}\"`)
   })
+})
+
+test('exposes only the current primary section for feature-local layout scoping', async () => {
+  renderer.route.params.section = 'scatter'
+  expect(await renderState('ready')).toContain('data-active-section="scatter"')
+  renderer.route.params.section = 'roles'
+  expect(await renderState('ready')).toContain('data-active-section="roles"')
 })

@@ -1,4 +1,4 @@
-import { runAdaptiveWinPrediction } from './adaptive'
+import { runEntertainmentPrediction } from './adaptive'
 import { type PredictionObservation, type TeamLineup } from './model'
 import type { PredictionSide } from './side-history'
 
@@ -16,7 +16,7 @@ const scope = self as unknown as {
 }
 scope.onmessage = ({ data }) => {
   try {
-    const result = runAdaptiveWinPrediction(
+    const result = runEntertainmentPrediction(
       data.observations,
       data.lineup,
       (done) => scope.postMessage({ type: 'progress', done }),
@@ -26,7 +26,17 @@ scope.onmessage = ({ data }) => {
   } catch {
     scope.postMessage({
       type: 'done',
-      result: { status: 'unavailable', reason: '本地计算失败，请重试或扩大有效历史范围。' }
+      result: {
+        status: 'unavailable',
+        kind: 'entertainment',
+        modelId: 'entertainment-role-profile-v2',
+        calibrated: false,
+        reason: 'calculation-failed',
+        side: ['all', 'Blue', 'Red'].includes(data?.side ?? 'all') ? (data?.side ?? 'all') : 'all',
+        referenceGames: 0,
+        referenceObservations: 0,
+        excludedGames: 0
+      }
     })
   }
 }

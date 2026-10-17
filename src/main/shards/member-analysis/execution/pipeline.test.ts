@@ -1,9 +1,10 @@
-﻿import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
+import { OpponentRankRepository } from '../opponent-ranks/repository'
 import { MemberAnalysisRepository } from '../repository'
 import { MemberAnalysisPipeline } from './pipeline'
 
@@ -49,7 +50,10 @@ describe('member analysis refresh pipeline', () => {
         }
       )
     }
-    const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }
+    const repository = {
+      writeJobManifest: vi.fn(() => ({})),
+      publishStagingAsync: vi.fn(async () => {})
+    }
     const worker = {
       available: true,
       run: vi.fn(async () => ({ type: 'result', status: 'failed' }))
@@ -73,11 +77,14 @@ describe('member analysis refresh pipeline', () => {
         expect(collecting[index].progress).toBeGreaterThanOrEqual(collecting[index - 1].progress)
     })
     expect(collecting[2].message).toBe('opponent-ranks 1/10')
-    expect(repository.publishStaging).not.toHaveBeenCalled()
+    expect(repository.publishStagingAsync).not.toHaveBeenCalled()
   })
   test('does not publish an unsuccessful worker result or expose raw failure details', async () => {
     const collector = { collect: vi.fn(async () => ({ items: [], memberErrors: 0 })) }
-    const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }
+    const repository = {
+      writeJobManifest: vi.fn(() => ({})),
+      publishStagingAsync: vi.fn(async () => {})
+    }
     const worker = {
       available: true,
       run: vi.fn(async () => ({ type: 'result', status: 'failed', message: 'private path' }))
@@ -90,7 +97,7 @@ describe('member analysis refresh pipeline', () => {
     )
     pipeline.start()
     await waitFor(() => pipeline.get()?.status === 'failed')
-    expect(repository.publishStaging).not.toHaveBeenCalled()
+    expect(repository.publishStagingAsync).not.toHaveBeenCalled()
     expect(JSON.stringify(pipeline.get())).not.toContain('private path')
   })
 
@@ -105,7 +112,7 @@ describe('member analysis refresh pipeline', () => {
           })
       )
     }
-    const repository = { writeJobManifest: vi.fn(), publishStaging: vi.fn() }
+    const repository = { writeJobManifest: vi.fn(), publishStagingAsync: vi.fn(async () => {}) }
     const worker = { available: true, dispose: vi.fn(async () => {}) }
     const pipeline = new MemberAnalysisPipeline(
       collector as any,
@@ -125,7 +132,7 @@ describe('member analysis refresh pipeline', () => {
     rejectCollection(new Error('cancelled'))
     await dispose
     expect(pipeline.get()?.status).toBe('cancelled')
-    expect(repository.publishStaging).not.toHaveBeenCalled()
+    expect(repository.publishStagingAsync).not.toHaveBeenCalled()
   })
   test('rebuilds derivation when raw matches are cached so settings changes cannot leave stale games', async () => {
     const repository = createRepository()
@@ -283,7 +290,10 @@ describe('member analysis refresh pipeline', () => {
 
 test('required summary failure is safe, never publishes, and does not leak into the next job', async () => {
   const collector = { collect: vi.fn(async () => ({ items: [], memberErrors: 0 })) }
-  const repository = { writeJobManifest: vi.fn(() => ({})), publishStaging: vi.fn() }
+  const repository = {
+    writeJobManifest: vi.fn(() => ({})),
+    publishStagingAsync: vi.fn(async () => {})
+  }
   let attempt = 0
   const worker = {
     available: true,
@@ -313,12 +323,108 @@ test('required summary failure is safe, never publishes, and does not leak into 
     code: 'SUMMARY_STAT_UNAVAILABLE',
     message: 'Required match summary statistics unavailable'
   })
-  expect(repository.publishStaging).not.toHaveBeenCalled()
+  expect(repository.publishStagingAsync).not.toHaveBeenCalled()
   pipeline.start()
   await waitFor(() => pipeline.get()?.status === 'failed')
   expect(pipeline.get()?.error).toEqual({
     code: 'PIPELINE_FAILED',
     message: 'Member analysis refresh failed'
   })
-  expect(repository.publishStaging).not.toHaveBeenCalled()
+  expect(repository.publishStagingAsync).not.toHaveBeenCalled()
+})
+
+vi.mock('../opponent-ranks/rank-publication-executor', () => ({
+  executeRankPublication: async (request: {
+    path: string
+    publicationId: string
+    games: Parameters<OpponentRankRepository['publishGames']>[0]
+  }) => {
+    const ranks = new OpponentRankRepository(request.path)
+    ranks.openExisting()
+    try {
+      ranks.publishGames(request.games, request.publicationId)
+    } finally {
+      ranks.close()
+    }
+  }
+}))
+
+test('identity verification remains cancellable and drains before a cancelled job finishes', async () => {
+  let entered = false,
+    drained = false
+  const repository = {
+    dataRoot: 'SYNTHETIC',
+    writeJobManifest: () => ({}),
+    publishStagingAsync: vi.fn(
+      async (_r: unknown, options: { signal: AbortSignal; onCommit: () => void }) => {
+        entered = true
+        await new Promise<void>((resolve) =>
+          options.signal.addEventListener(
+            'abort',
+            () =>
+              setTimeout(() => {
+                drained = true
+                resolve()
+              }, 5),
+            { once: true }
+          )
+        )
+        options.signal.throwIfAborted()
+      }
+    )
+  }
+  const worker = {
+    available: true,
+    run: async () => ({ type: 'result', status: 'completed' }),
+    cancel: vi.fn(),
+    dispose: async () => {}
+  }
+  const pipeline = new MemberAnalysisPipeline(
+    { collect: async () => ({ items: [], memberErrors: 0 }) } as any,
+    repository as any,
+    worker as any,
+    settings
+  )
+  pipeline.start()
+  await waitFor(() => entered)
+  expect(pipeline.get()?.status).toBe('analyzing')
+  pipeline.cancel()
+  expect(pipeline.get()?.status).not.toBe('cancelled')
+  await waitFor(() => pipeline.get()?.status === 'cancelled')
+  expect(drained).toBe(true)
+})
+
+test('successful verification enters non-cancellable commit only via onCommit', async () => {
+  let pipeline: MemberAnalysisPipeline
+  let entered = false
+  const repository = {
+    dataRoot: 'SYNTHETIC',
+    writeJobManifest: () => ({}),
+    publishStagingAsync: vi.fn(
+      async (_r: unknown, options: { signal: AbortSignal; onCommit: () => void }) => {
+        expect(pipeline.get()?.status).toBe('analyzing')
+        options.onCommit()
+        entered = true
+        expect(pipeline.get()?.status).toBe('publishing')
+        pipeline.cancel()
+        expect(options.signal.aborted).toBe(false)
+      }
+    )
+  }
+  const worker = {
+    available: true,
+    run: async () => ({ type: 'result', status: 'completed' }),
+    cancel: vi.fn(),
+    dispose: async () => {}
+  }
+  pipeline = new MemberAnalysisPipeline(
+    { collect: async () => ({ items: [], memberErrors: 0 }) } as any,
+    repository as any,
+    worker as any,
+    settings
+  )
+  pipeline.start()
+  await waitFor(() => pipeline.get()?.status === 'completed')
+  expect(entered).toBe(true)
+  expect(worker.cancel).not.toHaveBeenCalled()
 })

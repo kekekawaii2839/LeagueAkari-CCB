@@ -3,11 +3,13 @@ import { describe, expect, test } from 'vitest'
 import {
   type OpponentRanks,
   OpponentRanksSchema,
+  PlayerRankSnapshotSchema,
   normalizeRankedStats,
   opponentRankAverage,
   rankOrder,
   unavailableRank
 } from './opponent-ranks'
+import { MemberAnalysisRankObservationHistoryPageSchema } from './rank-observation-history'
 
 const time = '2026-10-07T12:00:00.000Z'
 function syntheticOpponentRanks(): OpponentRanks {
@@ -37,6 +39,61 @@ function syntheticOpponentRanks(): OpponentRanks {
   }
 }
 describe('current opponent rank contract', () => {
+  test.each([
+    undefined,
+    null,
+    { status: 'conflicted' },
+    {
+      status: 'verified',
+      source: 'sgp-match-summary',
+      scope: 'query-during-verified-match',
+      serverId: 'TEST',
+      gameId: 123,
+      gameVersion: '26.1.2',
+      gameStartTimestamp: Date.parse('2026-10-07T11:59:00.000Z'),
+      gameEndTimestamp: Date.parse('2026-10-07T12:30:00.000Z'),
+      observedAt: '2026-10-07T11:59:30.000Z',
+      verifiedAt: time,
+      sourceFingerprint: 'a'.repeat(64)
+    }
+  ])('reads and discards only the deprecated archive annotation (%j)', (legacy) => {
+    const snapshot = syntheticOpponentRanks().opponents[0].snapshot
+    const input = legacy === undefined ? snapshot : { ...snapshot, versionEvidence: legacy }
+    const parsed = PlayerRankSnapshotSchema.parse(input)
+    expect(parsed).toEqual(snapshot)
+    expect(parsed).not.toHaveProperty('versionEvidence')
+    expect(PlayerRankSnapshotSchema.safeParse({ ...input, otherUnexpectedKey: true }).success).toBe(
+      false
+    )
+    expect(PlayerRankSnapshotSchema.safeParse({ ...input, fetchedAt: null }).success).toBe(false)
+    expect(
+      PlayerRankSnapshotSchema.safeParse({
+        ...input,
+        solo: { status: 'ranked', rank: { tier: 'GOLD', division: 'IV', leaguePoints: NaN } }
+      }).success
+    ).toBe(false)
+  })
+  test('the public history page contains only query-time rank facts, not legacy version annotations', () => {
+    const snapshot = syntheticOpponentRanks().opponents[0].snapshot
+    const page = {
+      memberSlot: 1,
+      serverId: 'TEST',
+      status: 'available',
+      identityResolvedAt: time,
+      queue: 'solo',
+      source: 'SGP leagues-ledge query-time observations',
+      coverage: 'successful-query-observations-only',
+      points: [{ fetchedAt: time, queueRank: snapshot.solo }],
+      pagination: { nextCursor: null }
+    }
+    expect(MemberAnalysisRankObservationHistoryPageSchema.parse(page).points).toEqual(page.points)
+    expect(
+      MemberAnalysisRankObservationHistoryPageSchema.safeParse({
+        ...page,
+        points: [{ ...page.points[0], versionEvidence: null }]
+      }).success
+    ).toBe(false)
+  })
   test('keeps queues, zero LP, missing LP, unranked and provisional distinct', () => {
     const value = syntheticOpponentRanks()
     expect(value.opponents[0].snapshot.solo).toEqual({

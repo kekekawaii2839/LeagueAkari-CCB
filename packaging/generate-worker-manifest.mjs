@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'
 
 const root = resolve(process.argv[2] ?? 'resources/member-analysis/worker')
@@ -11,6 +11,16 @@ function files(directory) {
     return entry.isDirectory() ? files(path) : entry.isFile() ? [path] : []
   })
 }
+
+const provenancePath = resolve(process.argv[4] ?? 'resources/member-analysis/build-provenance.json')
+const provenance = JSON.parse(readFileSync(provenancePath, 'utf8'))
+if (
+  !/^3\.12\.\d+$/.test(provenance.toolchain?.python ?? '') ||
+  provenance.toolchain?.packages?.pyinstaller !== '6.16.0' ||
+  !Array.isArray(provenance.sources) ||
+  provenance.sources.length !== 6
+)
+  throw new Error('Invalid worker build provenance')
 
 const entries = files(root)
   .sort()
@@ -26,8 +36,13 @@ writeFileSync(
     {
       schemaVersion: 1,
       platform: 'win32-x64',
-      python: '3.12.13',
-      pyinstaller: '6.16.0',
+      python: provenance.toolchain.python,
+      pyinstaller: provenance.toolchain.packages.pyinstaller,
+      buildProvenanceSHA256: createHash('sha256')
+        .update(readFileSync(provenancePath))
+        .digest('hex'),
+      sourceWitnesses: provenance.sources,
+      requirementsLockSHA256: provenance.requirementsLockSHA256,
       entrypoint: 'worker/member-analysis-worker.exe',
       files: entries
     },

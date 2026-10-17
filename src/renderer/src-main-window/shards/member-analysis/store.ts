@@ -12,6 +12,8 @@ import type { PerformanceMetric } from '@shared/shards/member-analysis/performan
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 
+import { resolveMemberProfileIcons } from './member-profile-icons'
+
 export type MemberAnalysisViewState =
   'feature-disabled' | 'first-run' | 'loading' | 'empty' | 'error' | 'ready'
 
@@ -59,6 +61,7 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
   const capabilities = ref<MemberAnalysisCapabilities | null>(null)
   const settings = ref<MemberAnalysisSettings | null>(null)
   const overview = ref<MemberAnalysisOverview | null>(null)
+  const memberProfileIcons = computed(() => resolveMemberProfileIcons(overview.value))
   const overviewGeneration = ref(0)
   const error = ref<MemberAnalysisError | null>(null)
   const settingsDrawerVisible = ref(false)
@@ -195,6 +198,7 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
     settings,
     overview,
     overviewGeneration,
+    memberProfileIcons,
     error,
     settingsDrawerVisible,
     settingsFocus,

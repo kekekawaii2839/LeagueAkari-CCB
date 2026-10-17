@@ -1,5 +1,10 @@
 <template>
-  <main class="member-analysis-page" aria-labelledby="member-analysis-title">
+  <main
+    ref="pageRoot"
+    class="member-analysis-page"
+    :data-active-section="activeSection"
+    aria-labelledby="member-analysis-title"
+  >
     <MemberAnalysisHeader
       :generated-at="store.overview?.generatedAt ?? null"
       :loading="store.loading || jobRunning"
@@ -11,33 +16,27 @@
       "
       @refresh="memberAnalysis.startRefresh"
       @settings="openSettings"
-    />
+    >
+      <template #filters>
+        <MemberAnalysisFilters
+          v-if="store.settings?.enabled"
+          :disabled="activeSection === 'prediction' || independentRouteSelected"
+          embedded
+        />
+      </template>
+    </MemberAnalysisHeader>
 
-    <div class="member-analysis-scroll">
-      <MemberAnalysisFilters
-        v-if="store.settings?.enabled"
-        :disabled="activeSection === 'prediction'"
-        :compact="(primarySection === 'pairs' || primarySection === 'jungle') && compactHeight"
-      />
-
+    <div ref="pageScrollOwner" class="member-analysis-scroll" @scroll="rememberPageScroll">
       <p
-        v-if="hasLegacyUnknownMetrics || (store.overview && !audit && store.overview.gameCount > 0)"
+        v-if="
+          !independentRouteSelected &&
+          (hasLegacyUnknownMetrics || (store.overview && !audit && store.overview.gameCount > 0))
+        "
         class="member-analysis-notice"
         role="status"
       >
         {{ uiText(hasLegacyUnknownMetrics ? 'legacyUnknownMetrics' : 'oldData') }}
       </p>
-
-      <section v-if="store.overview" class="member-analysis-context" aria-label="当前分析范围">
-        <span>来源 {{ store.overview.source }}</span>
-
-        <strong>复盘范围 {{ rendererAudit.sample }} 场</strong>
-        <span>固定排除不足 15 分钟对局</span>
-        <span>版本 {{ patchScope }}</span>
-        <span v-if="audit && !(primarySection === 'pairs' && compactHeight)">{{
-          collectionStatus
-        }}</span>
-      </section>
 
       <div v-if="store.job && jobRunning" class="member-analysis-job">
         <NProgress
@@ -137,51 +136,80 @@
             hasPublishedOverview &&
             !store.error &&
             store.job?.status !== 'failed' &&
-            overviewReloaded
+            overviewReloaded &&
+            dismissedOverviewSuccess !== overviewSuccessNotice.key
           "
-          class="member-analysis-notice"
+          class="member-analysis-notice member-analysis-success"
           role="status"
         >
-          {{ uiText('overviewReloaded') }}
+          <span>{{ uiText('overviewReloaded') }}</span>
+          <NButton size="tiny" quaternary aria-label="关闭提示" @click="overviewSuccessNotice.close"
+            ><template #icon
+              ><NIcon><CloseIcon /></NIcon></template
+          ></NButton>
         </p>
-        <div v-if="store.viewState === 'loading'" class="member-analysis-centered">
-          <NSpin size="large" description="正在初始化成员分析" />
-        </div>
+        <template v-if="!independentPageSelected">
+          <div v-if="store.viewState === 'loading'" class="member-analysis-centered">
+            <NSpin size="large" description="正在初始化成员分析" />
+          </div>
 
-        <NResult
-          v-else-if="store.viewState === 'feature-disabled'"
-          status="info"
-          title="成员分析已关闭"
-          description="在设置中重新启用后，才能更新和查看成员分析。"
-        >
-          <template #footer>
-            <NButton type="primary" @click="openSettings()">打开设置</NButton>
-          </template>
-        </NResult>
+          <NResult
+            v-else-if="store.viewState === 'feature-disabled'"
+            status="info"
+            title="成员分析已关闭"
+            description="在设置中重新启用后，才能更新和查看成员分析。"
+          >
+            <template #footer>
+              <NButton type="primary" @click="openSettings()">打开设置</NButton>
+            </template>
+          </NResult>
 
-        <NResult
-          v-else-if="store.viewState === 'first-run'"
-          status="info"
-          title="尚未生成分析数据"
-          :description="uiText('firstRunHelp')"
-        >
-          <template #footer>
-            <NButton type="primary" @click="openSettings('members')">配置成员</NButton>
-          </template>
-        </NResult>
+          <NResult
+            v-else-if="store.viewState === 'first-run'"
+            status="info"
+            title="尚未生成分析数据"
+            :description="uiText('firstRunHelp')"
+          >
+            <template #footer>
+              <NButton type="primary" @click="openSettings('members')">配置成员</NButton>
+            </template>
+          </NResult>
+
+          <NEmpty
+            v-else-if="store.viewState === 'empty'"
+            description="当前筛选范围内没有可显示的对局"
+          />
+
+          <NAlert v-else-if="store.viewState === 'error'" type="error" title="成员分析暂时不可用">
+            {{ unavailableMessage }}
+            <NButton secondary @click="memberAnalysis.reload()">{{ uiText('retry') }}</NButton>
+          </NAlert>
+        </template>
 
         <NEmpty
-          v-else-if="store.viewState === 'empty'"
-          description="当前筛选范围内没有可显示的对局"
-        />
+          v-if="lpPageSelected && store.settings?.experimentalLpTrendEnabled !== true"
+          :description="uiText('lpTrendClosed')"
+        >
+          <template #extra
+            ><NButton secondary @click="openSettings()">{{
+              uiText('openSettings')
+            }}</NButton></template
+          >
+        </NEmpty>
 
-        <NAlert v-else-if="store.viewState === 'error'" type="error" title="成员分析暂时不可用">
-          {{ unavailableMessage }}
-          <NButton secondary @click="memberAnalysis.reload()">{{ uiText('retry') }}</NButton>
-        </NAlert>
+        <NEmpty
+          v-if="versionPageSelected && store.settings?.experimentalVersionTrendEnabled !== true"
+          :description="uiText('versionTrendClosed')"
+        >
+          <template #extra
+            ><NButton secondary @click="openSettings()">{{
+              uiText('openSettings')
+            }}</NButton></template
+          >
+        </NEmpty>
 
         <div
-          v-else
+          v-if="renderAnalysisTabs"
           ref="primaryPanels"
           class="member-analysis-ready"
           @click.capture="primaryMotion.capture"
@@ -192,24 +220,47 @@
               :key="section.key"
               :name="section.key"
               :tab="section.label"
+              :tab-props="primaryTabProps(section.key)"
+              :style="section.key === 'champions' ? { paddingTop: '0' } : undefined"
               display-directive="show:lazy"
             >
-              <div :data-member-pane="section.key" style="min-width: 0">
-                <CombinationView
-                  v-if="section.key === 'pairs'"
-                  :view="combinationSection"
-                  :context-note="collectionStatus"
-                  @update:view="activateCombination"
+              <div
+                :data-member-pane="section.key"
+                :id="`${primaryTabId}-panel-${section.key}`"
+                role="tabpanel"
+                :aria-labelledby="`${primaryTabId}-${section.key}`"
+                style="min-width: 0"
+              >
+                <LpTrendView v-if="section.key === 'lp-trend'" :active="lpPageSelected" />
+                <VersionTrendPanel
+                  v-else-if="section.key === 'version-trend'"
+                  :active="versionPageSelected"
                 />
-                <MatchesView
-                  v-else-if="section.key === 'matches'"
-                  :active="primarySection === 'matches'"
-                />
-                <WinPrediction
-                  v-else-if="section.key === 'prediction'"
-                  :active="primarySection === 'prediction'"
-                />
-                <component v-else :is="section.component" />
+                <template v-else-if="store.viewState === 'ready'">
+                  <CombinationView
+                    v-if="section.key === 'pairs'"
+                    :view="combinationSection"
+                    :context-note="collectionStatus"
+                    @update:view="activateCombination"
+                  />
+                  <MatchesView
+                    v-else-if="section.key === 'matches'"
+                    :active="primarySection === 'matches'"
+                  />
+                  <WinPrediction
+                    v-else-if="section.key === 'prediction'"
+                    :active="primarySection === 'prediction'"
+                  />
+                  <MemberRoleView
+                    v-else-if="section.key === 'roles'"
+                    :active="primarySection === 'roles'"
+                  />
+                  <ScatterView
+                    v-else-if="section.key === 'scatter'"
+                    :active="primarySection === 'scatter'"
+                  />
+                  <component v-else :is="section.component" />
+                </template>
               </div>
             </NTabPane>
           </NTabs>
@@ -250,13 +301,22 @@ import {
   NTabPane,
   NTabs
 } from 'naive-ui'
-import { computed, nextTick, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  ref,
+  useId,
+  watch
+} from 'vue'
+import type { HTMLAttributes } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { selectMemberAnalysisSample } from './analytics'
-import { useMemberAnalysisData } from './useMemberAnalysisData'
 
 import MemberAnalysisFilters from './MemberAnalysisFilters.vue'
 import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
@@ -271,19 +331,31 @@ import MemberRoleView from './MemberRoleView.vue'
 import CombinationView from './CombinationView.vue'
 import ScatterView from './ScatterView.vue'
 import { WinPrediction } from './prediction'
+import LpTrendView from './lp-trend/LpTrendView.vue'
+import VersionTrendPanel from './version-trend/VersionTrendPanel.vue'
 import './member-analysis-visuals.css'
+import './member-analysis-scrollbars.css'
+import { observeTableScrollbarInsets } from './table-scrollbar-inset'
 import { uiText } from './ui-text'
 import { createPrimaryTabMotion } from './primary-tab-motion'
+import { observeNavigationScrollbarInset } from './navigation-scrollbar-inset'
 
 const allSections = [
   { key: 'roles', label: '成员分路', description: '', component: MemberRoleView },
-  { key: 'champions', label: '英雄', description: '', component: ChampionView },
-  { key: 'pairs', label: '组合', description: '', component: CombinationView },
-  { key: 'jungle', label: '打野', description: '', component: JungleView },
+  { key: 'champions', label: '英雄池', description: '', component: ChampionView },
+  { key: 'pairs', label: '组合分析', description: '', component: CombinationView },
+  { key: 'jungle', label: '打野分析', description: '', component: JungleView },
   { key: 'conversion', label: '事件结果', description: '', component: ConversionView },
   { key: 'early', label: '前期与胜负', description: '', component: EarlyConversionView },
   { key: 'scatter', label: '指标对比', description: '', component: ScatterView },
   { key: 'prediction', label: '阵容胜率预测', description: '', component: WinPrediction },
+  {
+    key: 'version-trend',
+    label: uiText('versionTrendTab'),
+    description: '',
+    component: VersionTrendPanel
+  },
+  { key: 'lp-trend', label: uiText('lpTrendTab'), description: '', component: LpTrendView },
   {
     key: 'opponent-ranks',
     label: uiText('rankTabTitle'),
@@ -294,20 +366,23 @@ const allSections = [
 ] as const
 
 const store = useMemberAnalysisStore()
-const { selection: analysisSelection } = useMemberAnalysisData()
 const sections = computed(() =>
   allSections.filter(
     (section) =>
-      section.key !== 'prediction' || store.settings?.experimentalPredictionEnabled === true
+      (section.key !== 'prediction' || store.settings?.experimentalPredictionEnabled === true) &&
+      (section.key !== 'lp-trend' || store.settings?.experimentalLpTrendEnabled === true) &&
+      (section.key !== 'version-trend' || store.settings?.experimentalVersionTrendEnabled === true)
   )
 )
 const memberAnalysis = useInstance(MemberAnalysisRenderer)
 const route = useRoute()
 const router = useRouter()
 const requestedSection = String(route.params.section ?? '')
-const compactHeight = useMediaQuery('(max-height: 600px)')
 const isKnownSection = (section: string) =>
-  section === 'synergy' || sections.value.some((candidate) => candidate.key === section)
+  section === 'synergy' ||
+  section === 'lp-trend' ||
+  section === 'version-trend' ||
+  sections.value.some((candidate) => candidate.key === section)
 const activeSection = ref(isKnownSection(requestedSection) ? requestedSection : 'roles')
 const combinationSection = ref<'pairs' | 'synergy'>(
   activeSection.value === 'synergy' ? 'synergy' : 'pairs'
@@ -319,6 +394,147 @@ const primarySection = computed({
   }
 })
 const primaryPanels = ref<HTMLElement | null>(null)
+const pageScrollOwner = ref<HTMLElement | null>(null)
+const pageRoot = ref<HTMLElement | null>(null)
+let tableScrollbarRoot: HTMLElement | null = null
+let stopTableScrollbars: (() => void) | undefined
+function startTableScrollbars() {
+  if (!pageRoot.value || tableScrollbarRoot === pageRoot.value) return
+  stopTableScrollbars?.()
+  tableScrollbarRoot = pageRoot.value
+  stopTableScrollbars = observeTableScrollbarInsets(pageRoot.value)
+}
+function stopTableScrollbarObservation() {
+  stopTableScrollbars?.()
+  stopTableScrollbars = undefined
+  tableScrollbarRoot = null
+}
+watch(pageRoot, startTableScrollbars, { flush: 'post' })
+onActivated(startTableScrollbars)
+onDeactivated(stopTableScrollbarObservation)
+onBeforeUnmount(stopTableScrollbarObservation)
+const primaryTabId = useId()
+function primaryTabProps(section: string): HTMLAttributes {
+  return {
+    id: `${primaryTabId}-${section}`,
+    role: 'tab',
+    tabindex: primarySection.value === section ? 0 : -1,
+    'aria-selected': primarySection.value === section,
+    'aria-controls': `${primaryTabId}-panel-${section}`,
+    onKeydown: (event: KeyboardEvent) => void handlePrimaryTabKey(event, section)
+  }
+}
+async function handlePrimaryTabKey(event: KeyboardEvent, section: string) {
+  const keys = sections.value.map((item) => item.key as string)
+  const index = keys.indexOf(section)
+  let target: string | undefined
+  if (event.key === 'ArrowRight') target = keys[(index + 1) % keys.length]
+  else if (event.key === 'ArrowLeft') target = keys[(index - 1 + keys.length) % keys.length]
+  else if (event.key === 'Home') target = keys[0]
+  else if (event.key === 'End') target = keys.at(-1)
+  else if (event.key === 'Enter' || event.key === ' ') target = section
+  else return
+  if (!target) return
+  event.preventDefault()
+  selectPrimarySection(target)
+  await nextTick()
+  const tab = primaryPanels.value?.querySelector<HTMLElement>(`[id="${primaryTabId}-${target}"]`)
+  tab?.focus({ preventScroll: true })
+  // NTabs follows its active value with its own horizontal XScroll. Calling
+  // scrollIntoView here also scrolls the shared vertical owner (including its
+  // sticky-nav scroll padding), overwriting the destination's saved position.
+}
+watch(
+  primaryPanels,
+  (panels, _previous, onCleanup) => {
+    if (!panels || typeof panels.querySelector !== 'function') return
+    const navigation = panels?.querySelector<HTMLElement>('.n-tabs-nav')
+    const owner = pageScrollOwner.value
+    if (!navigation || !owner || typeof ResizeObserver === 'undefined') return
+    navigation.setAttribute('role', 'tablist')
+    navigation.setAttribute('aria-label', '成员分析页面')
+    onCleanup(observeNavigationScrollbarInset(owner, navigation))
+  },
+  { flush: 'post' }
+)
+const pageScrollPositions = new Map<string, number>()
+let scrollTransition = 0
+let restoringPageScroll = false
+let scrollRestoreFrame = 0
+let restoreScrollAnchoring: (() => void) | null = null
+function scheduleScrollFrame(callback: () => void) {
+  if (typeof requestAnimationFrame === 'undefined') callback()
+  else scrollRestoreFrame = requestAnimationFrame(callback)
+}
+function cancelPageScrollRestore() {
+  scrollTransition++
+  if (scrollRestoreFrame && typeof cancelAnimationFrame !== 'undefined')
+    cancelAnimationFrame(scrollRestoreFrame)
+  scrollRestoreFrame = 0
+  restoreScrollAnchoring?.()
+  restoreScrollAnchoring = null
+  restoringPageScroll = false
+}
+function rememberPageScroll() {
+  if (!restoringPageScroll && pageScrollOwner.value)
+    pageScrollPositions.set(activeSection.value, pageScrollOwner.value.scrollTop)
+}
+watch(
+  activeSection,
+  async (section, previous) => {
+    const owner = pageScrollOwner.value
+    if (!owner) return
+    if (!restoringPageScroll) pageScrollPositions.set(previous, owner.scrollTop)
+    cancelPageScrollRestore()
+    restoringPageScroll = true
+    const transition = scrollTransition
+    // A lazy pane can briefly retain the shorter outgoing pane's extent after
+    // the parent update. Do not save that clamp as the incoming page's position.
+    // Browser anchoring must not compete with this explicit tab restoration.
+    if (owner.style) {
+      const anchoring = owner.style.overflowAnchor
+      owner.style.overflowAnchor = 'none'
+      restoreScrollAnchoring = () => {
+        owner.style.overflowAnchor = anchoring
+      }
+    }
+    await nextTick()
+    if (transition !== scrollTransition) return
+    scheduleScrollFrame(() => {
+      scrollRestoreFrame = 0
+      if (transition !== scrollTransition) return
+      if (!(section === 'matches' && store.matchNavigation))
+        owner.scrollTop = pageScrollPositions.get(section) ?? 0
+      // Keep intermediate programmatic scroll events out of the memory map
+      // until the restored layout has passed a rendering frame.
+      scheduleScrollFrame(() => {
+        scrollRestoreFrame = 0
+        if (transition !== scrollTransition) return
+        restoreScrollAnchoring?.()
+        restoreScrollAnchoring = null
+        restoringPageScroll = false
+      })
+    })
+  },
+  { flush: 'sync' }
+)
+onDeactivated(cancelPageScrollRestore)
+onBeforeUnmount(cancelPageScrollRestore)
+const lpRouteSelected = computed(() => primarySection.value === 'lp-trend')
+const versionRouteSelected = computed(() => primarySection.value === 'version-trend')
+const versionPageSelected = computed(
+  () => versionRouteSelected.value && store.settings?.enabled === true
+)
+const independentRouteSelected = computed(() => lpRouteSelected.value || versionRouteSelected.value)
+const independentPageSelected = computed(() => lpPageSelected.value || versionPageSelected.value)
+const lpPageSelected = computed(() => lpRouteSelected.value && store.settings?.enabled === true)
+const renderAnalysisTabs = computed(
+  () =>
+    store.viewState === 'ready' ||
+    (store.settings?.enabled === true &&
+      (store.settings.experimentalLpTrendEnabled === true ||
+        store.settings.experimentalVersionTrendEnabled === true))
+)
 const reducedTabMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const primaryMotion = createPrimaryTabMotion({
   root: () => primaryPanels.value,
@@ -497,6 +713,18 @@ const errorFailureNotice = computed(() => {
   }
 })
 const overviewReloaded = ref(false)
+const overviewSuccessEpoch = ref(0)
+const dismissedOverviewSuccess = ref<number | null>(null)
+const overviewSuccessNotice = computed(() => {
+  const key = overviewSuccessEpoch.value
+  return {
+    key,
+    close: () => {
+      if (overviewReloaded.value && overviewSuccessEpoch.value === key)
+        dismissedOverviewSuccess.value = key
+    }
+  }
+})
 watch(
   () => store.loading,
   (loading) => {
@@ -516,22 +744,11 @@ watch(
         overview.playerCount !== previous.playerCount ||
         overview.source !== previous.source)
     )
+    // Only a genuinely changed publication creates a new dismissible notice.
+    // Re-reading the same generation cannot revive a manually dismissed notice.
+    if (overviewReloaded.value) overviewSuccessEpoch.value++
   }
 )
-const rendererAudit = computed(() => {
-  const selection = analysisSelection.value
-  const global = selection.globallyFiltered.length
-  const sample = selection.sample.length
-  return { global, sample }
-})
-const patchScope = computed(() => {
-  const selection = analysisSelection.value.sample
-  const patches = [...new Set(selection.map((game) => game.patch))].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true })
-  )
-  if (!patches.length) return '—'
-  return patches.length === 1 ? patches[0] : `${patches[0]}–${patches.at(-1)}`
-})
 const collectionStatus = computed(() => {
   if (!audit.value) return ''
   const labels = {
@@ -661,11 +878,63 @@ async function confirmCleanup(previewId: string) {
   color: var(--la-color-text-primary);
 }
 
+/* Only the active Scatter workspace needs a definite-height tab chain.
+   Other pages retain their existing shared scroll owner and restoration. */
+.member-analysis-page[data-active-section='scatter'] .member-analysis-scroll {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.member-analysis-page[data-active-section='scatter'] .member-analysis-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.member-analysis-page[data-active-section='scatter'] .member-analysis-ready {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.member-analysis-page[data-active-section='scatter'] .member-analysis-ready > :deep(.n-tabs) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.member-analysis-page[data-active-section='scatter']
+  .member-analysis-ready
+  > :deep(.n-tabs > .n-tabs-nav) {
+  flex: none;
+}
+.member-analysis-page[data-active-section='scatter']
+  .member-analysis-ready
+  > :deep(.n-tabs > .n-tab-pane) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.member-analysis-page[data-active-section='scatter']
+  .member-analysis-ready
+  > :deep(.n-tabs > .n-tab-pane > [data-member-pane='scatter']) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
+
 .member-analysis-scroll {
   scroll-padding-top: 60px;
   min-height: 0;
   overflow: auto;
   flex: 1;
+}
+.member-analysis-scroll::-webkit-scrollbar-track:vertical {
+  margin-top: var(--member-navigation-scrollbar-inset, 60px);
 }
 .member-analysis-notice {
   margin: 8px 20px;
@@ -674,6 +943,15 @@ async function confirmCleanup(previewId: string) {
   background: var(--ma-grid);
   color: var(--la-color-text-primary);
   font-size: 12px;
+}
+.member-analysis-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.member-analysis-success > :deep(.n-button) {
+  flex-shrink: 0;
 }
 .member-analysis-content {
   min-width: 0;

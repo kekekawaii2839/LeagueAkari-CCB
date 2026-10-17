@@ -124,11 +124,15 @@ describe('automatic per-game opponent ranks', () => {
       { queues: [{ queueType: 'RANKED_FLEX_SR', tier: 'SILVER', rank: 'IV' }] },
       new Date().toISOString()
     )
-    for (const p of target.opponents) h.repo.writePlayer('TEST', p.puuid!, old)
+    for (const p of target.participants!) h.repo.writePlayer('TEST', p.puuid!, old)
     h.controller.watch()
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(h.call).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(h.call).toHaveBeenCalledTimes(10)
     const saved = h.repo.readGame('TEST', 9001)!
+    for (const player of target.participants!) {
+      expect(h.repo.readGamePlayer('TEST', 9001, player.puuid!)?.status).toBe('ok')
+      expect(h.repo.wasGamePlayerCapturedLive('TEST', 9001, player.puuid!)).toBe(true)
+    }
     expect(saved.capture).toMatchObject({ mode: 'live', phase: 'GameStart' })
     expect(
       saved.opponents.every(
@@ -141,8 +145,8 @@ describe('automatic per-game opponent ranks', () => {
     runInAction(() => {
       h.league.data.gameflow.phase = 'InProgress'
     })
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(h.call).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(h.call).toHaveBeenCalledTimes(10)
     // Match-history order differs from gameflow: identity, not anonymous slot, must match.
     const reversed = { ...target, opponents: [...target.opponents].reverse() }
     const result = await new OpponentRankLoader(h.sgp as any, h.repo).load(
@@ -168,10 +172,10 @@ describe('automatic per-game opponent ranks', () => {
     h.controller.watch()
     await vi.advanceTimersByTimeAsync(4000)
     const first = h.repo.readGame('TEST', 9001)!
-    expect(h.call).toHaveBeenCalledTimes(7)
+    expect(h.call).toHaveBeenCalledTimes(12)
     await vi.advanceTimersByTimeAsync(20000)
     const later = h.repo.readGame('TEST', 9001)!
-    expect(h.call).toHaveBeenCalledTimes(8)
+    expect(h.call).toHaveBeenCalledTimes(13)
     expect(later.opponents.slice(1)).toEqual(first.opponents.slice(1))
     expect(later.opponents.every((p) => p.capturedDuringGame)).toBe(true)
   })
@@ -181,7 +185,7 @@ describe('automatic per-game opponent ranks', () => {
       h.settings.enabled = false
     })
     h.controller.watch()
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(2000)
     expect(h.call).not.toHaveBeenCalled()
     h.call.mockImplementation(
       (_p, options) =>
@@ -205,7 +209,7 @@ describe('automatic per-game opponent ranks', () => {
       h.league.state.connectionState = 'disconnected'
       h.league.data.gameflow.phase = 'GameStart'
     })
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(2000)
     expect(h.call).toHaveBeenCalledTimes(1)
     expect(h.logger.warn).not.toHaveBeenCalled()
   })
@@ -214,7 +218,7 @@ describe('automatic per-game opponent ranks', () => {
     h.call.mockRejectedValue(new Error('synthetic unavailable'))
     h.controller.watch()
     await vi.advanceTimersByTimeAsync(180000)
-    expect(h.call).toHaveBeenCalledTimes(27)
+    expect(h.call).toHaveBeenCalledTimes(9)
     runInAction(() => {
       h.league.data.gameflow.phase = 'EndOfGame'
     })
@@ -222,18 +226,18 @@ describe('automatic per-game opponent ranks', () => {
       h.league.data.gameflow.phase = 'Reconnect'
     })
     await vi.advanceTimersByTimeAsync(180000)
-    expect(h.call).toHaveBeenCalledTimes(27)
+    expect(h.call).toHaveBeenCalledTimes(9)
     await h.controller.dispose()
     runInAction(() => {
       h.league.data.gameflow.session = session(9002)
     })
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(h.call).toHaveBeenCalledTimes(27)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(h.call).toHaveBeenCalledTimes(9)
   })
   test('manual publication that began earlier cannot overwrite a live snapshot', async () => {
     const h = harness()
     h.controller.watch()
-    await vi.advanceTimersByTimeAsync(1000)
+    await vi.advanceTimersByTimeAsync(2000)
     const before = h.repo.readGame('TEST', 9001)!
     const backfill = structuredClone(before)
     delete backfill.capture
@@ -257,7 +261,22 @@ describe('automatic per-game opponent ranks', () => {
     h.repo.close()
     h.repo.initialize()
     h.controller.watch()
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(h.call).toHaveBeenCalledTimes(5)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(h.call).toHaveBeenCalledTimes(10)
   })
+})
+
+test('each new live match queries ten identities despite global TTL and keeps public enemy shape', async () => {
+  const h = harness()
+  h.controller.watch()
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(h.call).toHaveBeenCalledTimes(10)
+  runInAction(() => {
+    h.league.data.gameflow.session = session(9002)
+  })
+  await vi.advanceTimersByTimeAsync(2000)
+  expect(h.call).toHaveBeenCalledTimes(20)
+  expect(h.repo.readGame('TEST', 9002)?.opponents).toHaveLength(5)
+  for (const p of [...session(9002).gameData.teamOne, ...session(9002).gameData.teamTwo])
+    expect(h.repo.readGamePlayer('TEST', 9002, p.puuid)?.status).toBe('ok')
 })

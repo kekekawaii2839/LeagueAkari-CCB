@@ -30,6 +30,7 @@ vi.mock('@renderer-shared/composables/useSgpTagOptions', () => ({
   })
 }))
 
+vi.mock('@vicons/fluent', () => ({ ReOrderDotsVertical20Regular: () => null }))
 vi.mock('naive-ui', () => {
   const Stub = (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.default?.()
   return {
@@ -43,6 +44,7 @@ vi.mock('naive-ui', () => {
     ],
     NFormItem: Stub,
     NInput: Stub,
+    NIcon: Stub,
     NInputNumber: Stub,
     NSelect: (props: Record<string, unknown>) => h('div', JSON.stringify(props.options ?? [])),
     NSwitch: (props: Record<string, unknown>) =>
@@ -100,7 +102,8 @@ describe('member analysis settings drawer', () => {
     expect(html).toContain('采集范围')
     expect(html).toContain('存储与参考')
     expect(html).toContain('启用成员分析')
-    expect(html).toContain('阵容胜率预测（实验性）')
+    expect(html).toContain('阵容胜率预测')
+    expect(html).not.toContain('阵容胜率预测（实验性）')
     const experiment = html.match(
       /<input[^>]*aria-labelledby="experimental-prediction-label"[^>]*>/
     )?.[0]

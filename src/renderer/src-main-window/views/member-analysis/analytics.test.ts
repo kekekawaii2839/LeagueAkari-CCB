@@ -492,6 +492,52 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     })
   })
 
+  test('keeps same-day lane-gank evidence grouped by newest match then event time, with stable ties', () => {
+    const event = (timestampSec: number, enemyJunglerChampion = 'Vi') => ({
+      victimPlayer: 'Alice',
+      victimRole: 'TOP' as const,
+      victimChampion: 'Gwen',
+      enemyJunglerChampion,
+      timestampSec,
+      lane: 'top' as const,
+      involvement: 'assist' as const
+    })
+    const newer = {
+      ...game(2, true, 'Blue'),
+      laneGankDeaths: {
+        methodVersion: 1 as const,
+        status: 'available' as const,
+        events: [event(700), event(600, 'Vi'), event(600, 'Sejuani')]
+      }
+    }
+    const older = {
+      ...game(1, false, 'Red'),
+      laneGankDeaths: {
+        methodVersion: 1 as const,
+        status: 'available' as const,
+        events: [event(650), event(180)]
+      }
+    }
+    const snapshot = JSON.stringify([older, newer])
+    const evidence = laneGankDeathEvidence([older, newer], 'Alice', 'TOP')
+    expect(evidence.map(({ gameId, timestampSec }) => [gameId, timestampSec])).toEqual([
+      [2, 600],
+      [2, 600],
+      [2, 700],
+      [1, 180],
+      [1, 650]
+    ])
+    expect(evidence.slice(0, 2).map((row) => row.enemyJunglerChampion)).toEqual(['Vi', 'Sejuani'])
+    expect(evidence.map((row) => row.gameTimestamp)).toEqual([
+      newer.timestamp,
+      newer.timestamp,
+      newer.timestamp,
+      older.timestamp,
+      older.timestamp
+    ])
+    expect(JSON.stringify([older, newer])).toBe(snapshot)
+  })
+
   test('preserves unavailable role and jungle metrics instead of fabricating zero', () => {
     const unavailablePlayers = games.map((value) => ({
       ...value,

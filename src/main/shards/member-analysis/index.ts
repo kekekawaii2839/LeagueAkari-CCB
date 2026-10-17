@@ -6,6 +6,7 @@ import { SettingFactoryMain } from '@main/shards/setting-factory'
 import { SgpMain } from '@main/shards/sgp'
 import { WindowManagerMain } from '@main/shards/window-manager'
 import { IAkariShardInitDispose, Shard } from '@shared/akari-shard'
+import { EMPTY_PUUID } from '@shared/constants/common'
 import {
   MEMBER_ANALYSIS_DEFAULT_HISTORY_TAG,
   MemberAnalysisHistoryDepthSchema,
@@ -20,6 +21,8 @@ import { join } from 'node:path'
 import { createOpportunityLedger } from '../../../../packages/prediction-lab/runner/opportunity-ledger.mjs'
 import { MemberAnalysisCollector } from './collector'
 import { MEMBER_ANALYSIS_MAIN_NAMESPACE, type MemberAnalysisMainContext } from './context'
+import { CurrentProfileIcons } from './current-profile-icons'
+import { CurrentRankRefresh } from './current-rank-refresh'
 import {
   MemberAnalysisPipeline,
   MemberAnalysisWorkerSupervisor,
@@ -29,6 +32,7 @@ import { MemberAnalysisIpcHandlers } from './ipc-handlers'
 import { initializeMemberAnalysisSafely } from './lifecycle'
 import { MemberAnalysisController } from './member-analysis-controller'
 import { OpponentRankLiveController } from './opponent-ranks/live-controller'
+import { OpponentRankLoader } from './opponent-ranks/loader'
 import { NativePredictionController } from './prediction/native-prediction-controller'
 import { NativePredictionExecutor } from './prediction/native-prediction-executor'
 import {
@@ -49,6 +53,7 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
   public readonly settings = new MemberAnalysisSettingsState()
   public readonly runtime = new MemberAnalysisRuntimeState()
 
+  private _controller: MemberAnalysisController | null = null
   private _liveRanks: OpponentRankLiveController | null = null
   private _logger: AkariLogger | null = null
   private _pipeline: MemberAnalysisPipeline | null = null
@@ -56,6 +61,8 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
   private _prediction: NativePredictionController | null = null
   private _predictionLedger: ReturnType<typeof createOpportunityLedger> | null = null
   private _predictionWatch: IReactionDisposer | null = null
+  private _profileWatch: IReactionDisposer | null = null
+  private _currentRankWatch: IReactionDisposer | null = null
 
   constructor(
     private readonly _ipc: AkariIpcMain,
@@ -114,6 +121,16 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
                   ? Number(value)
                   : defaultValue
             },
+            experimentalVersionTrendEnabled: {
+              default: false,
+              restore: ({ value, defaultValue }) =>
+                typeof value === 'boolean' ? value : defaultValue
+            },
+            experimentalLpTrendEnabled: {
+              default: false,
+              restore: ({ value, defaultValue }) =>
+                typeof value === 'boolean' ? value : defaultValue
+            },
             experimentalPredictionEnabled: {
               default: false,
               restore: ({ value, defaultValue }) =>
@@ -157,6 +174,76 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
         )
         this._repository = repository
         this._pipeline = pipeline
+        const profileSession = () => {
+          const auth = this._leagueClient.state.auth
+          return this.settings.enabled &&
+            this._leagueClient.state.isConnected &&
+            auth &&
+            this._sgp.state.isTokenReady
+            ? JSON.stringify([auth.pid, auth.port, auth.region, auth.rsoPlatformId])
+            : null
+        }
+        const currentProfileIcons = new CurrentProfileIcons({
+          session: profileSession,
+          ready: (serverId) =>
+            !!profileSession() && !!this._sgp.state.leagueServers.servers[serverId]?.common,
+          query: async (serverId, puuids, signal) =>
+            (
+              await this._sgp.api.summonerLedge.postSummonersByPuuids(puuids, {
+                __sgpServerId: serverId,
+                signal
+              })
+            ).data
+        })
+        this._profileWatch = reaction(profileSession, () => currentProfileIcons.clear())
+        const rankSession = () =>
+          profileSession()
+            ? JSON.stringify([
+                profileSession(),
+                this._leagueClient.data.summoner.me?.puuid,
+                this._sgp.state.availability.sgpServerId
+              ])
+            : null
+        const currentRankRefresh = new CurrentRankRefresh(repository, () => this.settings, {
+          session: rankSession,
+          resolve: async (member, signal) => {
+            const reply = await this._riotClient.api.playerAccount.getPlayerAccountAlias(
+              member.gameName,
+              member.tagLine,
+              {
+                signal: AbortSignal.any([signal, AbortSignal.timeout(6000)])
+              }
+            )
+            const matches = reply.data.filter(
+              (alias) =>
+                alias.alias.game_name.trim().toLocaleLowerCase() ===
+                  member.gameName.trim().toLocaleLowerCase() &&
+                alias.alias.tag_line.trim().toLocaleLowerCase() ===
+                  member.tagLine.trim().toLocaleLowerCase()
+            )
+            const puuid = matches.length === 1 ? matches[0].puuid : null
+            return puuid && puuid.trim() === puuid && puuid.length <= 256 && puuid !== EMPTY_PUUID
+              ? puuid
+              : null
+          },
+          capture: (players, signal, assertCurrent, onSnapshot) =>
+            new OpponentRankLoader(this._sgp, repository.opponentRanks).loadCurrentPlayers(
+              players,
+              signal,
+              assertCurrent,
+              onSnapshot
+            )
+        })
+        this._currentRankWatch = reaction(
+          () =>
+            JSON.stringify([
+              rankSession(),
+              this.settings.enabled,
+              this.settings.experimentalLpTrendEnabled,
+              this.settings.members
+            ]),
+          () => currentRankRefresh.cancel()
+        )
         const context: MemberAnalysisMainContext = {
           namespace: MemberAnalysisMain.id,
           ipc: this._ipc,
@@ -166,9 +253,12 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
           runtime: this.runtime,
           settingService,
           pipeline,
-          repository
+          repository,
+          currentProfileIcons,
+          currentRankRefresh
         }
         const controller = new MemberAnalysisController(context)
+        this._controller = controller
         if (!app.isPackaged) {
           const userDataPath = app.getPath('userData')
           const ledger = createOpportunityLedger(userDataPath)
@@ -297,6 +387,12 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
   }
 
   async onDispose() {
+    this._currentRankWatch?.()
+    this._currentRankWatch = null
+    this._profileWatch?.()
+    this._profileWatch = null
+    await this._controller?.dispose()
+    this._controller = null
     this._predictionWatch?.()
     this._predictionWatch = null
     await this._prediction?.dispose()

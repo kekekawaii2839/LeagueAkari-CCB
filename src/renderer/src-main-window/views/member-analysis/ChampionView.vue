@@ -8,20 +8,13 @@
       }}</NButton>
     </div>
     <template v-else>
-      <div class="pool-toolbar">
-        <span>{{ uiText('poolTopHeroes') }}</span>
-        <NButton v-if="sort" size="small" quaternary @click="restoreOrder">{{
-          uiText('poolResetSort')
-        }}</NButton>
-        <span class="pool-legend">{{ uiText('poolLegend') }}</span>
-      </div>
       <div class="pool-matrix-scroll" tabindex="0" role="region" :aria-label="uiText('poolMatrix')">
         <table class="pool-matrix">
           <colgroup>
             <col class="member-column" />
             <col v-for="role in championPoolRoles" :key="role" />
           </colgroup>
-          <thead ref="matrixHeader" :style="{ transform: `translateY(${headerOffset}px)` }">
+          <thead ref="matrixHeader">
             <tr>
               <th scope="col" class="member-heading">{{ uiText('poolMember') }}</th>
               <th
@@ -30,63 +23,36 @@
                 scope="col"
                 :aria-sort="sort?.role === role ? sort.direction : 'none'"
               >
-                <NPopover
-                  :show="sortMenuRole === role"
-                  trigger="click"
-                  placement="bottom-start"
-                  :style="{ ...popoverTheme, background: 'var(--la-color-bg-primary)' }"
+                <button
+                  type="button"
+                  class="pool-sort-trigger"
+                  :data-sort-role="role"
                   :disabled="excludedRole(role)"
-                  @update:show="(value) => (sortMenuRole = value ? role : null)"
+                  :aria-label="sortLabel(role)"
+                  @click="cycleSort(role)"
                 >
-                  <template #trigger
-                    ><button
-                      type="button"
-                      class="pool-sort-trigger"
-                      :data-sort-role="role"
-                      :disabled="excludedRole(role)"
-                      :aria-label="uiText('poolSort', { role: roleNames[role] })"
-                      :aria-expanded="sortMenuRole === role"
-                      @keydown.esc.stop.prevent="closeSortMenu(role)"
-                    >
-                      <span>{{ roleNames[role] }}</span
-                      ><small v-if="sort?.role === role"
-                        >{{ uiText(sort.metric === 'games' ? 'poolSortGames' : 'poolSortHeroes') }}
-                        {{ sort.direction === 'descending' ? '↓' : '↑' }}</small
-                      ><span v-else aria-hidden="true" class="pool-sort-mark">↕</span>
-                    </button></template
-                  >
-                  <div class="pool-sort-menu" @keydown.esc.stop.prevent="closeSortMenu(role)">
-                    <button
-                      v-for="option in sortOptions"
-                      :key="option.label"
-                      type="button"
-                      :aria-pressed="
-                        sort?.role === role &&
-                        sort.metric === option.metric &&
-                        sort.direction === option.direction
-                      "
-                      @click="applySort(role, option.metric, option.direction)"
-                    >
-                      {{ uiText(option.label)
-                      }}<span
-                        v-if="
-                          sort?.role === role &&
-                          sort.metric === option.metric &&
-                          sort.direction === option.direction
-                        "
-                        aria-hidden="true"
-                      >
-                        ✓</span
-                      >
-                    </button>
-                  </div>
-                </NPopover>
+                  <span class="pool-role-label"
+                    ><PositionIcon class="pool-role-icon" :position="role" aria-hidden="true" />
+                    <span>{{ roleNames[role] }}</span></span
+                  ><small v-if="sort?.role === role" aria-hidden="true"
+                    >{{ uiText(sort.metric === 'games' ? 'poolSortGames' : 'poolSortHeroes') }}
+                    {{ sort.direction === 'descending' ? '↓' : '↑' }}</small
+                  ><span v-else aria-hidden="true" class="pool-sort-mark">↕</span>
+                </button>
               </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="member in sortedMembers" :key="member.player">
-              <th scope="row" class="member-heading">{{ short(member.player) }}</th>
+              <th scope="row" class="member-heading">
+                <div class="pool-member-identity">
+                  <MemberProfileAvatar :icon-id="store.memberProfileIcons[member.player] ?? null" />
+                  <span class="pool-member-label">
+                    <strong>{{ short(member.player) }}</strong>
+                    <small>{{ memberTag(member.player) }}</small>
+                  </span>
+                </div>
+              </th>
               <td
                 v-for="role in championPoolRoles"
                 :key="role"
@@ -177,7 +143,6 @@
           :champion-id="championId"
           :champion-name="championName"
           :initial-champion="initialChampion"
-          :evidence-context="evidenceContext"
           @close="closePool()"
         />
       </NPopover>
@@ -194,6 +159,7 @@ import {
 } from '@vueuse/core'
 import { NButton, NPopover } from 'naive-ui'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
+import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 import { useExtraAssetsStore } from '@renderer-shared/shards/extra-assets/store'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
@@ -203,44 +169,42 @@ import {
   isIdentifiedChampion,
   sortChampionPools,
   type ChampionPool,
-  type ChampionPoolRole,
-  type ChampionPoolSort
+  type ChampionPoolRole
 } from './champion-pools'
 import ChampionPoolPortrait from './ChampionPoolPortrait.vue'
 import ChampionPoolPopover from './ChampionPoolPopover.vue'
+import MemberProfileAvatar from './MemberProfileAvatar.vue'
 import { useAkariResourceProvider } from '@renderer-shared/providers/akari-resource'
 import { uiText } from './ui-text'
 import { resolveChampionPoolPosition } from './champion-pool-position'
 import { createChampionPoolMotion } from './champion-pool-motion'
 const store = useMemberAnalysisStore()
-const { champions, games } = useMemberAnalysisData()
-const evidenceContext = computed(() => ({
-  games: games.value,
-  publishedGeneration: store.overviewGeneration
-}))
+const { champions } = useMemberAnalysisData()
 const league = useLeagueClientStore()
 const extra = useExtraAssetsStore()
 const resources = useAkariResourceProvider()
 const root = ref<HTMLElement | null>(null)
 const matrixHeader = ref<HTMLElement | null>(null)
-const headerOffset = ref(0)
 function positionHeader() {
   const scroll = root.value?.querySelector('.pool-matrix-scroll')
   const nav = root.value?.closest('.member-analysis-ready')?.querySelector('.n-tabs-nav')
   if (!scroll || !matrixHeader.value || !nav || !root.value?.getClientRects().length) {
-    headerOffset.value = 0
+    if (matrixHeader.value) matrixHeader.value.style.transform = 'translateY(0px)'
     return
   }
   const bounds = scroll.getBoundingClientRect()
   // Horizontal overflow makes this wrapper the CSS sticky ancestor. Follow the
   // native page scroller without duplicating the semantic header or its controls.
-  headerOffset.value = Math.max(
+  const offset = Math.max(
     0,
     Math.min(
       nav.getBoundingClientRect().bottom - bounds.top,
       bounds.height - matrixHeader.value.offsetHeight
     )
   )
+  // Apply in the scroll turn, without waiting for a reactive render while the
+  // browser has already positioned the native sticky navigation.
+  matrixHeader.value.style.transform = `translateY(${offset}px)`
 }
 const roleNames = {
   TOP: '上路',
@@ -252,7 +216,6 @@ const roleNames = {
 const members = computed(() => buildChampionPools(champions.value, store.settings?.members ?? []))
 const sort = computed(() => store.championViewState.sort)
 const sortedMembers = computed(() => sortChampionPools(members.value, sort.value))
-const sortMenuRole = ref<ChampionPoolRole | null>(null)
 const sortOptions = [
   { metric: 'games', direction: 'descending', label: 'poolSortGamesDesc' },
   { metric: 'games', direction: 'ascending', label: 'poolSortGamesAsc' },
@@ -261,26 +224,25 @@ const sortOptions = [
 ] as const
 const excludedRole = (role: ChampionPoolRole) =>
   store.filters.matchRole !== 'all' && store.filters.matchRole !== role
-function sortTrigger(role: ChampionPoolRole) {
-  return root.value?.querySelector<HTMLButtonElement>('[data-sort-role="' + role + '"]')
+function sortLabel(role: ChampionPoolRole) {
+  const label = uiText('poolSort', { role: roleNames[role] })
+  const selected = sort.value?.role === role ? sort.value : null
+  const option = sortOptions.find(
+    (option) => option.metric === selected?.metric && option.direction === selected?.direction
+  )
+  return option ? label + ' · ' + uiText(option.label) : label
 }
-async function closeSortMenu(role: ChampionPoolRole) {
-  sortMenuRole.value = null
-  await nextTick()
-  sortTrigger(role)?.focus()
-}
-async function applySort(
-  role: ChampionPoolRole,
-  metric: ChampionPoolSort['metric'],
-  direction: ChampionPoolSort['direction']
-) {
+async function cycleSort(role: ChampionPoolRole) {
+  if (excludedRole(role)) return
   await closePool(false)
-  store.championViewState.sort = { role, metric, direction }
-  await closeSortMenu(role)
-}
-async function restoreOrder() {
-  await closePool(false)
-  store.championViewState.sort = null
+  const current = sort.value?.role === role ? sort.value : null
+  const index = sortOptions.findIndex(
+    (option) => option.metric === current?.metric && option.direction === current?.direction
+  )
+  const next = sortOptions[index + 1]
+  store.championViewState.sort = next
+    ? { role, metric: next.metric, direction: next.direction }
+    : null
 }
 watch(
   () => store.filters.matchRole,
@@ -374,7 +336,6 @@ function positionPool() {
 async function openPool(pool: ChampionPool, champion: string | null, event: MouseEvent) {
   const sequence = ++interactionSequence
   poolMotion.cancel()
-  sortMenuRole.value = null
   poolTrigger = event.currentTarget as HTMLElement
   initialChampion.value = champion
   poolKey.value = pool.key
@@ -437,7 +398,6 @@ useResizeObserver(
 )
 useResizeObserver(root, () => {
   if (!root.value?.getClientRects().length) {
-    sortMenuRole.value = null
     void closePool(false)
   } else {
     positionHeader()
@@ -464,12 +424,16 @@ function disposePool() {
   poolKey.value = null
   renderedPool.value = null
   initialChampion.value = null
-  sortMenuRole.value = null
   poolTrigger = null
 }
 onDeactivated(disposePool)
 onBeforeUnmount(disposePool)
 const short = (value: string) => value.split('#')[0]
+const memberTag = (value: string) => {
+  const separator = value.indexOf('#')
+  const tag = separator >= 0 ? value.slice(separator + 1).trim() : ''
+  return tag ? '#' + tag : '—'
+}
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
 const championInfos = computed(() => {
   const index = new Map<string, { id: number; name: string }>()
@@ -494,6 +458,9 @@ const championName = (name: string) => {
 }
 </script>
 <style scoped>
+.member-analysis-page .champion-view {
+  padding-top: 0;
+}
 .champion-view {
   min-width: 0;
   font-family:
@@ -504,17 +471,6 @@ const championName = (name: string) => {
     sans-serif;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
-}
-.pool-toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  color: var(--ma-muted);
-  font-size: 12px;
-}
-.pool-legend {
-  margin-left: auto;
 }
 .pool-matrix-scroll {
   min-width: 0;
@@ -527,13 +483,13 @@ const championName = (name: string) => {
 }
 .pool-matrix {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1120px;
   table-layout: fixed;
   border-collapse: collapse;
   text-align: left;
 }
 .pool-matrix .member-column {
-  width: 100px;
+  width: 180px;
 }
 .pool-matrix th,
 .pool-matrix td {
@@ -579,19 +535,57 @@ const championName = (name: string) => {
   font-size: 12px;
   font-weight: 400;
 }
-.pool-sort-trigger {
+.pool-member-identity {
   display: flex;
   align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.pool-member-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.pool-member-label strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.pool-member-label small {
+  color: var(--ma-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.pool-sort-trigger {
+  display: flex;
+  align-items: baseline;
+  align-content: center;
   flex-wrap: wrap;
   gap: 4px 8px;
   min-height: 32px;
   color: inherit;
   font: inherit;
+  line-height: 1.5;
   border: 0;
   background: transparent;
   padding: 0;
   cursor: pointer;
   text-align: left;
+}
+.pool-role-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.pool-role-icon {
+  align-self: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  line-height: 1;
 }
 .pool-sort-trigger small,
 .pool-sort-mark {
@@ -606,35 +600,6 @@ const championName = (name: string) => {
 .pool-more:focus-visible {
   outline: 2px solid var(--la-color-link);
   outline-offset: 2px;
-}
-.pool-sort-menu {
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.pool-sort-menu button {
-  font: inherit;
-  color: inherit;
-  background: transparent;
-  text-align: left;
-  border: 0;
-  border-radius: 4px;
-  padding: 8px 10px;
-  cursor: pointer;
-}
-.pool-sort-menu button:hover,
-.pool-sort-menu button[aria-pressed='true'] {
-  background: var(--ma-hover);
-}
-.pool-sort-menu button:focus-visible {
-  outline: 2px solid var(--la-color-link);
-  outline-offset: -1px;
 }
 .pool-cell-heading {
   display: flex;

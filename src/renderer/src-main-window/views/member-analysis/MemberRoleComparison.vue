@@ -1,5 +1,5 @@
 <template>
-  <div ref="comparisonRoot" class="role-comparison-chart">
+  <div class="role-comparison-chart">
     <section class="comparison-surface" :aria-label="`${roleName} · ${metricInfo.label}`">
       <div class="comparison-toolbar">
         <div class="role-switch" role="group" aria-label="比较分路">
@@ -23,12 +23,10 @@
             :options="metricOptions"
             class="metric-select"
           />
-          <span class="comparison-unit">{{ metric === 'gd15' ? '金币' : '%' }}</span>
-          <MetricHelp
-            :label="uiText('roleMetricHelp')"
-            :definition="uiText(metric === 'gd15' ? 'roleGoldHelp' : 'roleKpHelp')"
-            icon-only
-          />
+          <div class="comparison-series-legend" aria-label="柱形分组">
+            <span v-for="label in seriesLabels" :key="label" :data-series="label">{{ label }}</span>
+          </div>
+          <MetricHelp :label="uiText('roleMetricHelp')" :definition="metricDefinition" icon-only />
         </div>
       </div>
       <div
@@ -51,76 +49,55 @@
               </div>
             </div>
             <div class="plot-columns">
-              <div
-                v-for="row in rows"
-                :key="row.player"
-                class="plot-column"
-                role="img"
-                :aria-label="`${shortName(row.player)}，${metricInfo.label} ${displayValue(valueOf(row))}，${metric === 'gd15' ? '金币，' : ''}有效 ${validCount(row)}/${row.games} 场`"
-              >
+              <div v-for="row in rows" :key="row.player" class="plot-member-group">
                 <div
-                  v-if="valueOf(row) !== null"
-                  class="plot-bar"
-                  :class="{ negative: valueOf(row)! < 0 }"
-                  :style="barStyle(valueOf(row)!)"
-                  aria-hidden="true"
-                />
-                <div
-                  class="plot-number"
-                  :class="{
-                    missing: valueOf(row) === null,
-                    below: valueOf(row) !== null && valueOf(row)! < 0
-                  }"
-                  :style="{
-                    top: `${valueOf(row) === null ? 50 : position(valueOf(row)!)}%`
-                  }"
+                  v-for="series in seriesFor(row)"
+                  :key="series.label"
+                  class="plot-column"
+                  :data-series="series.label"
+                  role="img"
+                  :aria-label="`${shortName(row.player)}，${series.label}，${metricInfo.label} ${displayValue(series.value)}，${series.count} 场`"
                 >
-                  <span class="compact-member-name">{{ shortName(row.player) }}</span>
-                  <strong>{{ displayValue(valueOf(row)) }}</strong
-                  ><span
-                    >{{ validCount(row) === 0 ? '未采集 · ' : '' }}{{ validCount(row) }}/{{
-                      row.games
-                    }}
-                    场有效</span
+                  <div
+                    v-if="series.value !== null"
+                    class="plot-bar"
+                    :class="{ negative: series.value < 0 }"
+                    :style="barStyle(series.value)"
+                    aria-hidden="true"
+                  />
+                  <div
+                    class="plot-number"
+                    :class="{
+                      missing: series.value === null,
+                      below: series.value !== null && series.value < 0
+                    }"
+                    :style="{
+                      top: `${series.value === null ? position(0) : position(series.value)}%`
+                    }"
                   >
+                    <span class="compact-member-name">{{ shortName(row.player) }}</span>
+                    <strong>{{ displayValue(series.value) }}</strong>
+                    <span>{{ series.count }} 场</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
           <div class="member-columns">
             <article v-for="row in rows" :key="row.player" class="member-column">
-              <button
-                class="member-identity"
-                :aria-expanded="selected === row.player"
-                :aria-controls="`${id}-member-detail`"
-                @click="selectMember(row.player)"
-              >
-                <span class="member-avatar" aria-hidden="true">{{
-                  memberSlots.get(row.player) ?? '—'
-                }}</span
-                ><span
+              <div class="member-identity">
+                <MemberProfileAvatar :icon-id="store.memberProfileIcons[row.player] ?? null" />
+                <span
                   ><strong>{{ shortName(row.player) }}</strong
-                  ><small
-                    >{{ row.games }} 场{{ roleName }} <span aria-hidden="true">↗</span></small
-                  ></span
+                  ><small>{{ row.games }} 场</small></span
                 >
-              </button>
+              </div>
               <div class="member-result">
                 <span>胜率</span><strong>{{ formatMetric(row.winRate, 'pct') }}</strong>
               </div>
               <WinRateInterval :wins="row.wins" :games="row.games" />
               <div class="result-scale" aria-hidden="true"><span>0%</span><span>100%</span></div>
               <p class="win-loss">{{ row.wins }} 胜 <span>/</span> {{ row.games - row.wins }} 负</p>
-              <dl class="member-secondary">
-                <div>
-                  <dt>KDA</dt>
-                  <dd>{{ formatMetric(row.kda, 'num') }}</dd>
-                </div>
-                <div>
-                  <dt>参团率</dt>
-                  <dd>{{ formatMetric(row.kp, 'pct') }}</dd>
-                </div>
-              </dl>
             </article>
           </div>
         </div>
@@ -132,61 +109,27 @@
         <NButton @click="store.resetFilters()">清除筛选</NButton>
       </div>
     </section>
-    <p v-if="selectedMemberUnavailable" class="ma-chart-note" role="status">
-      {{ uiText('roleSelectionUnavailable') }}
-    </p>
-    <section
-      v-if="selectedRow"
-      :id="`${id}-member-detail`"
-      class="member-detail"
-      :aria-labelledby="`${id}-detail-title`"
-    >
-      <header>
-        <h3 :id="`${id}-detail-title`">{{ shortName(selectedRow.player) }} · {{ roleName }}明细</h3>
-        <NButton quaternary @click="closeDetail">收起</NButton>
-      </header>
-      <dl>
-        <div>
-          <dt>15 分钟经济差</dt>
-          <dd>{{ formatSigned(selectedRow.gd15, 0) }} 金币</dd>
-        </div>
-        <div>
-          <dt>场均击杀 / 死亡 / 助攻</dt>
-          <dd>
-            {{ formatMetric(selectedRow.killsPG, 'num') }} /
-            {{ formatMetric(selectedRow.deathsPG, 'num') }} /
-            {{ formatMetric(selectedRow.assistsPG, 'num') }}
-          </dd>
-        </div>
-        <div>
-          <dt>分均英雄伤害</dt>
-          <dd>{{ roleMetricDetail('dpm', selectedRow.dpm) }}</dd>
-        </div>
-      </dl>
-      <EvidenceMatchAction class="member-evidence-action" :evidence="selectedEvidence" />
-    </section>
   </div>
 </template>
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, useId } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { NButton, NSelect } from 'naive-ui'
 import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { aggregateRolesBySide, type RoleAggregate } from './analytics'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { formatMetric, roleMetricDetail } from './metric-defs'
+import { formatMetric, roleMetricMeta } from './metric-defs'
+import type { MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
 import { formatSigned, memberOrder } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
+import MemberProfileAvatar from './MemberProfileAvatar.vue'
 import MetricHelp from './MetricHelp.vue'
 import { uiText } from './ui-text'
+import { createComparisonAxisFormatter } from './comparison-axis-format'
 import './member-analysis-visuals.css'
-import { memberRoleEvidenceGames } from './evidence-selection'
-import EvidenceMatchAction from './EvidenceMatchAction.vue'
 
 const store = useMemberAnalysisStore()
 const { games: games } = useMemberAnalysisData()
-const id = useId()
-const comparisonRoot = ref<HTMLElement | null>(null)
 const roles = {
   TOP: '上路',
   JUNGLE: '打野',
@@ -203,28 +146,54 @@ watch(
   { immediate: true }
 )
 const roleName = computed(() => roles[role.value])
-const selected = ref<string | null>(null)
-const selectedMemberUnavailable = ref(false)
-function selectMember(player: string) {
-  selected.value = selected.value === player ? null : player
-  selectedMemberUnavailable.value = false
-}
-const metric = ref<'gd15' | 'kp'>('gd15')
-const metricOptions = [
-  { label: '15 分钟经济差', value: 'gd15' },
-  { label: '参团率', value: 'kp' }
-]
-const metricInfo = computed(() =>
-  metric.value === 'gd15'
-    ? {
-        label: '15 分钟经济差',
-        description: '相对敌方同分路 · 金币'
-      }
-    : {
-        label: '参团率',
-        description: '逐场参团率的平均值 · %'
-      }
+const comparableMetrics = {
+  gd15: { source: 'gd15', signed: true },
+  kp: { source: 'kp' },
+  winRate: { source: null },
+  killsPG: { source: 'kills' },
+  deathsPG: { source: 'deaths' },
+  assistsPG: { source: 'assists' },
+  dpm: { source: 'damage', perMinute: true },
+  damageShare: { source: 'damageShare' },
+  gpm: { source: 'gold', perMinute: true },
+  goldShare: { source: 'goldShare' },
+  cspm: { source: 'cs', perMinute: true },
+  vspm: { source: 'vision', perMinute: true },
+  takenShare: { source: 'takenShare' },
+  damageTakenPM: { source: 'damageTaken', perMinute: true },
+  mitigatedPM: { source: 'damageMitigated', perMinute: true },
+  healPM: { source: 'healTeammates', perMinute: true },
+  shieldPM: { source: 'shieldTeammates', perMinute: true },
+  ccPM: { source: 'ccSeconds', perMinute: true },
+  gd10: { source: 'gd10', signed: true },
+  csd15: { source: 'csd15', signed: true },
+  xpd15: { source: 'xpd15', signed: true },
+  damageDiff15: { source: 'damageDiff15', signed: true },
+  soloDiff15: { source: 'soloDiff15', signed: true }
+} satisfies Record<
+  string,
+  { source: keyof MemberAnalysisPlayerGame | null; signed?: boolean; perMinute?: boolean }
+>
+const metric = ref<keyof typeof comparableMetrics>('gd15')
+const metricOptions = Object.keys(comparableMetrics).map((value) => ({
+  label: roleMetricMeta[value].label,
+  value
+}))
+const metricInfo = computed(() => roleMetricMeta[metric.value])
+const metricDefinition = computed(() =>
+  [
+    metricInfo.value.description ?? metricInfo.value.label,
+    metricInfo.value.unit ? `（${metricInfo.value.unit}）` : ''
+  ]
+    .filter(Boolean)
+    .join(' · ')
 )
+const metricSpec = computed<{
+  source: keyof MemberAnalysisPlayerGame | null
+  signed?: boolean
+  perMinute?: boolean
+}>(() => comparableMetrics[metric.value])
+const seriesLabels = ['合计', '蓝方', '红方'] as const
 const rows = computed(() => {
   const filtered = aggregateRolesBySide(
     games.value,
@@ -239,114 +208,121 @@ const rows = computed(() => {
   )
   return filtered.sort((a, b) => order.indexOf(a.player) - order.indexOf(b.player))
 })
-const memberSlots = computed(
+const shortName = (name: string) => name.split('#')[0]
+const breakdownRows = computed(
   () =>
     new Map(
-      (store.settings?.members ?? []).map((member, index) => [
-        `${member.gameName}#${member.tagLine}`,
-        index + 1
-      ])
+      aggregateRolesBySide(
+        games.value,
+        'all',
+        store.filters.matchRole,
+        store.filters.participant,
+        true
+      )
+        .filter((row) => row.role === role.value)
+        .map((row) => [`${row.player}|${row.sideLabel}`, row])
     )
 )
-const selectedRow = computed(() => rows.value.find((row) => row.player === selected.value))
-const selectedEvidence = computed(() => {
-  const evidence = {
-    publishedGeneration: store.overviewGeneration,
-    source: `${selectedRow.value?.player ?? ''} · ${roleName.value} · ${metricInfo.value.label}`,
-    games:
-      selectedRow.value &&
-      Number.isFinite(selectedRow.value[metric.value]) &&
-      selectedRow.value[metric.value] !== null
-        ? memberRoleEvidenceGames(games.value, {
-            player: selectedRow.value.player,
-            role: role.value,
-            metric: metric.value
-          })
-        : []
-  }
-  // The shared action closes over this same published payload, not live props
-  // read at click time. Keep the displayed count and generation together.
-  return { ...evidence, metricLabel: metricInfo.value.label, available: evidence.games.length > 0 }
-})
-watch(role, () => {
-  selected.value = null
-  selectedMemberUnavailable.value = false
-})
-watch(rows, (current) => {
-  if (
-    selected.value !== null &&
-    current.filter((row) => row.player === selected.value && row.role === role.value).length !== 1
-  ) {
-    selected.value = null
-    selectedMemberUnavailable.value = true
-  }
-})
-const shortName = (name: string) => name.split('#')[0]
-const valueOf = (row: RoleAggregate) => row[metric.value]
 const validCounts = computed(() => {
   const counts = new Map<string, number>()
-  for (const game of games.value) {
+  const spec = metricSpec.value
+  for (const game of games.value)
     for (const player of game.players) {
+      if (player.role !== role.value) continue
+      const value = spec.source === null ? Number(game.win) : player[spec.source]
       if (
-        player.role !== role.value ||
-        player[metric.value] === null ||
-        !Number.isFinite(player[metric.value])
+        typeof value !== 'number' ||
+        !Number.isFinite(value) ||
+        (spec.perMinute &&
+          (player.minutes === null || !Number.isFinite(player.minutes) || player.minutes <= 0))
       )
         continue
-      counts.set(player.player, (counts.get(player.player) ?? 0) + 1)
+      for (const label of ['合计', game.side === 'Blue' ? '蓝方' : '红方']) {
+        const key = `${player.player}|${label}`
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+      }
     }
-  }
   return counts
 })
-const validCount = (row: RoleAggregate) => validCounts.value.get(row.player) ?? 0
-const extent = computed(() =>
-  Math.max(
-    100,
-    Math.ceil(Math.max(0, ...rows.value.map((row) => Math.abs(row.gd15 ?? 0))) / 100) * 100
+function seriesFor(row: RoleAggregate) {
+  return seriesLabels.map((label) => {
+    const source = label === '合计' ? row : breakdownRows.value.get(`${row.player}|${label}`)
+    const raw = source?.[metric.value]
+    return {
+      label,
+      value: typeof raw === 'number' && Number.isFinite(raw) ? raw : null,
+      count: validCounts.value.get(`${row.player}|${label}`) ?? 0
+    }
+  })
+}
+const percentageAxis = computed(() => {
+  const observedMax = Math.max(
+    0,
+    ...rows.value.flatMap((row) => seriesFor(row).map((series) => series.value ?? 0))
   )
-)
-const ticks = computed(() =>
-  metric.value === 'gd15'
+  // Percentages other than win rate use one zero-based scale for every member
+  // and side. Keep some headroom and readable steps, bounded by a true 100%.
+  const paddedMax = Math.min(1, Math.max(0.1, observedMax * 1.1))
+  const roughStep = paddedMax / 4
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const step = [1, 2, 2.5, 5, 10].find((value) => value >= roughStep / magnitude)! * magnitude
+  const max = Math.min(1, Number((Math.ceil(paddedMax / step - 1e-9) * step).toPrecision(12)))
+  const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, index) =>
+    Number((index * step).toPrecision(12))
+  ).reverse()
+  return { max, ticks }
+})
+const extent = computed(() => {
+  if (metric.value === 'winRate') return 1
+  if (metricInfo.value.fmt === 'pct') return percentageAxis.value.max
+  const max = Math.max(
+    1,
+    ...rows.value.flatMap((row) => seriesFor(row).map((s) => Math.abs(s.value ?? 0)))
+  )
+  const step = 10 ** Math.floor(Math.log10(max))
+  return Math.ceil(max / step) * step
+})
+const ticks = computed(() => {
+  if (metric.value === 'winRate') return [1, 0.75, 0.5, 0.25, 0]
+  if (metricInfo.value.fmt === 'pct') return percentageAxis.value.ticks
+  return metricSpec.value.signed
     ? [extent.value, extent.value / 2, 0, -extent.value / 2, -extent.value]
-    : [1, 0.75, 0.5, 0.25, 0]
-)
+    : [extent.value, extent.value * 0.75, extent.value / 2, extent.value * 0.25, 0]
+})
 const position = (value: number) =>
-  metric.value === 'gd15' ? 50 - (value / extent.value) * 50 : 100 - value * 100
-const tickLabel = (value: number) =>
-  metric.value === 'gd15' ? formatSigned(value, 0) : `${Math.round(value * 100)}%`
+  metricSpec.value.signed ? 50 - (value / extent.value) * 50 : 100 - (value / extent.value) * 100
+const axisFormatter = computed(() =>
+  createComparisonAxisFormatter(ticks.value, metricInfo.value.fmt === 'pct')
+)
+const tickLabel = (value: number) => axisFormatter.value(value)
 const displayValue = (value: number | null) =>
-  metric.value === 'gd15' ? formatSigned(value, 0) : formatMetric(value, 'pct')
+  metricSpec.value.signed
+    ? formatSigned(value, Math.abs(value ?? 0) >= 100 ? 0 : 2)
+    : formatMetric(value, metricInfo.value.fmt)
 const barStyle = (value: number) => ({
   top: `${Math.min(position(value), position(0))}%`,
   height: `${Math.abs(position(value) - position(0))}%`
 })
-async function closeDetail() {
-  const name = selected.value
-  selected.value = null
-  await nextTick()
-  const buttons = comparisonRoot.value?.querySelectorAll<HTMLButtonElement>('.member-identity')
-  buttons?.[rows.value.findIndex((row) => row.player === name)]?.focus()
-}
 </script>
 <style scoped>
-.member-evidence-action {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-top: 12px;
-  color: var(--comparison-muted);
-  font-size: 12px;
-}
 .role-comparison-chart {
   min-width: 0;
   font-variant-numeric: tabular-nums;
   --comparison-muted: var(--ma-muted);
+  --comparison-total-color: var(--la-color-link);
 }
 .comparison-surface {
   background: var(--la-card-surface-95);
   border-radius: 8px;
   padding: 16px 28px 12px;
+}
+/* Graphite's cyan accent is too close to the blue-side series. Reuse the
+   existing warm series token locally, without changing the theme or side colors. */
+:global(:root[data-theme-id='graphite'] .role-comparison-chart) {
+  --comparison-total-color: var(--ma-series-3);
+}
+:global(:root[data-theme='light'] .role-comparison-chart .comparison-surface) {
+  background: var(--la-card-muted-surface);
 }
 .comparison-toolbar {
   display: flex;
@@ -377,9 +353,10 @@ async function closeDetail() {
   gap: 8px;
   margin-left: auto;
 }
-.comparison-unit {
-  font-size: 12px;
-  color: var(--comparison-muted);
+/* The small legend uses baseline-aligned text and swatches. Match its optical
+   center without moving the shared help button's hit area or other page icons. */
+.comparison-metric-controls :deep(.metric-help__icon) {
+  transform: translateY(-1px);
 }
 .metric-select {
   width: 210px;
@@ -396,20 +373,24 @@ h3 {
 }
 .comparison-scroll {
   overflow-x: auto;
-  padding-top: 56px;
-  padding-bottom: 12px;
+  padding-top: 38px;
+  padding-bottom: 24px;
 }
 .comparison-chart {
-  min-width: max(660px, calc(48px + var(--member-count) * 184px));
+  min-width: max(660px, calc(48px + var(--member-count) * 204px));
 }
 .plot {
+  /* Keep the compact outer footprint, but reserve measured two-line label
+     clearance inside it. Axis and bars must share this exact data rectangle. */
+  --plot-label-top-inset: 14px;
+  --plot-label-bottom-inset: 8px;
   position: relative;
   height: 144px;
   margin: 0 0 0 48px;
 }
 .plot-axis {
   position: absolute;
-  inset: 0;
+  inset: var(--plot-label-top-inset) 0 var(--plot-label-bottom-inset);
 }
 .axis-tick {
   position: absolute;
@@ -430,9 +411,52 @@ h3 {
   border-top-color: var(--ma-muted);
 }
 .plot-columns {
+  position: absolute;
+  inset: var(--plot-label-top-inset) 0 var(--plot-label-bottom-inset);
   display: grid;
   grid-template-columns: repeat(var(--member-count), minmax(0, 1fr));
-  height: 100%;
+}
+.plot-member-group {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 0 20px;
+}
+.plot-member-group:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(12px - var(--plot-label-top-inset));
+  bottom: calc(12px - var(--plot-label-bottom-inset));
+  right: 0;
+  width: 1px;
+  background: var(--ma-grid);
+  pointer-events: none;
+}
+.comparison-series-legend {
+  display: flex;
+  margin-left: 8px;
+  gap: 10px;
+  font-size: 12px;
+}
+.comparison-series-legend span::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  background: var(--comparison-series-color);
+}
+/* Color identifies the series, never the sign. Legend swatches and both
+   positive/negative bars consume this same local mapping. */
+[data-series='合计'] {
+  --comparison-series-color: var(--comparison-total-color);
+}
+[data-series='蓝方'] {
+  --comparison-series-color: var(--ma-blue);
+}
+[data-series='红方'] {
+  --comparison-series-color: var(--ma-red);
 }
 .plot-column {
   position: relative;
@@ -441,15 +465,15 @@ h3 {
   position: absolute;
   width: 28px;
   left: calc(50% - 14px);
-  background: color-mix(in srgb, var(--ma-positive) 75%, var(--la-color-text-primary));
+  background: var(--comparison-series-color);
   border-radius: 4px 4px 0 0;
 }
 .plot-bar.negative {
-  background: color-mix(in srgb, var(--ma-negative) 75%, var(--la-color-text-primary));
   border-radius: 0 0 4px 4px;
 }
 .plot-number {
   position: absolute;
+  line-height: 1.5;
   left: 0;
   right: 0;
   transform: translateY(calc(-100% - 10px));
@@ -467,7 +491,7 @@ h3 {
 }
 .plot-number strong {
   display: block;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -481,23 +505,33 @@ h3 {
   display: grid;
   grid-template-columns: repeat(var(--member-count), minmax(0, 1fr));
   margin-left: 48px;
-  padding-top: 56px;
+  padding-top: 44px;
 }
 .member-column {
+  position: relative;
   box-sizing: border-box;
   width: 100%;
-  max-width: 280px;
   justify-self: center;
   display: grid;
   grid-template-rows: subgrid;
-  grid-row: span 6;
+  grid-row: span 5;
   min-width: 0;
-  padding: 0 20px;
+  padding: 0 18px;
+}
+.member-column:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: 0;
+  width: 1px;
+  background: var(--ma-grid);
+  pointer-events: none;
 }
 .member-identity {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   text-align: left;
   font: inherit;
@@ -505,33 +539,19 @@ h3 {
   background: transparent;
   border: 0;
   border-radius: 6px;
-  padding: 4px;
-  margin: -4px 0 16px -4px;
-  cursor: pointer;
-}
-.member-identity:hover,
-.member-identity[aria-expanded='true'] {
-  background: var(--la-card-muted-surface);
-}
-.member-identity[aria-expanded='true'] {
-  font-weight: 600;
-}
-.member-avatar {
-  flex: 0 0 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--la-card-muted-surface);
-  color: var(--la-color-text-primary);
-  font-size: 14px;
-  font-weight: 600;
+  padding: 0;
+  margin: 0 0 16px;
+  cursor: default;
 }
 .member-identity strong {
   display: block;
   overflow-wrap: anywhere;
   font-size: 14px;
   font-weight: 600;
+}
+.member-identity > span:last-child {
+  flex: 1;
+  min-width: 0;
 }
 .member-identity small {
   display: block;
@@ -567,60 +587,11 @@ h3 {
 .win-loss {
   font-size: 12px;
   color: var(--comparison-muted);
-  margin: 8px 0 16px;
+  margin: 8px 0 0;
 }
 .win-loss span {
   margin: 0 5px;
 }
-.member-secondary {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.member-secondary div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: baseline;
-  gap: 8px;
-}
-.member-secondary dt,
-.member-secondary dd {
-  line-height: 1.5;
-}
-.member-secondary dd {
-  text-align: right;
-}
-dt {
-  color: var(--comparison-muted);
-  font-size: 12px;
-}
-dd {
-  margin: 0;
-  font-size: 14px;
-}
-.member-detail {
-  margin-top: 16px;
-  padding: 16px 24px;
-  border-radius: 8px;
-  background: var(--la-card-surface-95);
-}
-.member-detail header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-.member-detail dl {
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
-  margin: 16px 0 0;
-}
-.member-detail dd {
-  margin-top: 6px;
-}
-
 .comparison-empty {
   padding: 56px 16px;
   text-align: center;
@@ -649,7 +620,7 @@ summary:focus-visible,
     height: 144px;
   }
   .member-column {
-    padding: 0 12px;
+    padding: 0 18px;
   }
 }
 
@@ -659,9 +630,12 @@ summary:focus-visible,
   }
 
   .comparison-scroll {
-    padding-top: 80px;
+    padding-top: 54px;
   }
   .plot {
+    /* Short windows add the compact member-name line above each value. */
+    --plot-label-top-inset: 20px;
+    --plot-label-bottom-inset: 28px;
     height: 96px;
   }
   .plot-number .compact-member-name {

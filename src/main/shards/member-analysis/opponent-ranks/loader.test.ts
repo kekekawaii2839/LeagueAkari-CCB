@@ -40,21 +40,128 @@ function harness() {
       }
     }
   }
+  const gameRecords = new Map<string, PlayerRankSnapshot>()
   const repository = {
+    readGamePlayer: vi.fn(
+      (server: string, gameId: number, puuid: string) =>
+        gameRecords.get(`${server}:${gameId}:${puuid}`) ?? null
+    ),
+    wasGamePlayerCapturedLive: vi.fn(() => false),
     readPlayer: vi.fn((server: string, puuid: string) => cache.get(`${server}:${puuid}`) ?? null),
-    writePlayer: vi.fn((server: string, puuid: string, value: PlayerRankSnapshot) => {
+    writePlayerAsync: vi.fn((server: string, puuid: string, value: PlayerRankSnapshot) => {
       cache.set(`${server}:${puuid}`, value)
     }),
     readGame: vi.fn(),
-    prune: vi.fn()
+    pruneAsync: vi.fn(async () => {})
   }
-  return { cache, sgp, repository, loader: new OpponentRankLoader(sgp as any, repository as any) }
+  return {
+    cache,
+    gameRecords,
+    sgp,
+    repository,
+    loader: new OpponentRankLoader(sgp as any, repository as any)
+  }
 }
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
 describe('main-only opponent rank collection', () => {
+  test('dedicated current-rank collection queries each exact identity once at real current time and preserves zero LP', async () => {
+    const h = harness(),
+      onSnapshot = vi.fn(),
+      before = Date.now()
+    const player = { serverId: 'TEST', puuid: 'CURRENT_TEST_ONLY' }
+    await h.loader.loadCurrentPlayers(
+      [player, player],
+      new AbortController().signal,
+      () => {},
+      onSnapshot
+    )
+    expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(1)
+    const snapshot = h.repository.writePlayerAsync.mock.calls[0][2]
+    expect(Date.parse(snapshot.fetchedAt!)).toBeGreaterThanOrEqual(before)
+    expect(snapshot.flex).toEqual({
+      status: 'ranked',
+      rank: { tier: 'SILVER', division: 'III', leaguePoints: 0 }
+    })
+    expect(snapshot).not.toHaveProperty('versionEvidence')
+    expect(h.repository.readGame).not.toHaveBeenCalled()
+    expect(onSnapshot).toHaveBeenCalledWith(player, snapshot)
+  })
+  test('current-rank failures do not replace old records; missing LP stays null rather than zero', async () => {
+    const h = harness(),
+      player = { serverId: 'TEST', puuid: 'CURRENT_TEST_ONLY' }
+    h.sgp.api.leaguesLedge.getRankedStatsByPuuid.mockResolvedValueOnce({
+      data: {
+        queues: [
+          { queueType: 'RANKED_FLEX_SR', tier: 'GOLD', rank: 'IV', leaguePoints: undefined as any }
+        ]
+      }
+    })
+    await h.loader.loadCurrentPlayers(
+      [player],
+      new AbortController().signal,
+      () => {},
+      () => {}
+    )
+    expect(h.repository.writePlayerAsync.mock.calls[0][2].flex).toEqual({
+      status: 'ranked',
+      rank: { tier: 'GOLD', division: 'IV', leaguePoints: null }
+    })
+    h.repository.writePlayerAsync.mockClear()
+    const previous = h.cache.get('TEST:CURRENT_TEST_ONLY')
+    h.sgp.api.leaguesLedge.getRankedStatsByPuuid.mockRejectedValueOnce(
+      new Error('Synthetic offline')
+    )
+    const onSnapshot = vi.fn()
+    await h.loader.loadCurrentPlayers([player], new AbortController().signal, () => {}, onSnapshot)
+    expect(h.repository.writePlayerAsync).not.toHaveBeenCalled()
+    expect(h.cache.get('TEST:CURRENT_TEST_ONLY')).toBe(previous)
+    expect(onSnapshot.mock.calls[0][1]).toMatchObject({ status: 'unavailable', fetchedAt: null })
+  })
+  test('a late current-rank response after cancellation never becomes a persisted observation', async () => {
+    const h = harness(),
+      abort = new AbortController()
+    let finish!: (value: any) => void
+    h.sgp.api.leaguesLedge.getRankedStatsByPuuid.mockImplementation(
+      () => new Promise((resolve) => (finish = resolve))
+    )
+    const operation = h.loader.loadCurrentPlayers(
+      [{ serverId: 'TEST', puuid: 'CURRENT_TEST_ONLY' }],
+      abort.signal,
+      () => {},
+      () => {}
+    )
+    abort.abort()
+    finish({
+      data: { queues: [{ queueType: 'RANKED_FLEX_SR', tier: 'GOLD', rank: 'IV', leaguePoints: 0 }] }
+    })
+    await expect(operation).rejects.toThrow()
+    expect(h.repository.writePlayerAsync).not.toHaveBeenCalled()
+  })
+  test('current-rank rate limiting stops further requests on that server without inventing observations', async () => {
+    const h = harness(),
+      onSnapshot = vi.fn()
+    h.sgp.api.leaguesLedge.getRankedStatsByPuuid.mockRejectedValueOnce({
+      response: { status: 429 }
+    })
+    await h.loader.loadCurrentPlayers(
+      [
+        { serverId: 'TEST', puuid: 'CURRENT_TEST_ONLY_1' },
+        { serverId: 'TEST', puuid: 'CURRENT_TEST_ONLY_2' }
+      ],
+      new AbortController().signal,
+      () => {},
+      onSnapshot
+    )
+    expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(1)
+    expect(h.repository.writePlayerAsync).not.toHaveBeenCalled()
+    expect(onSnapshot.mock.calls.map((call) => call[1].reason)).toEqual([
+      'rate-limited',
+      'rate-limited'
+    ])
+  })
   test('a response slower than the old 5-second deadline succeeds under the new default', async () => {
     vi.useFakeTimers()
     vi.spyOn(AbortSignal, 'timeout').mockImplementation((milliseconds) => {
@@ -299,7 +406,7 @@ describe('main-only opponent rank collection', () => {
     await expect(
       pending.loader.load([target()], controller.signal, vi.fn(), limits)
     ).rejects.toThrow('cancelled')
-    expect(pending.repository.writePlayer).not.toHaveBeenCalled()
+    expect(pending.repository.writePlayerAsync).not.toHaveBeenCalled()
   })
   test('actual in-flight timeout stops a stalled endpoint', async () => {
     const h = harness()
@@ -409,7 +516,7 @@ describe('main-only opponent rank collection', () => {
       'network-paused',
       'network-paused'
     ])
-    expect(h.repository.writePlayer).toHaveBeenCalledTimes(3)
+    expect(h.repository.writePlayerAsync).toHaveBeenCalledTimes(3)
   })
   test('all retry attempts share the request/time budget, with no near-deadline fake timeouts', async () => {
     const h = harness()
@@ -451,9 +558,109 @@ describe('main-only opponent rank collection', () => {
         })
       ).rejects.toMatchObject({ name: 'AbortError' })
       expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(1)
-      expect(h.repository.writePlayer).not.toHaveBeenCalled()
+      expect(h.repository.writePlayerAsync).not.toHaveBeenCalled()
     } finally {
       clearTimeout(timer)
     }
   })
+})
+
+function tenTarget(gameId = 1): RankGameTarget {
+  const game = target('TEST', gameId)
+  return {
+    ...game,
+    participants: [
+      ...Array.from({ length: 5 }, (_, index) => ({
+        puuid: `synthetic-own-${index}`,
+        role: null,
+        champion: null
+      })),
+      ...game.opponents
+    ]
+  }
+}
+test('ten-player manual backfill queries actual identities, never borrows global TTL into a game fact', async () => {
+  const h = harness(),
+    game = tenTarget()
+  const old = normalizeRankedStats({ queues: [] }, '2020-01-01T00:00:00.000Z')
+  for (const p of game.participants!) h.cache.set(`TEST:${p.puuid}`, old)
+  const result = await h.loader.load(
+    [game, tenTarget(2)],
+    new AbortController().signal,
+    vi.fn(),
+    limits
+  )
+  expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(10)
+  expect(h.repository.readPlayer).not.toHaveBeenCalled()
+  expect(
+    result.every((r) => r.playerSnapshots?.length === 10 && r.ranks.opponents.length === 5)
+  ).toBe(true)
+  expect(
+    result[0].playerSnapshots?.every(
+      (p) => !p.capturedDuringGame && p.snapshot.fetchedAt !== old.fetchedAt
+    )
+  ).toBe(true)
+  expect(result[0].playerSnapshots?.map((p) => p.snapshot.fetchedAt)).toEqual(
+    result[1].playerSnapshots?.map((p) => p.snapshot.fetchedAt)
+  )
+  expect(JSON.stringify(result[0].ranks)).not.toContain('synthetic-own')
+})
+test('ten-player fresh round attempts each identity before retrying a transient failure', async () => {
+  const h = harness(),
+    game = tenTarget()
+  const call = h.sgp.api.leaguesLedge.getRankedStatsByPuuid
+  call.mockRejectedValueOnce(new Error('synthetic transient'))
+  const result = await h.loader.load([game], new AbortController().signal, vi.fn(), {
+    ...limits,
+    fresh: true,
+    requests: 15,
+    retries: 2
+  })
+  const queried = call.mock.calls.map(([puuid]) => puuid)
+  expect(new Set(queried.slice(0, 10)).size).toBe(10)
+  expect(queried[10]).toBe(queried[0])
+  expect(queried).toHaveLength(11)
+  expect(result[0].playerSnapshots?.every((p) => p.snapshot.status === 'ok')).toBe(true)
+})
+test('ten-player per-game live successes survive fresh rechecks and manual collection without TTL substitution', async () => {
+  const h = harness(),
+    game = tenTarget()
+  const snapshot = normalizeRankedStats(
+    { queues: [{ queueType: 'RANKED_FLEX_SR', tier: 'GOLD', rank: 'II' }] },
+    '2026-10-01T00:00:00.000Z'
+  )
+  h.gameRecords.set('TEST:1:synthetic-own-0', snapshot)
+  h.repository.wasGamePlayerCapturedLive.mockImplementation(() => true)
+  const result = await h.loader.load([game], new AbortController().signal, vi.fn(), {
+    ...limits,
+    fresh: true
+  })
+  expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(9)
+  expect(result[0].playerSnapshots?.find((p) => p.puuid === 'synthetic-own-0')).toMatchObject({
+    snapshot,
+    capturedDuringGame: true
+  })
+})
+test('ten-player budget, duplicates and region protection keep explicit partial outcomes without invented ranks', async () => {
+  const h = harness(),
+    game = tenTarget()
+  const result = await h.loader.load([game], new AbortController().signal, vi.fn(), {
+    ...limits,
+    requests: 3
+  })
+  expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).toHaveBeenCalledTimes(3)
+  expect(result[0].playerSnapshots?.filter((p) => p.snapshot.status === 'ok')).toHaveLength(3)
+  expect(
+    result[0].playerSnapshots?.filter((p) => p.snapshot.reason === 'budget-exhausted')
+  ).toHaveLength(7)
+  h.sgp.api.leaguesLedge.getRankedStatsByPuuid.mockClear()
+  game.participants![1].puuid = game.participants![0].puuid
+  const invalid = await h.loader.load([game], new AbortController().signal, vi.fn(), limits)
+  expect(invalid[0].playerSnapshots).toBeUndefined()
+  expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).not.toHaveBeenCalled()
+  const other = tenTarget()
+  other.serverId = 'OTHER'
+  const blocked = await h.loader.load([other], new AbortController().signal, vi.fn(), limits)
+  expect(blocked[0].playerSnapshots?.every((p) => p.snapshot.reason === 'cross-region')).toBe(true)
+  expect(h.sgp.api.leaguesLedge.getRankedStatsByPuuid).not.toHaveBeenCalled()
 })

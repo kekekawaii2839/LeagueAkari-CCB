@@ -39,33 +39,24 @@ export const roleMetricGroups = {
   },
   vision: { label: '视野', columns: ['games', 'vspm', 'wpm', 'wcpm', 'cwpm'] },
   utility: {
-    label: '承伤与功能',
-    columns: [
-      'games',
-      'takenShare',
-      'damageTakenPM',
-      'mitigatedPM',
-      'objectiveDamagePM',
-      'turretDamagePM',
-      'healPM',
-      'shieldPM',
-      'ccPM',
-      'soloKillsPG',
-      'fbRate',
-      'ftRate'
-    ]
+    label: '承伤与支援',
+    columns: ['games', 'takenShare', 'damageTakenPM', 'mitigatedPM', 'healPM', 'shieldPM', 'ccPM']
   },
   lane: {
-    label: '对线与资源',
+    label: '对线发育',
+    columns: ['games', 'gd10', 'gd15', 'csd15', 'xpd15']
+  },
+  skirmish: {
+    label: '交锋与先手',
+    columns: ['games', 'damageDiff15', 'soloDiff15', 'soloKillsPG', 'fbRate', 'counter']
+  },
+  objectives: {
+    label: '推塔与资源',
     columns: [
       'games',
-      'gd10',
-      'gd15',
-      'csd15',
-      'xpd15',
-      'damageDiff15',
-      'soloDiff15',
-      'counter',
+      'objectiveDamagePM',
+      'turretDamagePM',
+      'ftRate',
       'dragon15',
       'grub15',
       'objectiveFight15'
@@ -91,7 +82,14 @@ export const roleMetricGroups = {
 
 export const roleMetricMeta: Record<
   string,
-  { label: string; fmt: MetricFormat; description?: string; unit?: string }
+  {
+    label: string
+    shortLabel?: string
+    windowLabel?: string
+    fmt: MetricFormat
+    description?: string
+    unit?: string
+  }
 > = {
   games: { label: '场次', fmt: 'int' },
   winRate: {
@@ -107,7 +105,7 @@ export const roleMetricMeta: Record<
   killShare: { label: '击杀占比', fmt: 'pct', description: '个人击杀数 ÷ 团队击杀数' },
   deathShare: { label: '死亡占比', fmt: 'pct', description: '个人死亡数 ÷ 团队死亡数' },
   dpm: {
-    label: '分均英雄伤害（伤害/分钟）',
+    label: '分均英雄伤害',
     unit: '伤害/分钟',
     fmt: 'num',
     description: 'Damage Per Minute：每分钟对英雄造成的伤害'
@@ -118,7 +116,7 @@ export const roleMetricMeta: Record<
     description: '个人英雄伤害 ÷ 团队英雄伤害，按对局平均'
   },
   gpm: {
-    label: '分均经济（金币/分钟）',
+    label: '分均经济',
     unit: '金币/分钟',
     fmt: 'num',
     description: 'Gold Per Minute：每分钟获得经济'
@@ -131,31 +129,31 @@ export const roleMetricMeta: Record<
   },
   damagePerGold: { label: '单位经济伤害', fmt: 'num', description: '对英雄造成的伤害 ÷ 获得经济' },
   cspm: {
-    label: '分均补刀（个/分钟）',
+    label: '分均补刀',
     unit: '个/分钟',
     fmt: 'num',
     description: 'Creep Score Per Minute：每分钟补刀数'
   },
   vspm: {
-    label: '分均视野得分（分/分钟）',
+    label: '分均视野得分',
     unit: '分/分钟',
     fmt: 'num',
     description: 'Vision Score Per Minute：每分钟视野得分'
   },
   wpm: {
-    label: '分均放置守卫（个/分钟）',
+    label: '分均放置守卫',
     unit: '个/分钟',
     fmt: 'num',
     description: 'Wards Placed Per Minute：每分钟放置守卫数'
   },
   wcpm: {
-    label: '分均排除守卫（个/分钟）',
+    label: '分均排除守卫',
     unit: '个/分钟',
     fmt: 'num',
     description: 'Wards Cleared Per Minute：每分钟排除守卫数'
   },
   cwpm: {
-    label: '分均购买控制守卫（个/分钟）',
+    label: '分均购买控制守卫',
     unit: '个/分钟',
     fmt: 'num',
     description: 'Control Wards Per Minute：每分钟购买控制守卫数'
@@ -165,14 +163,14 @@ export const roleMetricMeta: Record<
     fmt: 'pct',
     description: '个人承受伤害 ÷ 团队承受伤害，按对局平均'
   },
-  damageTakenPM: { label: '分均承伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
-  mitigatedPM: { label: '分均减伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
-  objectiveDamagePM: { label: '分均目标伤害（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
-  turretDamagePM: { label: '分均塔伤（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' },
-  healPM: { label: '分均队友治疗（生命值/分钟）', unit: '生命值/分钟', fmt: 'num' },
-  shieldPM: { label: '分均队友护盾（护盾值/分钟）', unit: '护盾值/分钟', fmt: 'num' },
+  damageTakenPM: { label: '分均承伤', unit: '伤害/分钟', fmt: 'num' },
+  mitigatedPM: { label: '分均减伤', unit: '伤害/分钟', fmt: 'num' },
+  objectiveDamagePM: { label: '分均目标伤害', unit: '伤害/分钟', fmt: 'num' },
+  turretDamagePM: { label: '分均塔伤', unit: '伤害/分钟', fmt: 'num' },
+  healPM: { label: '分均队友治疗', unit: '生命值/分钟', fmt: 'num' },
+  shieldPM: { label: '分均队友护盾', unit: '护盾值/分钟', fmt: 'num' },
   ccPM: {
-    label: '分均控制时长（秒/分钟）',
+    label: '分均控制时长',
     unit: '秒/分钟',
     fmt: 'num',
     description: '每分钟对敌方英雄造成的控制时长'
@@ -181,100 +179,128 @@ export const roleMetricMeta: Record<
   fbRate: { label: '一血参与率', fmt: 'pct', description: '参与本方一血击杀的对局占比' },
   ftRate: { label: '一塔参与率', fmt: 'pct', description: '参与摧毁本方第一座防御塔的对局占比' },
   gd10: {
-    label: '10 分钟经济差（金币）',
+    label: '经济差 @ 10',
     unit: '金币',
     fmt: 'num',
     description: 'Gold Difference at 10：10 分钟相对同位置对手的经济差'
   },
   gd15: {
-    label: '15 分钟经济差（金币）',
+    label: '经济差 @ 15',
     unit: '金币',
     fmt: 'num',
     description: 'Gold Difference at 15：15 分钟相对同位置对手的经济差'
   },
   csd15: {
-    label: '15 分钟补刀差（个）',
+    label: '补刀差 @ 15',
     unit: '个',
     fmt: 'num',
     description: 'Creep Score Difference at 15：15 分钟相对同位置对手的补刀差'
   },
   xpd15: {
-    label: '15 分钟经验差（经验）',
+    label: '经验差 @ 15',
     unit: '经验',
     fmt: 'num',
     description: 'Experience Difference at 15：15 分钟相对同位置对手的经验差'
   },
   damageDiff15: {
-    label: '15 分钟英雄伤害差（伤害）',
+    label: '英雄伤害差 @ 15',
     unit: '伤害',
     fmt: 'num',
     description: '15 分钟前对英雄伤害相对同位置对手的差值'
   },
   soloDiff15: {
-    label: '15 分钟单杀差（次）',
+    label: '单杀差 @ 15',
     unit: '次',
     fmt: 'num',
     description: '15 分钟前对同位置对手的单杀数减去被单杀数'
   },
   counter: {
-    label: 'OP.GG 线杀率差（百分点）',
+    label: 'OP.GG 线杀率差',
     unit: '百分点',
     fmt: 'pp',
     description: '基于 OP.GG 对位数据的线杀率差；数据不可用时显示 —'
   },
   dragon15: {
-    label: '15 分钟小龙差（条）',
+    label: '小龙差 @ 15',
     unit: '条',
     fmt: 'num',
     description: '15 分钟前本方取得的小龙数减去对方小龙数'
   },
   grub15: {
-    label: '15 分钟巢虫差（只）',
+    label: '巢虫差 @ 15',
     unit: '只',
     fmt: 'num',
     description: '15 分钟前本方取得的虚空巢虫数减去对方巢虫数'
   },
   objectiveFight15: {
-    label: '15 分钟资源团净击杀（次）',
+    label: '资源团净击杀 @ 15',
     unit: '次',
     fmt: 'num',
     description: '15 分钟前资源事件附近本方击杀数减去死亡数'
   },
   laneGankEligibleGames: {
-    label: '有效场次',
+    label: '被抓统计有效场次',
+    shortLabel: '有效场次',
     fmt: 'int',
     description: '能够识别敌方打野并读取完整时间线的该成员非打野对局数'
   },
   laneGankDeaths: {
-    label: '被抓死亡',
+    label: '被抓死亡次数',
+    shortLabel: '被抓死亡',
     fmt: 'int',
     description: '14:00 前在成员对应分路死亡，且敌方打野是击杀者或助攻者的次数'
   },
   laneGankDeathsPG: {
-    label: '场均被抓',
+    label: '场均被抓死亡次数',
+    shortLabel: '场均被抓',
     fmt: 'num',
-    description: '被抓死亡次数 ÷ 有效场次'
+    description: '14:00 前对应分路、敌方打野参与击杀或助攻的被抓死亡次数 ÷ 被抓统计有效场次'
   },
-  laneGankBefore3: { label: '3分钟前', fmt: 'int', description: '0:00（含）至 3:00（不含）' },
-  laneGankMinute3: { label: '3分钟', fmt: 'int', description: '3:00（含）至 4:00（不含）' },
-  laneGankMinute4: { label: '4分钟', fmt: 'int', description: '4:00（含）至 5:00（不含）' },
-  laneGankMinute5To10: {
-    label: '5–10分钟',
+  laneGankBefore3: {
+    label: '被抓死亡次数 · 0–3分钟',
+    shortLabel: '0–3分钟',
+    windowLabel: '0–3',
     fmt: 'int',
-    description: '5:00（含）至 10:00（不含）'
+    description: '0:00（含）至 3:00（不含）内，在成员对应分路死亡且敌方打野参与击杀或助攻的次数'
+  },
+  laneGankMinute3: {
+    label: '被抓死亡次数 · 3–4分钟',
+    shortLabel: '3–4分钟',
+    windowLabel: '3–4',
+    fmt: 'int',
+    description: '3:00（含）至 4:00（不含）内，在成员对应分路死亡且敌方打野参与击杀或助攻的次数'
+  },
+  laneGankMinute4: {
+    label: '被抓死亡次数 · 4–5分钟',
+    shortLabel: '4–5分钟',
+    windowLabel: '4–5',
+    fmt: 'int',
+    description: '4:00（含）至 5:00（不含）内，在成员对应分路死亡且敌方打野参与击杀或助攻的次数'
+  },
+  laneGankMinute5To10: {
+    label: '被抓死亡次数 · 5–10分钟',
+    shortLabel: '5–10分钟',
+    windowLabel: '5–10',
+    fmt: 'int',
+    description: '5:00（含）至 10:00（不含）内，在成员对应分路死亡且敌方打野参与击杀或助攻的次数'
   },
   laneGankMinute10To14: {
-    label: '10–14分钟',
+    label: '被抓死亡次数 · 10–14分钟',
+    shortLabel: '10–14分钟',
+    windowLabel: '10–14',
     fmt: 'int',
-    description: '10:00（含）至 14:00（不含）'
+    description: '10:00（含）至 14:00（不含）内，在成员对应分路死亡且敌方打野参与击杀或助攻的次数'
   },
   laneGankAffectedRate: {
-    label: '涉及率',
+    label: '被抓死亡对局率',
+    shortLabel: '涉及率',
     fmt: 'pct',
-    description: '至少发生一次被抓死亡的对局数 ÷ 有效场次'
+    description:
+      '至少发生一次 14:00 前对应分路、敌方打野参与击杀或助攻的死亡对局数 ÷ 被抓统计有效场次'
   },
   laneGankAffectedGames: {
-    label: '涉及场次',
+    label: '被抓死亡对局数',
+    shortLabel: '涉及场次',
     fmt: 'int',
     description: '至少发生一次被抓死亡的对局数；同一局发生多次仍只计一场'
   }
@@ -335,8 +361,8 @@ export const jungleGroups = {
   }
 } as const
 export const jungleMeta: Record<string, { label: string; fmt: MetricFormat; unit?: string }> = {
-  games: { label: '场次', fmt: 'int' },
-  winRate: { label: '胜率', fmt: 'pct' },
+  games: roleMetricMeta.games,
+  winRate: roleMetricMeta.winRate,
   startDistribution: { label: '开野分布', fmt: 'text' },
   ownStartRate: { label: '己方野区开率', fmt: 'pct' },
   invadeStartRate: { label: '入侵开野率', fmt: 'pct' },
@@ -348,9 +374,9 @@ export const jungleMeta: Record<string, { label: string; fmt: MetricFormat; unit
   krugsStartRate: { label: '石甲虫开率', fmt: 'pct' },
   level3GankRate: { label: '3级抓人率', fmt: 'pct' },
   level4GankRate: { label: '4级抓人率', fmt: 'pct' },
-  topGanksPG: { label: '场均上路抓人（次/场）', unit: '次/场', fmt: 'num' },
-  midGanksPG: { label: '场均中路抓人（次/场）', unit: '次/场', fmt: 'num' },
-  botGanksPG: { label: '场均下路抓人（次/场）', unit: '次/场', fmt: 'num' },
+  topGanksPG: { label: '场均上路抓人', unit: '次/场', fmt: 'num' },
+  midGanksPG: { label: '场均中路抓人', unit: '次/场', fmt: 'num' },
+  botGanksPG: { label: '场均下路抓人', unit: '次/场', fmt: 'num' },
   topZoneRate: { label: '上半区亲和度', fmt: 'pct' },
   midZoneRate: { label: '中路亲和度', fmt: 'pct' },
   botZoneRate: { label: '下半区亲和度', fmt: 'pct' },
@@ -361,22 +387,21 @@ export const jungleMeta: Record<string, { label: string; fmt: MetricFormat; unit
   voidgrubsPG: { label: '场均巢虫', fmt: 'num' },
   heraldsPG: { label: '场均先锋', fmt: 'num' },
   baronsPG: { label: '场均大龙', fmt: 'num' },
-  dragon15: { label: '15 分钟小龙差（条）', unit: '条', fmt: 'num' },
-  grub15: { label: '15 分钟巢虫差（只）', unit: '只', fmt: 'num' },
-  objectiveFight15: { label: '15 分钟资源团净击杀（次）', unit: '次', fmt: 'num' },
-  gd10: { label: '10 分钟经济差（金币）', unit: '金币', fmt: 'num' },
-  gd15: { label: '15 分钟经济差（金币）', unit: '金币', fmt: 'num' },
-  xpd15: { label: '15 分钟经验差（经验）', unit: '经验', fmt: 'num' },
-  cspm: { label: '分均补刀（个/分钟）', unit: '个/分钟', fmt: 'num' },
-  gpm: { label: '分均经济（金币/分钟）', unit: '金币/分钟', fmt: 'num' },
-  objectiveDamagePM: { label: '分均目标伤害（伤害/分钟）', unit: '伤害/分钟', fmt: 'num' }
+  // The same canonical metric shares its display metadata across role, jungle
+  // and trend consumers; population/aggregation remains owned by each domain.
+  dragon15: roleMetricMeta.dragon15,
+  grub15: roleMetricMeta.grub15,
+  objectiveFight15: roleMetricMeta.objectiveFight15,
+  gd10: roleMetricMeta.gd10,
+  gd15: roleMetricMeta.gd15,
+  xpd15: roleMetricMeta.xpd15,
+  cspm: roleMetricMeta.cspm,
+  gpm: roleMetricMeta.gpm,
+  objectiveDamagePM: roleMetricMeta.objectiveDamagePM
 }
 
-/** Compact names for detail rows; table/axis titles retain the unit. */
-export const roleMetricName = (key: string) => {
-  const meta = roleMetricMeta[key]
-  return meta.unit ? meta.label.replace('（' + meta.unit + '）', '') : meta.label
-}
+/** Pure canonical names; units and definitions are separate metadata. */
+export const roleMetricName = (key: string) => roleMetricMeta[key].label
 
 /** The unit accompanies isolated values without turning missing values into zero. */
 export const roleMetricDetail = (key: string, value: unknown, formatted?: string) => {

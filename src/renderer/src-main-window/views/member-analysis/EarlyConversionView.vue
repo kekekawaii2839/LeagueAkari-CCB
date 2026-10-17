@@ -1,10 +1,12 @@
 <template>
-  <div ref="root" class="ma-panel ma-workspace ma-results">
+  <div ref="root" class="ma-panel ma-workspace ma-results early-results">
     <div class="ma-view-toolbar">
-      <NRadioGroup v-model:value="timing" size="small" aria-label="前期经济时刻"
-        ><NRadioButton value="15">15 分钟</NRadioButton
-        ><NRadioButton value="20">20 分钟</NRadioButton></NRadioGroup
-      >
+      <MemberAnalysisSegments
+        :model-value="timing"
+        :options="timingOptions"
+        ariaLabel="前期经济时刻"
+        @update:model-value="changeTiming"
+      />
       <NSelect
         v-if="compact"
         v-model:value="group"
@@ -47,7 +49,13 @@
             <th scope="col">五路经济差（金币）</th>
             <th scope="col">场数</th>
             <th scope="col">胜 / 负</th>
-            <th scope="col">胜率与 95% 区间<small class="rate-scale">0% — 50% — 100%</small></th>
+            <th scope="col">
+              胜率与 95% 区间
+              <div class="early-rate early-rate-heading" aria-hidden="true">
+                <span />
+                <small class="rate-scale"><span>0%</span><span>50%</span><span>100%</span></small>
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -89,7 +97,6 @@
         </tbody>
       </table>
     </section>
-    <p class="ma-chart-note">{{ uiText('earlyResultNote') }}</p>
     <div class="ma-section-title">
       <strong
         >{{ uiText('matchingGames')
@@ -106,34 +113,42 @@
       >
     </div>
     <p v-if="notice" class="ma-chart-note" role="status">{{ notice }}</p>
-    <MemberAnalysisEvidenceTable
-      :games="evidenceGames"
-      :columns="gameColumns"
-      :context-key="`${timing}|${group}|${selectedBucket}`"
-      :scroll-x="650"
-      :navigate-to-match="evidenceNavigation"
+    <div
+      ref="evidenceArea"
+      class="early-evidence-scroll"
+      role="region"
+      :aria-label="uiText('matchingGames')"
     >
-      <template #detail="{ game }"
-        ><p class="ma-chart-note">
-          {{ timing }} 分钟五路经济差：{{ formatSigned(earlyGoldDiff(game, timing)) }} 金币
-        </p></template
-      >
-    </MemberAnalysisEvidenceTable>
+      <MemberAnalysisEvidenceTable
+        :viewport-height="evidenceHeight"
+        :games="evidenceGames"
+        :columns="gameColumns"
+        :context-key="`${timing}|${group}|${selectedBucket}`"
+        :scroll-x="650"
+        :navigate-to-match="evidenceNavigation"
+      />
+    </div>
   </div>
 </template>
+<script lang="ts">
+// Reserve a readable native table header, pager and at least one evidence row.
+// Truly short viewports retain outer scrolling rather than clipping controls.
+export function calculateEarlyEvidenceHeight(
+  availableHeight: number,
+  precedingHeight: number,
+  bottomPadding: number,
+  minimumHeight = 128
+): number {
+  if (![availableHeight, precedingHeight, bottomPadding].every(Number.isFinite)) return 220
+  return Math.max(minimumHeight, Math.floor(availableHeight - precedingHeight - bottomPadding - 4))
+}
+</script>
 <script setup lang="ts">
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
-import {
-  NButton,
-  NRadioButton,
-  NRadioGroup,
-  NSelect,
-  type SelectOption,
-  type DataTableColumns
-} from 'naive-ui'
+import { NButton, NSelect, type SelectOption, type DataTableColumns } from 'naive-ui'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
-import { aggregateEarlyBuckets, earlyGoldDiff } from './analytics'
+import { aggregateEarlyBuckets } from './analytics'
 import {
   earlyBucketLabel,
   earlyBucketMatches,
@@ -145,6 +160,7 @@ import {
 import MemberAnalysisEvidenceTable from './MemberAnalysisEvidenceTable.vue'
 import WinRateInterval from './WinRateInterval.vue'
 import MetricHelp from './MetricHelp.vue'
+import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 import { formatMetric } from './metric-defs'
 import { uiText } from './ui-text'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
@@ -152,16 +168,96 @@ import { formatSigned, wilsonInterval } from './visualization'
 const { games } = useMemberAnalysisData()
 const store = useMemberAnalysisStore()
 const root = ref<HTMLElement | null>(null)
+const evidenceArea = ref<HTMLElement | null>(null)
+const evidenceHeight = ref(220)
 const compact = ref(false)
 let resizeObserver: ResizeObserver | undefined
-onMounted(() => {
-  resizeObserver = new ResizeObserver(([entry]) => {
-    compact.value = entry.contentRect.width > 0 && entry.contentRect.width < 560
+let layoutMutations: MutationObserver | undefined
+let budgetFrame = 0
+let scrollOwner: HTMLElement | null = null
+function updateEvidenceBudget() {
+  const panel = root.value
+  const evidence = evidenceArea.value
+  if (!panel || !evidence || !scrollOwner || !panel.isConnected) return
+  const panelRect = panel.getBoundingClientRect()
+  const ownerRect = scrollOwner.getBoundingClientRect()
+  // Use the unscrolled position: scrolling the parent must not resize evidence.
+  const naturalPanelTop =
+    panelRect.top - ownerRect.top - scrollOwner.clientTop + scrollOwner.scrollTop
+  // In low-height windows put the same grouping choices into the existing
+  // toolbar select instead of spending a second row above the comparison.
+  compact.value = panelRect.width < 560 || scrollOwner.clientHeight - naturalPanelTop < 720
+  let padding = 0
+  let ancestor = evidence.parentElement
+  while (ancestor && ancestor !== scrollOwner) {
+    const style = getComputedStyle(ancestor)
+    for (const value of [style.paddingBottom, style.borderBottomWidth, style.marginBottom])
+      padding += Number.parseFloat(value) || 0
+    ancestor = ancestor.parentElement
+  }
+  const header = evidence.querySelector<HTMLElement>('.n-data-table-thead')
+  const row = evidence.querySelector<HTMLElement>('.n-data-table-tbody > tr')
+  const pager = evidence.querySelector<HTMLElement>('.n-data-table__pagination')
+  const minimum =
+    header && row
+      ? Math.ceil(
+          header.getBoundingClientRect().height +
+            row.getBoundingClientRect().height +
+            (pager
+              ? pager.getBoundingClientRect().height +
+                (Number.parseFloat(getComputedStyle(pager).marginTop) || 0)
+              : 0) +
+            2
+        )
+      : 128
+  evidenceHeight.value = calculateEarlyEvidenceHeight(
+    scrollOwner.clientHeight - naturalPanelTop,
+    evidence.getBoundingClientRect().top - panelRect.top,
+    padding,
+    minimum
+  )
+}
+function queueEvidenceBudget() {
+  if (budgetFrame || typeof requestAnimationFrame === 'undefined') return
+  budgetFrame = requestAnimationFrame(() => {
+    budgetFrame = 0
+    updateEvidenceBudget()
   })
+}
+onMounted(() => {
+  if (typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(queueEvidenceBudget)
   if (root.value) resizeObserver.observe(root.value)
+  if (typeof HTMLElement !== 'undefined' && root.value instanceof HTMLElement) {
+    scrollOwner = root.value.closest<HTMLElement>('.member-analysis-scroll')
+    let ancestor = root.value.parentElement
+    while (ancestor) {
+      resizeObserver.observe(ancestor)
+      if (ancestor === scrollOwner) break
+      ancestor = ancestor.parentElement
+    }
+    if (scrollOwner && typeof MutationObserver !== 'undefined') {
+      layoutMutations = new MutationObserver(queueEvidenceBudget)
+      layoutMutations.observe(scrollOwner, { childList: true, subtree: true, characterData: true })
+    }
+  }
+  queueEvidenceBudget()
 })
-onUnmounted(() => resizeObserver?.disconnect())
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+  layoutMutations?.disconnect()
+  if (budgetFrame) cancelAnimationFrame(budgetFrame)
+  budgetFrame = 0
+  scrollOwner = null
+})
 const timing = ref<'15' | '20'>('15')
+const timingOptions = [
+  { value: '15', label: '15 分钟' },
+  { value: '20', label: '20 分钟' }
+]
+function changeTiming(value: string | number) {
+  if (value === '15' || value === '20') timing.value = value
+}
 const group = ref<EarlyGroup>('all')
 const selectedBucket = ref('')
 const notice = ref('')
@@ -192,6 +288,7 @@ const visibleBuckets = computed(() =>
       (group.value === 'behind' ? index < 3 : group.value === 'neutral' ? index === 3 : index > 3)
   )
 )
+watch([visibleBuckets, compact, notice, selectedBucket], () => nextTick(queueEvidenceBudget))
 const groupCount = (key: EarlyGroup) =>
   rows.value.filter((row) => earlyGroupMatches(row.diff, key)).length
 const groupOptions = computed(() =>
@@ -271,6 +368,7 @@ const gameColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
     title: `${timing.value} 分钟经济差（金币）`,
     key: 'diff',
     width: 175,
+    align: 'right',
     sorter: (a, b) =>
       (diffsByGame.value.get(a.gameId) ?? 0) - (diffsByGame.value.get(b.gameId) ?? 0),
     render: (game) => formatSigned(diffsByGame.value.get(game.gameId))
@@ -278,6 +376,19 @@ const gameColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
 ])
 </script>
 <style scoped>
+.early-results.ma-workspace.ma-results {
+  padding: 12px 16px;
+  gap: 8px;
+}
+.early-results > .ma-section-title {
+  align-items: center;
+  margin-top: 0;
+  padding-top: 16px;
+  padding-bottom: 8px;
+}
+.early-evidence-scroll {
+  min-height: 0;
+}
 .early-group-select {
   flex: 1 1 180px;
   min-width: 120px;
@@ -319,9 +430,27 @@ const gameColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
 .early-table col:last-child {
   width: 44%;
 }
-.rate-scale {
-  display: block;
+.early-rate-heading {
   margin-top: 4px;
+}
+.rate-scale {
+  position: relative;
+  display: block;
+  height: 20px;
+}
+.rate-scale > span {
+  position: absolute;
+  top: 0;
+}
+.rate-scale > span:first-child {
+  left: 0;
+}
+.rate-scale > span:nth-child(2) {
+  left: 50%;
+  transform: translateX(-50%);
+}
+.rate-scale > span:last-child {
+  right: 0;
 }
 .early-bucket-button {
   max-width: 100%;
@@ -368,12 +497,26 @@ const gameColumns = computed<DataTableColumns<MemberAnalysisGame>>(() => [
 }
 @container ma-results (max-width: 760px) {
   .early-rate {
-    grid-template-columns: 1fr;
+    grid-template-columns: 64px minmax(0, 1fr);
     gap: 8px;
   }
   .early-table th,
   .early-table td {
     padding: 8px;
+  }
+}
+</style>
+
+<style scoped>
+@media (max-height: 900px) {
+  .early-results .early-table th,
+  .early-results .early-table td {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .early-results .early-bucket-button small {
+    display: inline;
+    margin-left: 8px;
   }
 }
 </style>

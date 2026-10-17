@@ -5,7 +5,7 @@ import { app } from 'electron'
 import { bootstrap } from './bootstrap'
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('sugar.cocoa.league-akari')
+  app.setAppUserModelId('com.ccb.leagueakari')
 }
 
 const gotTheLock = app.requestSingleInstanceLock()

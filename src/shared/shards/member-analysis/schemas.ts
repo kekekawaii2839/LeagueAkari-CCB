@@ -13,6 +13,22 @@ const nullableFiniteNumber = z.number().finite().nullable()
 export const MemberAnalysisPlayerGameSchema = z
   .object({
     player: z.string().trim().min(1).max(96),
+    // Exact match-local identity; older derived rows remain readable without it.
+    participantId: z.number().int().min(1).max(10).optional(),
+    // Publication-scoped identity proof and latest available match profile icon.
+    // Older publications/uncertain raw associations omit both fields.
+    profileIdentity: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable()
+      .optional(),
+    profileIconId: z
+      .number()
+      .int()
+      .nonnegative()
+      .max(Number.MAX_SAFE_INTEGER)
+      .nullable()
+      .optional(),
     role: MemberAnalysisRoleSchema,
     champion: z.string().trim().min(1).max(64),
     minutes: z.number().finite().nonnegative(),
@@ -367,7 +383,9 @@ export const MemberAnalysisSettingsSchema = z
     storageLimitGiB: z.number().int().min(1).max(1000),
     opggEnabled: z.boolean(),
     // Older settings omit this UI experiment; absence is treated as disabled.
-    experimentalPredictionEnabled: z.boolean().optional()
+    experimentalPredictionEnabled: z.boolean().optional(),
+    experimentalLpTrendEnabled: z.boolean().optional(),
+    experimentalVersionTrendEnabled: z.boolean().optional()
   })
   .strict()
 
@@ -403,6 +421,11 @@ export const MemberAnalysisCapabilitiesSchema = z
         'getCapabilities',
         'getOverview',
         'getMatchDetails',
+        'getMatchOverview',
+        'getRankObservationHistory',
+        'refreshCurrentRanks',
+        'cancelCurrentRankRefresh',
+        'getPublishedMemberIdentities',
         'getSettings',
         'updateSettings',
         'startRefresh',
@@ -421,6 +444,11 @@ export const MemberAnalysisOverviewSchema = z
     contractVersion: z.literal(MEMBER_ANALYSIS_CONTRACT_VERSION),
     dataVersion: z.literal(MEMBER_ANALYSIS_DATA_VERSION),
     firstRun: z.boolean(),
+    publicationToken: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{32}$/)
+      .nullable()
+      .optional(),
     generatedAt: z.iso.datetime().nullable(),
     source: z.string().trim().min(1).max(128),
     gameCount: z.number().int().nonnegative(),
@@ -433,6 +461,10 @@ export const MemberAnalysisOverviewSchema = z
 
 export const MemberAnalysisOverviewRequestSchema = z
   .object({
+    publicationToken: z
+      .string()
+      .regex(/^[A-Za-z0-9_-]{32}$/)
+      .optional(),
     filters: MemberAnalysisFiltersSchema.optional(),
     pagination: MemberAnalysisPaginationSchema.optional()
   })

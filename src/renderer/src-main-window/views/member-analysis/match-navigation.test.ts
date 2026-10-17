@@ -90,10 +90,38 @@ function fixture() {
 const ticks = async () => {
   for (let i = 0; i < 5; i++) await Promise.resolve()
 }
+
+test('realigns an expanded last row after revealing its previously skipped layout', async () => {
+  const f = fixture()
+  let maxScroll = 2755.2
+  let rowTop = 3317.85
+  let revealed = false
+  const row = f.rows.get(900205)
+  row.scrollIntoView = () => {
+    revealed = true
+    rowTop = 3317.85 - Math.min(maxScroll, 3317.85 - 72)
+  }
+  const p = f.locate(900205)
+  await ticks()
+  f.flush()
+  await ticks()
+  assert(revealed)
+  assert.equal(f.effects.filter((e) => e[0] === 'focus' || e[0] === 'settled').length, 0)
+  // The initial reveal used the collapsed offscreen extent. The browser
+  // materializes the expanded content in the following layout frame.
+  maxScroll = 4082
+  f.flush()
+  await ticks()
+  await p
+  assert.equal(rowTop, 72)
+  assert.equal(f.effects.filter((e) => e[0] === 'focus').length, 1)
+})
 test('locates, opens without toggling existing rows, focuses exact target and repeats idempotently', async () => {
   const f = fixture()
   for (let i = 0; i < 2; i++) {
     const p = f.locate(900205)
+    await ticks()
+    f.flush()
     await ticks()
     f.flush()
     await p
@@ -108,6 +136,8 @@ test('new click defeats old render, latest identity alone is opened', async () =
     old = f.locate(900001)
   const fresh = f.locate(900205)
   release()
+  await ticks()
+  f.flush()
   await ticks()
   f.flush()
   await Promise.all([old, fresh])
@@ -134,4 +164,32 @@ test('unmounted row reports unavailable and does not invent arrival', async () =
   f.flush()
   await p
   assert.deepEqual(f.effects, [['settled', 900001, 'unavailable']])
+})
+
+test('cancelling after reveal releases the alignment frame without late focus or arrival', async () => {
+  const f = fixture()
+  const p = f.locate(900205)
+  await ticks()
+  f.flush()
+  await ticks()
+  assert.equal(f.frames.size, 1)
+  assert.equal(f.effects.filter((e) => e[0] === 'row').length, 1)
+  f.stop()
+  await p
+  f.flush()
+  assert.equal(f.frames.size, 0)
+  assert.equal(f.effects.filter((e) => e[0] === 'focus' || e[0] === 'settled').length, 0)
+})
+
+test('a row removed between reveal and alignment cannot report a successful location', async () => {
+  const f = fixture()
+  const p = f.locate(900205)
+  await ticks()
+  f.flush()
+  await ticks()
+  f.rows.get(900205).isConnected = false
+  f.flush()
+  await p
+  assert.deepEqual(f.effects.at(-1), ['settled', 900205, 'unavailable'])
+  assert.equal(f.effects.filter((e) => e[0] === 'focus').length, 0)
 })

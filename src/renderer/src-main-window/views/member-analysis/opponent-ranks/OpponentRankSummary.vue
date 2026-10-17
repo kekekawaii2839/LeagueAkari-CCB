@@ -3,12 +3,14 @@
     <header class="rank-heading">
       <div>
         <h2>{{ uiText('rankTabTitle') }}</h2>
-        <p>{{ uiText('rankSnapshotTitle') }}</p>
       </div>
-      <NRadioGroup v-model:value="queue" size="small" :aria-label="uiText('rankQueue')">
-        <NRadioButton value="flex">{{ uiText('rankFlex') }}</NRadioButton>
-        <NRadioButton value="solo">{{ uiText('rankSolo') }}</NRadioButton>
-      </NRadioGroup>
+      <MemberAnalysisSegments
+        :model-value="queue"
+        :options="queueOptions"
+        :ariaLabel="uiText('rankQueue')"
+        aria-controls="opponent-rank-comparison"
+        @update:model-value="selectQueue"
+      />
     </header>
     <p v-if="!stats.totalGames" class="rank-recovery">
       {{ uiText('rankEmptyMatches') }}
@@ -16,7 +18,7 @@
     <p v-else-if="!stats.lastFetchedAt" class="rank-recovery">
       {{ uiText('rankRecovery') }}
     </p>
-    <div class="rank-columns">
+    <div id="opponent-rank-comparison" class="rank-columns">
       <div class="rank-comparison">
         <div
           class="rank-table-wrap"
@@ -61,7 +63,7 @@
                 v-for="row in stats.rows"
                 :key="row.tier"
                 :class="{ selected: selected?.tier === row.tier }"
-                @click="selectedTier = row.tier"
+                @click="toggleTier(row.tier)"
               >
                 <th scope="row">
                   <button
@@ -69,7 +71,7 @@
                     type="button"
                     :aria-pressed="selected?.tier === row.tier"
                     :aria-label="rowLabel(row)"
-                    @click.stop="selectedTier = row.tier"
+                    @click.stop="toggleTier(row.tier)"
                   >
                     <img :src="medals[row.tier]" alt="" />
                     <span>{{ tierName(row.tier) }}</span>
@@ -213,36 +215,6 @@
         </section>
       </aside>
     </div>
-    <details class="rank-method">
-      <summary>{{ uiText('rankMethodTitle') }}</summary>
-      <div class="rank-method-body">
-        <div class="rank-provenance">
-          <span>{{ uiText('rankSource') }}</span>
-          <span v-if="stats.lastFetchedAt">{{
-            uiText(
-              stats.firstFetchedAt === stats.lastFetchedAt
-                ? 'rankQueryTimeSingle'
-                : 'rankQueryTime',
-              {
-                from: snapshotTime(stats.firstFetchedAt),
-                to: snapshotTime(stats.lastFetchedAt)
-              }
-            )
-          }}</span>
-        </div>
-        <p>{{ uiText('rankHistoricalLimit') }}</p>
-        <p>{{ uiText('rankEligibility') }}</p>
-        <p>{{ uiText('rankGroupingMethod') }}</p>
-        <dl class="rank-all-statuses" :aria-label="uiText('rankAllStatusCounts')">
-          <div v-for="item in allStatuses" :key="item.key">
-            <dt>{{ uiText(item.key) }}</dt>
-            <dd>{{ item.count }}</dd>
-          </div>
-        </dl>
-        <p>{{ uiText('rankComparisonLimit') }}</p>
-        <p>{{ uiText('rankIntervalLimit') }}</p>
-      </div>
-    </details>
   </section>
 </template>
 <script setup lang="ts">
@@ -253,22 +225,21 @@ import {
   type RankValue
 } from '@shared/shards/member-analysis/opponent-ranks'
 import { i18next } from '@renderer-shared/i18n'
-import IronMedal from '@renderer-shared/assets/ranked-icons/iron.png'
-import BronzeMedal from '@renderer-shared/assets/ranked-icons/bronze.png'
-import SilverMedal from '@renderer-shared/assets/ranked-icons/silver.png'
-import GoldMedal from '@renderer-shared/assets/ranked-icons/gold.png'
-import PlatinumMedal from '@renderer-shared/assets/ranked-icons/platinum.png'
-import EmeraldMedal from '@renderer-shared/assets/ranked-icons/emerald.png'
-import DiamondMedal from '@renderer-shared/assets/ranked-icons/diamond.png'
-import MasterMedal from '@renderer-shared/assets/ranked-icons/master.png'
-import GrandmasterMedal from '@renderer-shared/assets/ranked-icons/grandmaster.png'
-import ChallengerMedal from '@renderer-shared/assets/ranked-icons/challenger.png'
-import { NRadioButton, NRadioGroup } from 'naive-ui'
+import IronMedal from '@renderer-shared/assets/ranked-icons-large/iron.png'
+import BronzeMedal from '@renderer-shared/assets/ranked-icons-large/bronze.png'
+import SilverMedal from '@renderer-shared/assets/ranked-icons-large/silver.png'
+import GoldMedal from '@renderer-shared/assets/ranked-icons-large/gold.png'
+import PlatinumMedal from '@renderer-shared/assets/ranked-icons-large/platinum.png'
+import EmeraldMedal from '@renderer-shared/assets/ranked-icons-large/emerald.png'
+import DiamondMedal from '@renderer-shared/assets/ranked-icons-large/diamond.png'
+import MasterMedal from '@renderer-shared/assets/ranked-icons-large/master.png'
+import GrandmasterMedal from '@renderer-shared/assets/ranked-icons-large/grandmaster.png'
+import ChallengerMedal from '@renderer-shared/assets/ranked-icons-large/challenger.png'
 import { computed, ref, watch } from 'vue'
+import MemberAnalysisSegments from '../components/MemberAnalysisSegments.vue'
 import WinRateInterval from '../WinRateInterval.vue'
 import { uiText } from '../ui-text'
 import { summarizeOpponentRanks } from './analysis'
-import { snapshotTime } from './format'
 
 const props = defineProps<{ games: MemberAnalysisGame[] }>()
 type Tier = RankValue['tier']
@@ -286,6 +257,13 @@ const medals: Record<Tier, string> = {
   CHALLENGER: ChallengerMedal
 }
 const queue = ref<RankQueue>('flex')
+const queueOptions = computed(() => [
+  { value: 'flex', label: uiText('rankFlex') },
+  { value: 'solo', label: uiText('rankSolo') }
+])
+const selectQueue = (value: string | number) => {
+  if (value === 'flex' || value === 'solo') queue.value = value
+}
 const stats = computed(() => summarizeOpponentRanks(props.games, queue.value))
 const scaleMax = computed(() => {
   const max = Math.max(1, ...stats.value.rows.map((row) => row.appearances))
@@ -296,6 +274,9 @@ const coverage = computed(() =>
   stats.value.appearances ? stats.value.ranked / stats.value.appearances : null
 )
 const selectedTier = ref<Tier | null>(null)
+const toggleTier = (tier: Tier) => {
+  selectedTier.value = selectedTier.value === tier ? null : tier
+}
 let initializedSelection = false
 watch(
   stats,
@@ -647,39 +628,11 @@ dd {
   color: var(--ma-muted);
   margin-left: 6px;
 }
-.rank-provenance {
-  display: grid;
-  gap: 6px;
-}
-.rank-method {
-  margin-top: 16px;
-  color: var(--ma-muted);
-  font-size: 13px;
-}
-.rank-method summary {
-  width: fit-content;
-  min-height: 32px;
-  padding: 6px 0;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 500;
-}
-.rank-method-body {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-}
-.rank-all-statuses {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 20px;
-}
 .rank-identity:focus-visible {
   outline: 2px solid var(--la-color-link);
   outline-offset: -2px;
 }
-.rank-table-wrap:focus-visible,
-.rank-method summary:focus-visible {
+.rank-table-wrap:focus-visible {
   outline: 2px solid var(--la-color-link);
   outline-offset: 2px;
 }

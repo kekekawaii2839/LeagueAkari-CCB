@@ -44,7 +44,7 @@ export function liveRankTarget(
       ? teamTwo
       : null
   if (!own) return null
-  const opponents = (own === teamOne ? teamTwo : teamOne).map((player) => {
+  const mapPlayer = (player: (typeof players)[number]) => {
     const value = (player.selectedPosition || player.selectedRole || '').toUpperCase()
     const role =
       value === 'MID'
@@ -61,8 +61,15 @@ export function liveRankTarget(
         : null) as RankGameTarget['opponents'][number]['role'],
       champion: player.championId > 0 ? String(player.championId) : null
     }
-  })
-  return { serverId, gameId, opponents, phase: phase as LiveTarget['phase'] }
+  }
+  const opponents = (own === teamOne ? teamTwo : teamOne).map(mapPlayer)
+  return {
+    serverId,
+    gameId,
+    opponents,
+    participants: players.map(mapPlayer),
+    phase: phase as LiveTarget['phase']
+  }
 }
 
 /** Owns gameflow subscription, bounded retry and cancellation; never starts the analysis worker. */
@@ -88,7 +95,7 @@ export class OpponentRankLiveController {
               target.serverId,
               target.gameId,
               this._leagueClient.data.summoner.me?.puuid,
-              target.opponents.map((p) => p.puuid).sort()
+              target.participants!.map((p) => p.puuid).sort()
             ])
           : null
       },
@@ -136,20 +143,25 @@ export class OpponentRankLiveController {
       value?.status === 'ok' && (value.solo.status !== 'missing' || value.flex.status !== 'missing')
     while ((this._rounds.get(key) ?? 0) < 3) {
       signal.throwIfAborted()
-      const pending = target.opponents.map((player) => ({
-        ...player,
-        puuid:
-          usable(this._repository.readGamePlayer(target.serverId, target.gameId, player.puuid!)) &&
-          this._repository.wasGamePlayerCapturedLive(target.serverId, target.gameId, player.puuid!)
-            ? null
-            : player.puuid
-      }))
-      if (pending.every((player) => player.puuid === null)) return
+      if (
+        target.participants!.every(
+          (player) =>
+            usable(
+              this._repository.readGamePlayer(target.serverId, target.gameId, player.puuid!)
+            ) &&
+            this._repository.wasGamePlayerCapturedLive(
+              target.serverId,
+              target.gameId,
+              player.puuid!
+            )
+        )
+      )
+        return
       this._rounds.set(key, (this._rounds.get(key) ?? 0) + 1)
       // Keep only bounded in-memory bookkeeping; successful facts remain in SQLite.
       if (this._rounds.size > 64) this._rounds.delete(this._rounds.keys().next().value!)
       const results = await new OpponentRankLoader(this._sgp, this._repository).load(
-        [{ ...target, opponents: pending }],
+        [target],
         signal,
         () => {},
         {
@@ -162,9 +174,14 @@ export class OpponentRankLiveController {
         }
       )
       signal.throwIfAborted()
-      this._repository.publishLiveGame(target, { ...results[0].ranks, capture })
+      await this._repository.publishLiveGameAsync(
+        target,
+        { ...results[0].ranks, capture },
+        results[0].playerSnapshots,
+        signal
+      )
       if (
-        target.opponents.every(
+        target.participants!.every(
           (player) =>
             usable(
               this._repository.readGamePlayer(target.serverId, target.gameId, player.puuid!)

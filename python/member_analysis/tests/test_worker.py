@@ -13,7 +13,7 @@ SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
 from member_analysis.analysis import build_lane_gank_deaths_payload, detect_start_camp, frame_at  # noqa: E402
-from member_analysis.worker import derive_game  # noqa: E402
+from member_analysis.worker import derive_game, identity_facts  # noqa: E402
 
 
 ROLES = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"]
@@ -166,6 +166,20 @@ def synthetic_details():
 
 
 class WorkerContractTest(unittest.TestCase):
+    def test_identity_facts_bind_all_ten_and_derived_side_without_alias_authority(self):
+        summary = synthetic_summary()
+        payload = derive_game(summary, synthetic_details())
+        facts = identity_facts(summary, payload)
+        self.assertEqual([row["participantId"] for row in facts], list(range(1, 11)))
+        self.assertEqual([row["puuid"] for row in facts], [f"anon-{i}" for i in range(1, 11)])
+        self.assertNotIn("puuid", json.dumps(payload))
+        for key, value in (("puuid", "anon-2"), ("participantId", 2), ("teamId", 200)):
+            bad = synthetic_summary()
+            bad["json"]["participants"][0][key] = value
+            with self.assertRaises(ValueError):
+                identity_facts(bad, payload)
+
+
     def test_fixed_minute_requires_observation_at_that_minute(self):
         before = {"timestamp": 840000}
         exact = {"timestamp": 900000}
@@ -241,6 +255,7 @@ class WorkerContractTest(unittest.TestCase):
         game = derive_game(synthetic_summary(), synthetic_details())
         self.assertEqual(game["gameId"], 7)
         self.assertEqual(len(game["players"]), 5)
+        self.assertEqual([row["participantId"] for row in game["players"]], [1, 2, 3, 4, 5])
         self.assertEqual({row["player"] for row in game["players"]}, {
             f"Member {index}#TEST" for index in range(1, 6)
         })
@@ -409,6 +424,12 @@ class WorkerContractTest(unittest.TestCase):
                 database.execute("SELECT payload_json FROM derived_games").fetchone()[0]
             )
             self.assertEqual(len(payload["players"]), 5)
+            facts = database.execute("SELECT source_checksum,summary_digest,method_version,payload_json FROM game_identity_facts").fetchone()
+            self.assertEqual(facts[2], 1)
+            self.assertEqual(len(facts[1]), 64)
+            self.assertEqual(len(json.loads(facts[3])), 10)
+            self.assertEqual(database.execute("SELECT value FROM metadata WHERE key='identity_facts_state'").fetchone()[0], "candidate-v1")
+            self.assertEqual(database.execute("SELECT value FROM metadata WHERE key='identity_facts_count'").fetchone()[0], "1")
             audit = json.loads(database.execute(
                 "SELECT value FROM metadata WHERE key='collection_audit'"
             ).fetchone()[0])

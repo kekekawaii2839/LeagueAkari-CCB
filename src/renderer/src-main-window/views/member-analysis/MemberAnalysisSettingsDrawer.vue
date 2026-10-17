@@ -36,7 +36,7 @@
               关闭后停止更新，已保存的本地分析数据不会自动删除。
             </div>
           </div>
-          <NSwitch v-model:value="draft.enabled" />
+          <NSwitch v-model:value="draft.enabled" aria-label="启用成员分析" />
         </div>
 
         <h3 ref="collectionHeading" tabindex="-1" class="settings-group-heading">采集范围</h3>
@@ -150,7 +150,7 @@
               {{ uiText('publicReferenceHelp') }}
             </div>
           </div>
-          <NSwitch v-model:value="draft.opggEnabled" />
+          <NSwitch v-model:value="draft.opggEnabled" aria-label="OP.GG 公共参考数据" />
         </div>
 
         <h3 class="settings-group-heading">{{ uiText('experimentalPredictionGroup') }}</h3>
@@ -171,10 +171,47 @@
           />
         </div>
 
+        <div class="member-analysis-settings__row">
+          <div>
+            <div id="experimental-lp-trend-label" class="member-analysis-settings__label">
+              {{ uiText('lpTrendSettingLabel') }}
+            </div>
+            <div id="experimental-lp-trend-help" class="member-analysis-settings__description">
+              {{ uiText('lpTrendSettingHelp') }}
+            </div>
+          </div>
+          <NSwitch
+            v-model:value="draft.experimentalLpTrendEnabled"
+            aria-labelledby="experimental-lp-trend-label"
+            aria-describedby="experimental-lp-trend-help"
+            :disabled="saving"
+          />
+        </div>
+
+        <div class="member-analysis-settings__row">
+          <div>
+            <div id="experimental-version-trend-label" class="member-analysis-settings__label">
+              {{ uiText('versionTrendSettingLabel') }}
+            </div>
+            <div id="experimental-version-trend-help" class="member-analysis-settings__description">
+              {{ uiText('versionTrendSettingHelp') }}
+            </div>
+          </div>
+          <NSwitch
+            v-model:value="draft.experimentalVersionTrendEnabled"
+            aria-labelledby="experimental-version-trend-label"
+            aria-describedby="experimental-version-trend-help"
+            :disabled="saving"
+          />
+        </div>
+
         <section ref="memberList" tabindex="-1" data-validation-key="members">
           <div class="member-analysis-settings__section-title">
             <span>固定成员列表</span>
-            <NButton size="tiny" :disabled="draft.members.length >= 20" @click="addMember"
+            <NButton
+              size="tiny"
+              :disabled="sortingLocked || Boolean(draggedMember) || draft.members.length >= 20"
+              @click="addMember"
               >添加成员</NButton
             >
           </div>
@@ -191,36 +228,89 @@
           >
             {{ uiText('membersRequired') }}
           </div>
-          <div v-for="(member, index) in draft.members" :key="index" class="member-analysis-member">
+          <span class="sr-only" role="status">{{ memberOrderFeedback }}</span>
+          <span :id="`${formId}-member-order-help`" class="sr-only">
+            拖动调整成员顺序；键盘使用上、下方向键移动，Home 移至首位，End 移至末位。
+          </span>
+          <TransitionGroup
+            name="member-order"
+            tag="div"
+            class="member-order-list"
+            @dragenter.capture="allowMemberDrop"
+            @dragenter="allowMemberDrop"
+            @dragover.capture="allowMemberDrop"
+            @dragover="dragOverMemberList"
+            @drop="dropMember($event)"
+          >
             <div
-              v-for="field in memberFields"
-              :key="field.key"
-              :data-validation-key="memberKey(index, field.key)"
-              class="member-input-field"
+              v-for="(member, index) in displayedMembers"
+              :key="memberRowKey(member)"
+              :data-member-row="memberRowKey(member)"
+              class="member-analysis-member"
+              :class="{
+                'member-drop-target': dropTarget === member,
+                'member-drop-after': dropTarget === member && dropAfter
+              }"
+              role="group"
+              :aria-label="`成员 ${index + 1}：${member.gameName}#${member.tagLine}`"
+              @dragover="dragOverMember($event, member)"
+              @drop="dropMember($event, member)"
+              @keydown.esc="cancelMemberDrag($event)"
             >
-              <NInput
-                v-model:value="member[field.key]"
-                :input-props="memberInputProps(member, index, field.key)"
-                :aria-label="field.label"
-                :placeholder="field.placeholder"
-                :status="fieldError(memberKey(index, field.key)) ? 'error' : undefined"
-                @blur="touch(memberKey(index, field.key))"
-              />
-              <p
-                v-if="fieldError(memberKey(index, field.key))"
-                :id="errorId(memberKey(index, field.key))"
-                class="settings-field-error"
+              <button
+                type="button"
+                class="member-drag-handle"
+                :draggable="!sortingLocked"
+                :disabled="sortingLocked"
+                :aria-label="`拖动排序成员 ${member.gameName}#${member.tagLine}`"
+                :aria-describedby="`${formId}-member-order-help`"
+                @dragstart="startMemberDrag($event, member)"
+                @dragend="cancelMemberDrag()"
+                @keydown="moveMemberByKey($event, member)"
               >
-                {{ fieldError(memberKey(index, field.key)) }}
-              </p>
+                <NIcon :size="16"><DragHandleIcon /></NIcon>
+              </button>
+              <div
+                v-for="field in memberFields"
+                :key="field.key"
+                :data-validation-key="memberKey(draft.members.indexOf(member), field.key)"
+                class="member-input-field"
+              >
+                <NInput
+                  v-model:value="member[field.key]"
+                  :input-props="memberInputProps(member, draft.members.indexOf(member), field.key)"
+                  :aria-label="field.label"
+                  :placeholder="field.placeholder"
+                  :status="
+                    fieldError(memberKey(draft.members.indexOf(member), field.key))
+                      ? 'error'
+                      : undefined
+                  "
+                  @blur="touch(memberKey(draft.members.indexOf(member), field.key))"
+                />
+                <p
+                  v-if="fieldError(memberKey(draft.members.indexOf(member), field.key))"
+                  :id="errorId(memberKey(draft.members.indexOf(member), field.key))"
+                  class="settings-field-error"
+                >
+                  {{ fieldError(memberKey(draft.members.indexOf(member), field.key)) }}
+                </p>
+              </div>
+              <div class="member-order-actions">
+                <NButton
+                  size="small"
+                  quaternary
+                  type="error"
+                  :disabled="sortingLocked"
+                  :aria-disabled="sortingLocked || Boolean(draggedMember)"
+                  :aria-label="`删除成员 ${member.gameName}#${member.tagLine}`"
+                  @click="removeMember(draft.members.indexOf(member))"
+                  >删除</NButton
+                >
+              </div>
             </div>
-            <NButton quaternary type="error" @click="removeMember(index)">删除</NButton>
-          </div>
+          </TransitionGroup>
         </section>
-
-        <NAlert type="info" title="隐私与本地数据">
-          登录凭据仅用于本机读取，不会写入分析数据或日志。玩家数据只保存在本机应用数据目录。
-        </NAlert>
 
         <section class="member-analysis-storage">
           <NAlert v-if="cleanupError" type="error">{{ cleanupError }}</NAlert>
@@ -282,9 +372,11 @@ import {
   NFormItem,
   NInput,
   NInputNumber,
+  NIcon,
   NSelect,
   NSwitch
 } from 'naive-ui'
+import { ReOrderDotsVertical20Regular as DragHandleIcon } from '@vicons/fluent'
 import { uiText } from './ui-text'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, useId, watch } from 'vue'
 
@@ -329,7 +421,9 @@ function cloneSettings(settings: MemberAnalysisSettings): MemberAnalysisSettings
     historyTag: settings.historyTag,
     storageLimitGiB: settings.storageLimitGiB,
     opggEnabled: settings.opggEnabled,
-    experimentalPredictionEnabled: settings.experimentalPredictionEnabled ?? false
+    experimentalPredictionEnabled: settings.experimentalPredictionEnabled ?? false,
+    experimentalLpTrendEnabled: settings.experimentalLpTrendEnabled ?? false,
+    experimentalVersionTrendEnabled: settings.experimentalVersionTrendEnabled ?? false
   }
 }
 
@@ -340,21 +434,21 @@ type SettingsDraft = Omit<MemberAnalysisSettings, 'scanLimitPerMember' | 'storag
 const draft = reactive<SettingsDraft>(cloneSettings(props.settings))
 const baseline = ref(cloneSettings(props.settings))
 const dirty = computed(() => JSON.stringify(draft) !== JSON.stringify(baseline.value))
-let pendingSave: symbol | null = null
+const pendingSave = ref<symbol | null>(null)
 watch(
   () => props.settings,
   (settings) => {
-    if (dirty.value || pendingSave) return
+    if (dirty.value || pendingSave.value) return
     baseline.value = cloneSettings(settings)
     Object.assign(draft, cloneSettings(settings))
   },
   { deep: true }
 )
 onBeforeUnmount(() => {
-  pendingSave = null
+  pendingSave.value = null
 })
 function saveDraft() {
-  if (props.saving || pendingSave) return
+  if (props.saving || pendingSave.value) return
   const parsed = MemberAnalysisSettingsSchema.safeParse(draft)
   if (!parsed.success || !valid.value) {
     void showIssues()
@@ -362,10 +456,10 @@ function saveDraft() {
   }
   const submittedDraft = JSON.stringify(draft)
   const token = Symbol('settings-save')
-  pendingSave = token
+  pendingSave.value = token
   emit('save', cloneSettings(parsed.data), (saved) => {
-    if (pendingSave !== token) return
-    pendingSave = null
+    if (pendingSave.value !== token) return
+    pendingSave.value = null
     if (!saved) return
     baseline.value = cloneSettings(saved)
     // The response acknowledges only the submitted revision, never newer input.
@@ -397,12 +491,12 @@ function requestClose(show: boolean) {
     emit('update:show', true)
     return
   }
-  if (props.saving || pendingSave) return
+  if (props.saving || pendingSave.value) return
   if (dirty.value) confirmDiscard.value = true
   else emit('update:show', false)
 }
 function discard() {
-  pendingSave = null
+  pendingSave.value = null
   baseline.value = cloneSettings(props.settings)
   Object.assign(draft, cloneSettings(props.settings))
   confirmDiscard.value = false
@@ -411,7 +505,8 @@ function discard() {
 watch(
   () => props.show,
   (show) => {
-    if (!show) pendingSave = null
+    if (!show) pendingSave.value = null
+    memberOrderFeedback.value = ''
     confirmDiscard.value = false
     touched.value.clear()
     revealIssues.value = false
@@ -532,8 +627,171 @@ const historyOptions: { label: string; value: number | 'all' }[] = [
 }))
 historyOptions.push({ label: uiText('collectionAll'), value: 'all' })
 const memberList = ref<HTMLElement | null>(null)
+// Draft-only keys follow the whole member object through edits and reordering.
+// They are never persisted or used as player identities or historical slots.
+const memberRowKeys = new WeakMap<Member, number>()
+let nextMemberRowKey = 0
+function memberRowKey(member: Member) {
+  let key = memberRowKeys.get(member)
+  if (key === undefined) {
+    key = ++nextMemberRowKey
+    memberRowKeys.set(member, key)
+  }
+  return key
+}
+const memberOrderFeedback = ref('')
+const draggedMember = ref<Member | null>(null)
+const dropTarget = ref<Member | null>(null)
+const dropAfter = ref(false)
+const dragOriginalOrder = ref<Member[] | null>(null)
+const memberPreview = ref<Member[] | null>(null)
+const displayedMembers = computed(() => memberPreview.value ?? draft.members)
+const sortingLocked = computed(() => props.saving || pendingSave.value !== null)
+const memberDragType = 'application/x-akari-member-order'
+function cancelMemberDrag(event?: KeyboardEvent) {
+  if (draggedMember.value && event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  draggedMember.value = null
+  dropTarget.value = null
+  memberPreview.value = null
+  dragOriginalOrder.value = null
+}
+watch([() => props.show, sortingLocked], () => cancelMemberDrag(), { flush: 'sync' })
+function startMemberDrag(event: DragEvent, member: Member) {
+  if (sortingLocked.value || !event.dataTransfer || !draft.members.includes(member)) {
+    event.preventDefault()
+    return
+  }
+  draggedMember.value = member
+  dragOriginalOrder.value = draft.members.slice()
+  memberPreview.value = draft.members.slice()
+  event.dataTransfer.effectAllowed = 'move'
+  const row = (event.currentTarget as HTMLElement | null)?.closest('.member-analysis-member')
+  if (row && row instanceof HTMLElement) {
+    const bounds = row.getBoundingClientRect()
+    event.dataTransfer.setDragImage(row, event.clientX - bounds.left, event.clientY - bounds.top)
+  }
+  // Only a draft-local opaque row key is put on the OS drag clipboard, never a Riot ID.
+  event.dataTransfer.setData(memberDragType, String(memberRowKey(member)))
+}
+function allowMemberDrop(event: DragEvent) {
+  if (sortingLocked.value || !draggedMember.value || !memberPreview.value) return false
+  // Capture covers native inputs/SVG/controls and the gaps exposed during FLIP.
+  // Accept only this drawer's active internal move, never external data or a locked save.
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  return true
+}
+function dragOverMember(event: DragEvent, member: Member) {
+  if (!allowMemberDrop(event)) return
+  const source = draggedMember.value
+  const order = memberPreview.value
+  if (!source || !order || member === source) return
+  const preview = order.slice()
+  const index = preview.indexOf(source)
+  const target = preview.indexOf(member)
+  if (index < 0 || target < 0) return
+  const list = memberList.value?.querySelector<HTMLElement>('.member-order-list')
+  const row = list?.querySelector<HTMLElement>(`[data-member-row="${memberRowKey(member)}"]`)
+  if (row && list) {
+    // offsetTop is the destination slot, unlike getBoundingClientRect during FLIP.
+    // Crossing that stable midpoint prevents repeated dragovers reversing a preview.
+    const center = list.getBoundingClientRect().top + row.offsetTop + row.offsetHeight / 2
+    if (
+      (index < target && event.clientY < center - 2) ||
+      (index > target && event.clientY > center + 2)
+    )
+      return
+  } else if (dropTarget.value === member) return
+  dropTarget.value = member
+  dropAfter.value = index < target
+  preview.splice(index, 1)
+  preview.splice(target, 0, source)
+  // Only the keyed visual order changes while held. Cancel restores the untouched draft.
+  memberPreview.value = preview
+}
+function dragOverMemberList(event: DragEvent) {
+  if (!allowMemberDrop(event)) return
+  const list = memberList.value?.querySelector<HTMLElement>('.member-order-list')
+  if (!list) return
+  const top = list.getBoundingClientRect().top
+  const target =
+    displayedMembers.value.find((member) => {
+      const row = list.querySelector<HTMLElement>(`[data-member-row="${memberRowKey(member)}"]`)
+      return row && event.clientY < top + row.offsetTop + row.offsetHeight
+    }) ?? displayedMembers.value.at(-1)
+  if (target) dragOverMember(event, target)
+}
+async function dropMember(event: DragEvent, member?: Member) {
+  const source = draggedMember.value
+  const order = memberPreview.value
+  if (
+    sortingLocked.value ||
+    !source ||
+    !order ||
+    (member !== undefined && !order.includes(member)) ||
+    !dragOriginalOrder.value?.every((entry, index) => draft.members[index] === entry) ||
+    order.length !== draft.members.length ||
+    event.dataTransfer?.getData(memberDragType) !== String(memberRowKey(source))
+  ) {
+    cancelMemberDrag()
+    return
+  }
+  event.preventDefault()
+  const target = order.indexOf(source)
+  cancelMemberDrag()
+  draft.members.splice(0, draft.members.length, ...order)
+  touched.value.clear()
+  memberOrderFeedback.value = `${source.gameName}#${source.tagLine} 已移至第 ${target + 1} 位`
+  await focusMemberHandle(source)
+}
+function moveMemberByKey(event: KeyboardEvent, member: Member) {
+  const index = draft.members.indexOf(member)
+  const target =
+    event.key === 'ArrowUp'
+      ? index - 1
+      : event.key === 'ArrowDown'
+        ? index + 1
+        : event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? draft.members.length - 1
+            : null
+  if (target === null) return
+  event.preventDefault()
+  cancelMemberDrag()
+  void moveMember(index, target)
+}
+async function moveMember(index: number, target: number) {
+  if (
+    props.saving ||
+    pendingSave.value ||
+    index < 0 ||
+    index >= draft.members.length ||
+    target < 0 ||
+    target >= draft.members.length ||
+    target === index
+  )
+    return
+  const member = draft.members[index]
+  draft.members.splice(index, 1)
+  draft.members.splice(target, 0, member)
+  touched.value.clear()
+  memberOrderFeedback.value = `${member.gameName}#${member.tagLine} 已移至第 ${target + 1} 位`
+  await focusMemberHandle(member)
+}
+async function focusMemberHandle(member: Member) {
+  await nextTick()
+  const row = memberList.value?.querySelector<HTMLElement>(
+    `[data-member-row="${memberRowKey(member)}"]`
+  )
+  row?.querySelector<HTMLButtonElement>('.member-drag-handle')?.focus()
+}
 async function addMember() {
-  if (draft.members.length >= 20) return
+  if (sortingLocked.value || draggedMember.value || draft.members.length >= 20) return
+  memberOrderFeedback.value = ''
   draft.members.push({ serverId: '', gameName: '', tagLine: '' })
   await nextTick()
   memberList.value
@@ -541,6 +799,8 @@ async function addMember() {
     ?.focus()
 }
 async function removeMember(index: number) {
+  if (sortingLocked.value || draggedMember.value) return
+  memberOrderFeedback.value = ''
   draft.members.splice(index, 1)
   touched.value.clear()
   await nextTick()
@@ -604,9 +864,17 @@ function formatBytes(value: number) {
   width: 100%;
 }
 .member-analysis-member {
+  position: relative;
   display: grid;
-  grid-template-columns: 84px minmax(120px, 1fr) 76px auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 50px;
+  grid-template-columns: 24px 84px minmax(120px, 1fr) 76px auto;
   gap: 8px;
+  margin-top: 0;
+}
+.member-order-list {
+  position: relative;
   margin-top: 8px;
 }
 .member-analysis-storage {
@@ -637,8 +905,72 @@ function formatBytes(value: number) {
   color: var(--ma-muted);
 }
 .member-analysis-member {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--ma-grid);
+  padding: 8px 0;
+  border-bottom: 0;
+  box-shadow: inset 0 -1px var(--ma-grid);
+}
+.member-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.member-order-actions :deep(.n-button) {
+  min-height: 24px;
+  min-width: 24px;
+  padding-inline: 4px;
+}
+.member-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ma-muted);
+  font: inherit;
+  cursor: grab;
+}
+.member-drag-handle:active {
+  cursor: grabbing;
+}
+.member-drag-handle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.member-drag-handle:focus-visible {
+  outline: 2px solid var(--la-color-link);
+  outline-offset: 1px;
+}
+.member-drop-target {
+  outline: 1px solid var(--la-color-link);
+  outline-offset: 1px;
+}
+.member-drop-target::after {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--la-color-link);
+  content: '';
+  pointer-events: none;
+}
+.member-drop-after::after {
+  top: auto;
+  bottom: -1px;
+}
+.member-order-move {
+  transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .member-order-move {
+    transition: none !important;
+  }
 }
 /* Keep the alert's native warning surface; only align this confirmation's content. */
 .settings-discard-content,

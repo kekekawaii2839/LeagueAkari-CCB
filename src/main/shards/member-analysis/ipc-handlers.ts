@@ -1,5 +1,8 @@
+import { MemberAnalysisPublishedMemberIdentitiesRequestSchema } from '@shared/shards/member-analysis'
+import { MemberAnalysisRankObservationHistoryRequestSchema } from '@shared/shards/member-analysis'
 import {
   MemberAnalysisConfirmCleanupRequestSchema,
+  MemberAnalysisCurrentRankRefreshRequestSchema,
   type MemberAnalysisError,
   MemberAnalysisJobRequestSchema,
   MemberAnalysisMatchRequestSchema,
@@ -27,6 +30,28 @@ export class MemberAnalysisIpcHandlers {
   ) {}
 
   register() {
+    this._context.ipc.onCall(this._context.namespace, 'refreshCurrentRanks', (event, ...args) => {
+      const parsed = this._parseArgs(
+        event,
+        z.tuple([MemberAnalysisCurrentRankRefreshRequestSchema]),
+        args
+      )
+      if (!parsed.ok) return parsed.result
+      return this._controller.refreshCurrentRanks(parsed.value[0])
+    })
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'cancelCurrentRankRefresh',
+      (event, ...args) => {
+        const parsed = this._parseArgs(
+          event,
+          z.tuple([MemberAnalysisCurrentRankRefreshRequestSchema]),
+          args
+        )
+        if (!parsed.ok) return parsed.result
+        return this._controller.cancelCurrentRankRefresh(parsed.value[0])
+      }
+    )
     this._context.ipc.onCall(
       this._context.namespace,
       'startPredictionOpportunity',
@@ -59,11 +84,42 @@ export class MemberAnalysisIpcHandlers {
         return invalid ?? { ok: true, value: this._prediction?.summary() ?? null }
       }
     )
+    this._context.ipc.onCall(this._context.namespace, 'getMatchOverview', (event, ...args) => {
+      const parsed = this._parseArgs(event, z.tuple([MemberAnalysisMatchRequestSchema]), args)
+      if (!parsed.ok) return parsed.result
+      return this._controller.getMatchOverview(parsed.value[0].gameId)
+    })
     this._context.ipc.onCall(this._context.namespace, 'getMatchDetails', (event, ...args) => {
       const parsed = this._parseArgs(event, z.tuple([MemberAnalysisMatchRequestSchema]), args)
       if (!parsed.ok) return parsed.result
       return this._controller.getMatchDetails(parsed.value[0].gameId)
     })
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'getRankObservationHistory',
+      (event, ...args) => {
+        const parsed = this._parseArgs(
+          event,
+          z.tuple([MemberAnalysisRankObservationHistoryRequestSchema]),
+          args
+        )
+        if (!parsed.ok) return parsed.result
+        return this._controller.getRankObservationHistory(parsed.value[0])
+      }
+    )
+    this._context.ipc.onCall(
+      this._context.namespace,
+      'getPublishedMemberIdentities',
+      (event, ...args) => {
+        const parsed = this._parseArgs(
+          event,
+          z.tuple([MemberAnalysisPublishedMemberIdentitiesRequestSchema]),
+          args
+        )
+        if (!parsed.ok) return parsed.result
+        return this._controller.getPublishedMemberIdentities(parsed.value[0])
+      }
+    )
     this._context.ipc.onCall(this._context.namespace, 'getCapabilities', (event, ...args) => {
       const invalid = this._validateNoArgs(event, args)
       return invalid ?? this._controller.getCapabilities()

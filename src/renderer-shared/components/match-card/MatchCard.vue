@@ -6,7 +6,9 @@
     <MatchCardOverview @toggle-expand="isExpanded = !isExpanded" />
 
     <KeepAlive>
-      <MatchCardDetails v-if="!puuid || isExpanded" />
+      <MatchCardDetails v-if="!puuid || isExpanded" :extra-tab-label="extraDetailsTabLabel">
+        <template #extra-tab><slot name="extra-details-tab" /></template>
+      </MatchCardDetails>
     </KeepAlive>
   </div>
 </template>
@@ -27,8 +29,9 @@ const {
   hidePrivacy = false,
   loadingDetails = false,
   replayState = null,
-  canDryRunOngoingGame = false
-} = defineProps<MatchCardProps>()
+  canDryRunOngoingGame = false,
+  extraDetailsTabLabel
+} = defineProps<MatchCardProps & { extraDetailsTabLabel?: string }>()
 
 const emits = defineEmits<MatchCardEmits>()
 

@@ -11,7 +11,14 @@ import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/stor
 import WinPrediction from './WinPrediction.vue'
 
 vi.mock('./prediction.worker?worker', () => ({ default: class {} }))
+vi.mock('@renderer-shared/components/icons/position-icons/PositionIcon.vue', () => ({
+  default: (props: any) => h('position-icon', props)
+}))
+vi.mock('../MetricHelp.vue', () => ({
+  default: (props: any) => h('metric-help', { 'data-definition': props.definition }, props.label)
+}))
 vi.mock('naive-ui', () => ({
+  NIcon: (props: any, { slots }: any) => h('i', props, slots.default?.()),
   useMessage: () => ({}),
   NButton: defineComponent({
     setup:
@@ -35,9 +42,14 @@ test('offers collapsed help before selecting a lineup, without applying review f
   const html = await renderToString(app)
 
   expect(html).toContain('aria-expanded="false"')
-  expect(html).toContain('使用说明')
+  expect(html).toContain('阵容配置')
+  expect(html).toContain('娱乐预测')
+  expect(html).toContain('仅供娱乐，非校准获胜概率。')
+  expect(html).not.toContain('50.0%')
+  expect(html).toContain('选择五位不同成员')
+  expect(html).toContain('数据与说明')
   expect(html).not.toContain('id="prediction-method"')
   expect(html).toContain('顶部复盘筛选及范围不用于预测')
-  expect(html).toMatch(/<button[^>]*disabled[^>]*>计算胜率/)
+  expect(html).toMatch(/<button[^>]*disabled[^>]*>计算娱乐预测/)
   expect(JSON.stringify({ filters: store.filters, sampleSize: store.sampleSize })).toBe(before)
 })

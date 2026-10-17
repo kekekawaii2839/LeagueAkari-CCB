@@ -4,6 +4,10 @@ import { renderToString } from 'vue/server-renderer'
 
 import RankedPane from './RankedPane.vue'
 
+// Decorative overflow glyph is unrelated to ranked-tier selection; avoid loading
+// the full icon barrel in this focused SSR host.
+vi.mock('@vicons/material', () => ({ MoreHorizFilled: () => null }))
+
 const { rankedStats } = vi.hoisted(() => ({
   rankedStats: {
     queueMap: {

@@ -190,6 +190,7 @@ const booleanRate = <T>(rows: T[], value: (row: T) => boolean | null) => {
 
 export type MemberLaneGankDeathEvidence = MemberAnalysisLaneGankDeathEvent & {
   gameId: number
+  gameTimestamp: number
   date: string
   side: MemberAnalysisGame['side']
 }
@@ -205,11 +206,18 @@ export function laneGankDeathEvidence(
       game.laneGankDeaths?.status === 'available'
         ? game.laneGankDeaths.events
             .filter((event) => event.victimPlayer === player && event.victimRole === role)
-            .map((event) => ({ ...event, gameId: game.gameId, date: game.date, side: game.side }))
+            .map((event) => ({
+              ...event,
+              gameId: game.gameId,
+              gameTimestamp: game.timestamp,
+              date: game.date,
+              side: game.side
+            }))
         : []
     )
     .sort(
-      (left, right) => right.date.localeCompare(left.date) || left.timestampSec - right.timestampSec
+      (left, right) =>
+        right.gameTimestamp - left.gameTimestamp || left.timestampSec - right.timestampSec
     )
 }
 

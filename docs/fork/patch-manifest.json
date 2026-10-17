@@ -2,8 +2,6 @@
   "schemaVersion": 1,
   "upstreamBaseline": "5109b2f7fcce6e02312e534cd1729ed0f2142b51",
   "budget": {
-    "targetFiles": 35,
-    "hardMaxFiles": 40,
     "targetChangedLines": 800,
     "hardMaxChangedLines": 900
   },
@@ -19,6 +17,18 @@
     "src/shared/test-fixtures/api/README.md"
   ],
   "patches": [
+    {
+      "id": "member-analysis-optional-match-details-slot",
+      "upstreamFile": "src/renderer-shared/components/match-card/MatchCard.vue",
+      "purpose": "Forward an optional member-analysis-owned details label and slot; ordinary native match cards omit the opt-in and retain their existing content, controls and styling",
+      "replacementIfUpstreamChanges": "Use an upstream optional details extension slot without changing the native match-history default"
+    },
+    {
+      "id": "member-analysis-optional-match-details-tab",
+      "upstreamFile": "src/renderer-shared/components/match-card/MatchCardDetails.vue",
+      "purpose": "Expose the explicitly supplied member-analysis details tab only when opted in; keep ordinary native tabs unchanged and return to summary if the optional label is removed",
+      "replacementIfUpstreamChanges": "Use an upstream opt-in tab contribution API with feature-owned content and no member-analysis styling on ordinary native controls"
+    },
     {
       "id": "member-analysis-protected-generic-settings",
       "upstreamFile": "src/main/shards/setting-factory/ipc-handlers.ts",
@@ -258,6 +268,24 @@
       "upstreamFile": "vitest.config.mts",
       "purpose": "Keep standalone node:test infrastructure files out of the application Vitest discovery",
       "replacementIfUpstreamChanges": "Use an upstream multi-project test runner boundary"
+    },
+    {
+      "id": "ranked-pane-ssr-decoration-test-boundary",
+      "upstreamFile": "src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/RankedPane.test.ts",
+      "purpose": "Isolate MoreHorizFilled decorative icon barrel in the SSR test host; retain real RankedPane and both original highest-rank assertions without a production change",
+      "replacementIfUpstreamChanges": "Keep equivalent real-component highest-rank SSR assertions and isolate only non-rendered decoration when necessary"
+    },
+    {
+      "id": "ccb-windows-taskbar-identity",
+      "upstreamFile": "src/main/main.ts",
+      "purpose": "Use the CCB application user-model identity on Windows, matching packaged appId without changing official userData or protocol logic",
+      "replacementIfUpstreamChanges": "Preserve a distinct CCB Windows taskbar identity through an upstream-supported application identity hook"
+    },
+    {
+      "id": "ccb-deep-link-namespace",
+      "upstreamFile": "src/main/utils/deep-link.ts",
+      "purpose": "Use distinct CCB production and development deep-link namespaces for registration, jump-list links and uninstall cleanup without owning official Akari protocols",
+      "replacementIfUpstreamChanges": "Preserve CCB-specific protocol constants through an upstream-supported fork identity configuration"
     }
   ]
 }

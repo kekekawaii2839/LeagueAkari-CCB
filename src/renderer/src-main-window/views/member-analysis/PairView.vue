@@ -1,13 +1,20 @@
 <template>
   <div ref="root" class="ma-panel ma-workspace pair-view">
     <div class="pair-controls ma-view-toolbar">
-      <NRadioGroup v-model:value="pairType"
-        ><NRadioButton v-for="(name, value) in names" :key="value" :value="value">{{
-          name
-        }}</NRadioButton></NRadioGroup
-      >
-      <NSelect v-model:value="metric" :options="[...metricOptions]" aria-label="组合比较指标" />
-      <span class="pair-metric-unit">{{ metricUnit }}</span>
+      <MemberAnalysisSegments
+        :model-value="pairType"
+        :options="pairTypeOptions"
+        :render-label="renderRolePairSegmentLabel"
+        :slot-width="90"
+        ariaLabel="分路组合"
+        @update:model-value="changePairType"
+      />
+      <NSelect
+        class="pair-metric-select"
+        v-model:value="metric"
+        :options="[...metricOptions]"
+        aria-label="组合比较指标"
+      />
       <NSelect
         :value="sortValue"
         :options="sortOptions"
@@ -28,22 +35,24 @@
           }}</NButton>
         </div>
       </details>
+      <div v-if="linkedMembers" class="pair-related-controls" role="status" tabindex="-1">
+        <NSelect
+          v-if="relatedOptions.length"
+          :value="relatedValue"
+          :options="relatedOptions"
+          :render-label="renderRoleSelectLabel"
+          :render-tag="renderRoleSelectTag"
+          :aria-label="uiText('combinationRelatedRoles')"
+          @update:value="selectRelated"
+        />
+        <span v-else>{{ uiText('combinationNoRelatedRoles') }}</span>
+      </div>
       <span class="ma-view-meta">{{ rows.length }} 组</span>
     </div>
-    <div v-if="linkedMembers" class="pair-related-controls" role="status" tabindex="-1">
-      <NSelect
-        v-if="relatedOptions.length"
-        :value="relatedValue"
-        :options="relatedOptions"
-        :aria-label="uiText('combinationRelatedRoles')"
-        @update:value="selectRelated"
-      />
-      <span v-else>{{ uiText('combinationNoRelatedRoles') }}</span>
+    <div class="combination-legend pair-legend">
+      <span class="pair-metric-unit">{{ metricUnit }}</span>
+      <span class="ma-chart-note">{{ uiText('rateLegend') }}</span>
     </div>
-    <p v-if="selectionUnavailable" class="ma-chart-note" role="status">
-      {{ uiText('combinationSelectionUnavailable') }}
-    </p>
-    <p class="ma-chart-note">{{ uiText('rateLegend') }}</p>
     <div v-if="!rows.length" class="ma-empty">{{ uiText('noData') }}</div>
     <template v-else>
       <div class="combination-comparison-grid">
@@ -54,6 +63,13 @@
           :aria-label="uiText('pairComparison')"
         >
           <table class="pair-table">
+            <colgroup>
+              <col class="pair-member-column" />
+              <col class="pair-member-column" />
+              <col class="pair-sample-column" />
+              <col class="pair-rate-column" />
+              <col class="pair-metric-column" />
+            </colgroup>
             <thead>
               <tr>
                 <th
@@ -61,53 +77,85 @@
                     (column) => !['wins', 'losses'].includes(column.key)
                   )"
                   :key="column.key"
+                  :class="{
+                    'pair-member-cell': column.key === 'memberA' || column.key === 'memberB'
+                  }"
                   scope="col"
                   :aria-sort="currentSort?.key === column.key ? currentSort.direction : 'none'"
                 >
-                  <button
-                    type="button"
-                    class="ma-table-sort"
-                    :aria-label="sortActionLabel(column.key, column.label)"
-                    @click="toggleSort(column.key)"
+                  <div
+                    class="combination-column-heading"
+                    :class="{
+                      'combination-column-heading--single': !['winRate', metric].includes(
+                        column.key
+                      )
+                    }"
                   >
-                    {{ column.label }}
-                    <span aria-hidden="true">{{
-                      currentSort?.key === column.key
-                        ? currentSort.direction === 'descending'
-                          ? '↓'
-                          : '↑'
-                        : '↕'
-                    }}</span>
-                  </button>
-                  <div v-if="column.key === 'winRate'" class="pair-rate-axis" aria-hidden="true">
-                    <span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span>
+                    <div class="combination-heading-primary">
+                      <button
+                        type="button"
+                        class="ma-table-sort"
+                        :aria-label="sortActionLabel(column.key, column.label)"
+                        @click="toggleSort(column.key)"
+                      >
+                        {{ column.label }}
+                        <span aria-hidden="true">{{
+                          currentSort?.key === column.key
+                            ? currentSort.direction === 'descending'
+                              ? '↓'
+                              : '↑'
+                            : '↕'
+                        }}</span>
+                      </button>
+                      <MetricHelp
+                        v-if="column.key === metric"
+                        :label="metricLabel ?? ''"
+                        :definition="
+                          pairMetricDefinition(
+                            metricOptions.find((option) => option.value === metric)!
+                          )
+                        "
+                        icon-only
+                      />
+                    </div>
+                    <div
+                      v-if="column.key === 'winRate'"
+                      class="pair-rate-axis combination-heading-scale"
+                      aria-hidden="true"
+                    >
+                      <span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span>
+                    </div>
+                    <small v-if="column.key === metric" class="pair-scale combination-heading-scale"
+                      >−{{ formatMetric(domain) }} · 0 · +{{ formatMetric(domain) }}</small
+                    >
                   </div>
-                  <small v-if="column.key === metric" class="pair-scale"
-                    >−{{ formatMetric(domain) }} · 0 · +{{ formatMetric(domain) }}</small
-                  >
                 </th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in rows" :key="row.pair" :class="{ selected: selected === row.pair }">
-                <th scope="row">
+              <tr
+                v-for="row in rows"
+                :key="row.pair"
+                :class="{ selected: selected === row.pair }"
+                @click="toggleRow(row.pair, $event)"
+              >
+                <th
+                  v-for="(member, index) in [row.memberA, row.memberB]"
+                  :key="index"
+                  class="pair-member-cell"
+                  scope="row"
+                >
                   <button
                     type="button"
                     class="role-pair-select"
+                    :title="member ?? uiText('combinationIdentityUnavailable')"
+                    :aria-label="`${member ?? uiText('combinationIdentityUnavailable')}，${uiText('combinationRoleEvidence')}`"
                     :aria-pressed="selected === row.pair"
                     :aria-expanded="selected === row.pair"
                     :aria-controls="detailId"
-                    @click="toggleDetail(row.pair)"
+                    @click.stop="toggleDetail(row.pair, $event)"
                   >
-                    <b>{{ cleanPair(row.pair) }}</b
-                    ><small
-                      >{{ names[row.pairType]
-                      }}<span v-if="selected === row.pair">
-                        · {{ uiText('synergySelected') }}</span
-                      ></small
-                    ><small v-if="row.games < minimum">{{
-                      uiText('synergyHeroSmallSample')
-                    }}</small>
+                    <b>{{ member ? member.split('#')[0] : '—' }}</b>
                   </button>
                 </th>
                 <td>
@@ -117,8 +165,15 @@
                   }}</small>
                 </td>
                 <td>
-                  <strong>{{ formatMetric(row.winRate, 'pct') }}</strong
-                  ><WinRateInterval :wins="row.wins" :games="row.games" />
+                  <div class="rate-cell">
+                    <WinRateInterval
+                      :wins="row.wins"
+                      :games="row.games"
+                      scale-grid
+                      :low="row.games < minimum"
+                    />
+                    <strong>{{ formatMetric(row.winRate, 'pct') }}</strong>
+                  </div>
                 </td>
                 <td>
                   <div class="pair-value">
@@ -147,15 +202,27 @@
           @keydown.esc.stop.prevent="closeDetail"
         >
           <header class="pair-detail-heading">
-            <h3>{{ cleanPair(selectedRow.pair) }}</h3>
+            <h3>{{ selectedIdentity }}</h3>
             <NButton size="small" quaternary @click="closeDetail">{{
               uiText('synergyClose')
             }}</NButton>
           </header>
-          <p class="ma-chart-note">
-            {{ names[selectedRow.pairType] }} ·
-            {{ uiText('synergySharedGames', { count: selectedRow.games }) }} ·
-            {{ uiText('synergyRecord', { wins: selectedRow.wins, losses: selectedRow.losses }) }}
+          <p class="ma-chart-note pair-detail-record">
+            <span class="pair-detail-roles">
+              <PositionIcon
+                v-for="role in pairRoles[selectedRow.pairType]"
+                :key="role"
+                :position="role"
+                class="pair-detail-role-icon"
+                aria-hidden="true"
+              />{{ names[selectedRow.pairType] }}
+            </span>
+            <span
+              >·
+              {{
+                uiText('synergyRecord', { wins: selectedRow.wins, losses: selectedRow.losses })
+              }}</span
+            >
           </p>
           <div class="pair-link-action">
             <NButton
@@ -182,7 +249,9 @@
               </dd>
             </div>
             <div v-for="option in otherMetrics" :key="option.value">
-              <dt>{{ option.label }}</dt>
+              <dt>
+                <MetricHelp :label="option.label" :definition="pairMetricDefinition(option)" />
+              </dt>
               <dd>{{ formatSigned(selectedRow[option.value], 1) }}</dd>
             </div>
           </dl>
@@ -204,20 +273,6 @@
                   })
             }}
           </p>
-          <p class="ma-chart-note">{{ uiText('combinationRoleEvidenceNote') }}</p>
-          <NSelect
-            v-model:value="evidenceMetric"
-            :options="evidenceMetricOptions"
-            :aria-label="uiText('evidenceMetricSelect')"
-            size="small"
-          />
-          <NSelect
-            v-model:value="evidenceSide"
-            :options="evidenceSideOptions"
-            :aria-label="uiText('evidenceSideSelect')"
-            size="small"
-          />
-          <EvidenceMatchAction :evidence="matchEvidence" />
         </aside>
         <aside
           v-else
@@ -239,12 +294,18 @@
   </div>
 </template>
 <script setup lang="ts">
-import { NButton, NRadioButton, NRadioGroup, NSelect } from 'naive-ui'
-import EvidenceMatchAction from './EvidenceMatchAction.vue'
-import { pairEvidenceGames, type PairEvidenceMetric } from './evidence-selection'
+import { NButton, NSelect } from 'naive-ui'
+import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
+import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
+import {
+  renderRolePairSegmentLabel,
+  renderRoleSelectLabel,
+  renderRoleSelectTag
+} from './role-select-label'
 import { formatMetric, roleMetricMeta } from './metric-defs'
+import MetricHelp from './MetricHelp.vue'
 import { finiteOrNull, formatSigned } from './visualization'
 import WinRateInterval from './WinRateInterval.vue'
 import SynergyHeroStats from './SynergyHeroStats.vue'
@@ -266,18 +327,30 @@ const emit = defineEmits<{ 'open-synergy': [link: RolePairLink] }>()
 const root = ref<HTMLElement | null>(null)
 const { pairs, games } = useMemberAnalysisData()
 const linkedMembers = computed(() => props.linkedContext ?? null)
-const selectionUnavailable = ref(false)
 const names = { upper_pair: '上野', mid_jg_pair: '中野', bot_pair: '下辅' } as const
+const pairRoles = {
+  upper_pair: ['TOP', 'JUNGLE'],
+  mid_jg_pair: ['MIDDLE', 'JUNGLE'],
+  bot_pair: ['BOTTOM', 'UTILITY']
+} as const
 const pairType = ref<keyof typeof names>('upper_pair')
+const pairTypeOptions = Object.entries(names).map(([value, label]) => ({ value, label }))
+function changePairType(value: string | number) {
+  if (value === 'upper_pair' || value === 'mid_jg_pair' || value === 'bot_pair')
+    pairType.value = value
+}
 const metricOptions = [
-  { value: 'upperGold15', label: '15 分钟上半区经济差（金币）', unit: '金币' },
-  { value: 'botGold15', label: '15 分钟下半区经济差（金币）', unit: '金币' },
-  { value: 'gold20Diff', label: '20 分钟经济差（金币）', unit: '金币' },
-  { value: 'tower20Diff', label: '20 分钟防御塔差（座）', unit: '座' },
-  { value: 'objectiveFight15Diff', label: '15 分钟资源团净击杀（次）', unit: '次' },
-  { value: 'dragon15Diff', label: '15 分钟小龙差（条）', unit: '条' },
-  { value: 'grub15Diff', label: '15 分钟巢虫差（只）', unit: '只' }
+  { value: 'upperGold15', label: '上半区经济差 @ 15', unit: '金币' },
+  { value: 'botGold15', label: '下半区经济差 @ 15', unit: '金币' },
+  { value: 'gold20Diff', label: '经济差 @ 20', unit: '金币' },
+  { value: 'tower20Diff', label: '防御塔差 @ 20', unit: '座' },
+  { value: 'objectiveFight15Diff', label: roleMetricMeta.objectiveFight15.label, unit: '次' },
+  { value: 'dragon15Diff', label: roleMetricMeta.dragon15.label, unit: '条' },
+  { value: 'grub15Diff', label: roleMetricMeta.grub15.label, unit: '只' }
 ] as const
+function pairMetricDefinition(option: (typeof metricOptions)[number]) {
+  return `${option.label}；单位：${option.unit}。按所选有序分路搭配的对局计算团队或区域差值，不是两位成员贡献之和；缺失观察不记为零。`
+}
 const metric = ref<(typeof metricOptions)[number]['value']>('upperGold15')
 const otherMetrics = computed(() => metricOptions.filter((option) => option.value !== metric.value))
 const detailId = useId()
@@ -287,32 +360,46 @@ const metricLabel = computed(
 const metricUnit = computed(
   () => metricOptions.find((option) => option.value === metric.value)?.unit
 )
+const eligiblePairs = computed(() => pairs.value.filter((row) => row.games >= minimum.value))
 const defaultRows = computed(() =>
-  pairs.value
+  eligiblePairs.value
     .filter((row) => row.pairType === pairType.value && row.sideLabel === '总计')
     .sort((a, b) => b.games - a.games)
-    .map((row) => ({ ...row, losses: row.games - row.wins }))
+    .map((row) => {
+      const members = rolePairMembers(games.value, row)
+      return {
+        ...row,
+        losses: row.games - row.wins,
+        memberA: members?.[0] ?? null,
+        memberB: members?.[1] ?? null
+      }
+    })
 )
 const pairSorts = ref<Partial<Record<keyof typeof names, RoleTableSort>>>({})
 const currentSort = computed(() => pairSorts.value[pairType.value] ?? null)
 const sortColumns = computed(() => [
-  { key: 'pair', label: '成员组合' },
-  { key: 'games', label: '场数' },
+  { key: 'memberA', label: uiText('synergyMemberA') },
+  { key: 'memberB', label: uiText('synergyMemberB') },
+  { key: 'games', label: uiText('synergyJointGames') },
   { key: 'winRate', label: '胜率' },
   { key: 'wins', label: '胜场' },
   { key: 'losses', label: '负场' },
   { key: metric.value, label: metricLabel.value ?? '' }
 ])
-const rows = computed(() => sortAnalysisTableRows(defaultRows.value, currentSort.value, ['pair']))
+const rows = computed(() =>
+  sortAnalysisTableRows(defaultRows.value, currentSort.value, ['memberA', 'memberB'])
+)
 const identities = computed(
   () => new Map(rows.value.map((row) => [row.pair, rolePairMembers(games.value, row)]))
 )
 const related = computed(() =>
-  linkedMembers.value ? relatedRolePairs(pairs.value, games.value, linkedMembers.value) : []
+  linkedMembers.value ? relatedRolePairs(eligiblePairs.value, games.value, linkedMembers.value) : []
 )
 const relatedOptions = computed(() =>
   related.value.map((row) => ({
     value: JSON.stringify([row.pairType, row.pair]),
+    roles: pairRoles[row.pairType],
+    memberLabel: cleanPair(row.pair),
     label: `${names[row.pairType]} · ${cleanPair(row.pair)}`
   }))
 )
@@ -329,13 +416,12 @@ async function selectRelated(value: string) {
   if (!match) return
   pairType.value = match.pairType
   selected.value = match.pair
-  selectionUnavailable.value = false
   await nextTick()
   detailTrigger = root.value?.querySelector<HTMLElement>('button[aria-pressed="true"]') ?? null
   root.value?.querySelector<HTMLElement>('.pair-detail')?.focus({ preventScroll: true })
 }
 async function selectMembers(members: CombinationMembers) {
-  const candidates = relatedRolePairs(pairs.value, games.value, members)
+  const candidates = relatedRolePairs(eligiblePairs.value, games.value, members)
   const match =
     candidates.find((row) => row.pairType === pairType.value && row.pair === selected.value) ??
     candidates.find((row) => row.pairType === pairType.value) ??
@@ -390,64 +476,13 @@ function closeSortMenu() {
 const store = useMemberAnalysisStore()
 const minimum = computed(() => (store.sampleSize === 20 ? 2 : store.sampleSize === 50 ? 3 : 5))
 const selectedRow = computed(() => rows.value.find((row) => row.pair === selected.value))
+const selectedIdentity = computed(() => {
+  const row = selectedRow.value
+  return row?.memberA && row.memberB ? `${row.memberA} × ${row.memberB}` : (row?.pair ?? '')
+})
 const evidence = computed(() =>
   selectedRow.value ? rolePairEvidence(games.value, selectedRow.value) : null
 )
-const evidenceMetric = ref<PairEvidenceMetric>(metric.value)
-watch(metric, (value) => {
-  evidenceMetric.value = value
-})
-const evidenceSide = ref('总计')
-const evidenceMetricOptions = [
-  { value: 'games', label: roleMetricMeta.games.label },
-  { value: 'winRate', label: roleMetricMeta.winRate.label },
-  { value: 'counterMean', label: roleMetricMeta.counter.label },
-  ...metricOptions
-]
-const evidenceSideOptions = computed(() =>
-  pairs.value
-    .filter(
-      (row) => row.pair === selectedRow.value?.pair && row.pairType === selectedRow.value?.pairType
-    )
-    .map((row) => ({ value: row.sideLabel, label: row.sideLabel }))
-)
-watch(
-  evidenceSideOptions,
-  (options) => {
-    if (!options.some((option) => option.value === evidenceSide.value))
-      evidenceSide.value = options[0]?.value ?? '总计'
-  },
-  { immediate: true }
-)
-const matchEvidence = computed(() => {
-  const row = pairs.value.find(
-    (row) =>
-      row.pair === selectedRow.value?.pair &&
-      row.pairType === selectedRow.value?.pairType &&
-      row.sideLabel === evidenceSide.value
-  )
-  const metricName =
-    evidenceMetricOptions.find((option) => option.value === evidenceMetric.value)?.label ?? ''
-  const available =
-    !!row &&
-    row[evidenceMetric.value] !== null &&
-    typeof row[evidenceMetric.value] === 'number' &&
-    Number.isFinite(row[evidenceMetric.value])
-  return {
-    publishedGeneration: store.overviewGeneration,
-    metricLabel: metricName,
-    available,
-    source: `${row?.pair ?? ''} · ${row ? names[row.pairType] : ''} · ${row?.sideLabel ?? ''} · ${metricName}`,
-    games:
-      row && available
-        ? (pairEvidenceGames(games.value, {
-            ...row,
-            metric: evidenceMetric.value,
-            side: row.sideLabel === '蓝方' ? 'Blue' : row.sideLabel === '红方' ? 'Red' : undefined
-          }) ?? [])
-        : []
-  }
-})
 const heroStats = computed(() =>
   evidence.value && selectedRow.value
     ? sharedHeroStats({
@@ -479,11 +514,23 @@ function selectSort(value: string) {
   pairSorts.value[pairType.value] = value === 'default' ? null : JSON.parse(value)
 }
 
-async function toggleDetail(pair: string) {
+function toggleRow(pair: string, event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, a, input, select, textarea, [role="button"]')) return
+  return toggleDetail(pair, event)
+}
+async function toggleDetail(pair: string, event?: Event) {
   const closing = selected.value === pair
-  const trigger = document.activeElement as HTMLElement | null
+  const source = (event?.currentTarget ?? document.activeElement) as HTMLElement | null
+  const trigger = source?.matches?.('tr')
+    ? source.querySelector<HTMLElement>('.role-pair-select')
+    : source
+  const scrolls = closing
+    ? [source?.closest('.combination-comparison-list'), source?.closest('.member-analysis-scroll')]
+        .filter((element): element is HTMLElement => !!element)
+        .map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }))
+    : []
   detailTrigger = trigger
-  selectionUnavailable.value = false
   selected.value = closing ? '' : pair
   if (!closing) {
     await nextTick()
@@ -495,23 +542,18 @@ async function toggleDetail(pair: string) {
   }
   if (closing) {
     await nextTick()
+    root.value?.getBoundingClientRect()
+    for (const { element, top, left } of scrolls) {
+      element.scrollTop = top
+      element.scrollLeft = left
+    }
     trigger?.focus({ preventScroll: true })
   }
 }
 async function closeDetail() {
   selected.value = ''
-  selectionUnavailable.value = false
   await nextTick()
   if (detailTrigger?.isConnected) {
-    const list = detailTrigger.closest<HTMLElement>('.combination-comparison-list')
-    if (list)
-      list.scrollTop = Math.max(
-        0,
-        list.scrollTop +
-          detailTrigger.getBoundingClientRect().top -
-          list.getBoundingClientRect().top -
-          100
-      )
     detailTrigger.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     detailTrigger.focus({ preventScroll: true })
   }
@@ -519,7 +561,6 @@ async function closeDetail() {
 watch(rows, (value) => {
   if (selected.value && !value.some((row) => row.pair === selected.value)) {
     selected.value = ''
-    selectionUnavailable.value = true
   }
 })
 const cleanPair = (value: string) =>
@@ -605,6 +646,13 @@ const toneClass = (value: unknown) => {
   width: 320px;
   max-width: 100%;
 }
+.pair-related-controls {
+  min-width: 0;
+  max-width: 100%;
+}
+.pair-related-controls > span {
+  overflow-wrap: anywhere;
+}
 .pair-table {
   border-collapse: collapse;
   width: 100%;
@@ -618,17 +666,24 @@ const toneClass = (value: unknown) => {
   text-align: right;
   border-bottom: 1px solid var(--ma-grid);
 }
-.pair-table th:first-child {
-  width: 230px;
-  text-align: left;
+.pair-member-column {
+  width: 150px;
 }
-.pair-table th:nth-child(2) {
+.pair-sample-column {
   width: 130px;
 }
-.pair-table th:nth-child(3) {
-  width: 230px;
+.pair-rate-column {
+  width: calc(100% - 670px);
+}
+.pair-metric-column {
+  width: 240px;
+}
+.pair-table .pair-member-cell {
+  text-align: left;
 }
 .pair-table thead th {
+  height: 72px;
+  box-sizing: border-box;
   font-size: 13px;
   font-weight: 500;
   color: var(--ma-muted);
@@ -645,9 +700,13 @@ const toneClass = (value: unknown) => {
   font: inherit;
   text-align: left;
   cursor: pointer;
-  overflow-wrap: anywhere;
+  overflow: hidden;
 }
 .role-pair-select b {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   font-weight: 500;
 }
 .pair-table small {
@@ -656,18 +715,32 @@ const toneClass = (value: unknown) => {
   font-weight: 400;
   line-height: 1.5;
 }
+.pair-table tbody th,
+.pair-table tbody td {
+  height: 64px;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
 .pair-table tbody tr.selected {
   background: var(--ma-hover);
 }
 .pair-table tbody tr:hover {
   background: var(--ma-hover);
 }
-.pair-table td:nth-child(3) strong {
+.pair-table td:nth-child(4) strong {
   font-weight: 500;
 }
-.pair-table :deep(.win-rate-interval) {
-  width: 100%;
-  margin-top: 4px;
+.rate-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rate-cell > strong {
+  min-width: 52px;
+  font-weight: 500;
+}
+.rate-cell :deep(.win-rate-interval) {
+  flex: 1;
 }
 .pair-rate-axis {
   display: flex;
@@ -721,6 +794,22 @@ const toneClass = (value: unknown) => {
 }
 .pair-detail > .ma-chart-note {
   margin: 8px 0;
+}
+.pair-detail-record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.pair-detail-roles {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.pair-detail-role-icon {
+  flex: none;
+  font-size: 14px;
 }
 .pair-detail dl {
   display: grid;
@@ -793,6 +882,8 @@ const toneClass = (value: unknown) => {
     display: inline;
   }
   .pair-table thead th {
+    height: 72px;
+    box-sizing: border-box;
     padding-top: 6px;
     padding-bottom: 6px;
   }

@@ -40,12 +40,17 @@
           :placeholder="uiText('synergyAllMembers')"
           :aria-label="uiText('synergyFocus')"
         />
-        <NSelect v-model:value="sort" :options="sortOptions" :aria-label="uiText('synergySort')" />
-        <div class="synergy-legend">
-          <span>{{ uiText('synergyLegendRate') }}</span
-          ><span>{{ uiText('synergyLegendBaseline') }}</span
-          ><span>{{ uiText('synergyLegendInterval') }}</span>
-        </div>
+        <NSelect
+          :value="sort"
+          :options="sortOptions"
+          :aria-label="uiText('synergySort')"
+          @update:value="selectSort"
+        />
+      </div>
+      <div class="synergy-legend combination-legend">
+        <span>{{ uiText('synergyLegendRate') }}</span
+        ><span>{{ uiText('synergyLegendBaseline') }}</span
+        ><span>{{ uiText('synergyLegendInterval') }}</span>
       </div>
       <p v-if="selectionUnavailable" class="synergy-note" role="status">
         {{ uiText('synergySelectionUnavailable') }}
@@ -58,24 +63,128 @@
           :aria-label="uiText('synergyComparisonTable')"
         >
           <table class="synergy-comparison">
+            <colgroup>
+              <col style="width: 150px" />
+              <col style="width: 150px" />
+              <col style="width: 130px" />
+              <col style="width: calc(100% - 746px)" />
+              <col style="width: 144px" />
+              <col style="width: 172px" />
+            </colgroup>
             <thead>
               <tr>
-                <th scope="col">{{ uiText('synergyPair') }}</th>
-                <th scope="col">{{ uiText('synergyJointGames') }}</th>
-                <th scope="col" class="rate-heading">
-                  <span>{{ uiText('synergyRateAndBaseline') }}</span>
-                  <div class="rate-axis" aria-hidden="true">
-                    <span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span>
+                <th
+                  v-for="column in memberColumns"
+                  :key="column.key"
+                  scope="col"
+                  class="combination-member-column"
+                  :aria-sort="memberSort?.key === column.key ? memberSort.direction : 'none'"
+                >
+                  <div class="combination-column-heading combination-column-heading--single">
+                    <div class="combination-heading-primary">
+                      <button
+                        type="button"
+                        class="ma-table-sort"
+                        :aria-label="memberSortLabel(column.key, column.label)"
+                        @click="toggleMemberSort(column.key)"
+                      >
+                        {{ column.label }}
+                        <span aria-hidden="true">{{
+                          memberSort?.key === column.key
+                            ? memberSort.direction === 'descending'
+                              ? '↓'
+                              : '↑'
+                            : '↕'
+                        }}</span>
+                      </button>
+                    </div>
                   </div>
                 </th>
-                <th scope="col">
-                  {{ uiText('synergyObserved') }}<small>{{ uiText('synergyPoints') }}</small>
+                <th
+                  scope="col"
+                  class="combination-sample-column"
+                  :aria-sort="memberSort?.key === 'games' ? memberSort.direction : 'none'"
+                >
+                  <div class="combination-column-heading combination-column-heading--single">
+                    <div class="combination-heading-primary">
+                      <button
+                        type="button"
+                        class="ma-table-sort"
+                        :aria-label="memberSortLabel('games', uiText('synergyJointGames'))"
+                        @click="toggleMemberSort('games')"
+                      >
+                        {{ uiText('synergyJointGames')
+                        }}<span aria-hidden="true">{{ sortMark('games') }}</span>
+                      </button>
+                    </div>
+                  </div>
                 </th>
-                <th scope="col">
-                  {{ uiText('synergyAdjusted') }}<small>{{ uiText('synergyPoints') }}</small>
-                  <div class="difference-axis" aria-hidden="true">
-                    <span>−{{ domainLabel }}</span
-                    ><span>0</span><span>+{{ domainLabel }}</span>
+                <th scope="col" class="rate-heading">
+                  <div class="combination-column-heading">
+                    <div class="combination-heading-primary">
+                      {{ uiText('synergyRateAndBaseline') }}
+                    </div>
+                    <div class="rate-axis combination-heading-scale" aria-hidden="true">
+                      <span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span>
+                    </div>
+                  </div>
+                </th>
+                <th
+                  scope="col"
+                  :aria-sort="
+                    memberSort?.key === 'observedAbsolute' ? memberSort.direction : 'none'
+                  "
+                >
+                  <div class="combination-column-heading combination-column-heading--single">
+                    <div class="deviation-heading combination-heading-primary">
+                      <button
+                        type="button"
+                        class="ma-table-sort"
+                        :aria-label="
+                          memberSortLabel('observedAbsolute', uiText('synergyObservedAbsolute'))
+                        "
+                        @click="toggleMemberSort('observedAbsolute')"
+                      >
+                        {{ uiText('synergyObserved')
+                        }}<span aria-hidden="true">{{ sortMark('observedAbsolute') }}</span>
+                      </button>
+                      <MetricHelp
+                        :label="uiText('synergyObserved')"
+                        :definition="uiText('synergyPoints')"
+                        icon-only
+                      />
+                    </div>
+                  </div>
+                </th>
+                <th
+                  scope="col"
+                  :aria-sort="
+                    memberSort?.key === 'adjustedAbsolute' ? memberSort.direction : 'none'
+                  "
+                >
+                  <div class="combination-column-heading">
+                    <div class="deviation-heading combination-heading-primary">
+                      <button
+                        type="button"
+                        class="ma-table-sort"
+                        :aria-label="
+                          memberSortLabel('adjustedAbsolute', uiText('synergyAdjustedAbsolute'))
+                        "
+                        @click="toggleMemberSort('adjustedAbsolute')"
+                      >
+                        {{ uiText('synergyAdjusted')
+                        }}<span aria-hidden="true">{{ sortMark('adjustedAbsolute') }}</span>
+                      </button>
+                      <MetricHelp
+                        :label="uiText('synergyAdjusted')"
+                        :definition="uiText('synergyPoints')"
+                        icon-only
+                      />
+                    </div>
+                    <div class="difference-axis combination-heading-scale" aria-hidden="true">
+                      <span>−{{ domainLabel }}</span
+                      ><span>0</span><span>+{{ domainLabel }}</span>
+                    </div>
                   </div>
                 </th>
               </tr>
@@ -85,6 +194,7 @@
                 v-for="edge in rows"
                 :key="edge.key"
                 :class="{ selected: edge.key === selectedKey }"
+                @click="selectRow(edge.key, $event)"
               >
                 <th scope="row">
                   <button
@@ -93,43 +203,33 @@
                     :aria-controls="evidenceId"
                     :data-combination-key="edge.key"
                     :aria-label="pairAction(edge)"
-                    @click="selectEdge(edge.key, $event)"
+                    @click.stop="selectEdge(edge.key, $event)"
                   >
-                    <span class="pair-name"
-                      >{{ short(edge.playerA) }} <span>×</span> {{ short(edge.playerB) }}</span
-                    >
-                    <small
-                      ><span v-if="edge.key === selectedKey"
-                        >{{ uiText('synergySelected') }} · </span
-                      >{{ rolePair(edge) }}</small
-                    >
-                    <small v-if="edge.games < minimum">{{
-                      reliabilityLabel(edge.games, minimum)
-                    }}</small>
+                    <span class="pair-name" :title="edge.playerA">{{ short(edge.playerA) }}</span>
                   </button>
                 </th>
+                <td class="pair-member-cell">
+                  <span class="pair-name" :title="edge.playerB" :aria-label="edge.playerB">{{
+                    short(edge.playerB)
+                  }}</span>
+                </td>
                 <td class="sample-cell">
-                  {{ uiText('synergyGames', { count: edge.games })
-                  }}<small>{{
+                  <div class="sample-count">
+                    <span>{{ uiText('synergyGames', { count: edge.games }) }}</span>
+                  </div>
+                  <small>{{
                     uiText('synergyRecord', { wins: edge.wins, losses: edge.games - edge.wins })
                   }}</small>
                 </td>
                 <td>
                   <div class="rate-cell">
-                    <div class="rate-track" :aria-label="rateDescription(edge)" role="img">
-                      <i
-                        v-if="edge.interval"
-                        class="rate-interval"
-                        :style="{
-                          left: `${edge.interval.low * 100}%`,
-                          width: `${(edge.interval.high - edge.interval.low) * 100}%`
-                        }"
-                      />
-                      <i class="rate-baseline" :style="{ left: `${edge.baseline * 100}%` }" /><i
-                        class="rate-point"
-                        :style="{ left: `${edge.winRate * 100}%` }"
-                      />
-                    </div>
+                    <WinRateInterval
+                      :wins="edge.wins"
+                      :games="edge.games"
+                      :reference="edge.baseline"
+                      scale-grid
+                      :description="rateDescription(edge)"
+                    />
                     <strong>{{ pct(edge.winRate) }}</strong>
                   </div>
                 </td>
@@ -160,7 +260,7 @@
           @keydown.esc.stop.prevent="clearEdge"
         >
           <header class="evidence-heading">
-            <h3>{{ short(selected.playerA) }} × {{ short(selected.playerB) }}</h3>
+            <h3>{{ selected.playerA }} × {{ selected.playerB }}</h3>
             <NButton size="small" quaternary @click="clearEdge">{{
               uiText('synergyClose')
             }}</NButton>
@@ -172,7 +272,6 @@
             >{{ uiText('combinationOpenRoles') }}</NButton
           >
           <p class="synergy-note">
-            {{ uiText('synergySharedGames', { count: selected.games }) }} ·
             {{
               uiText('synergyRecord', {
                 wins: selected.wins,
@@ -180,6 +279,39 @@
               })
             }}
             · {{ reliabilityLabel(selected.games, minimum) }}
+          </p>
+          <p class="synergy-note synergy-role-pair">
+            <TranslationComponent
+              v-if="selected.commonRoles"
+              :translation="
+                uiText('synergyRolePair', {
+                  count: selected.commonRoles.games,
+                  total: selected.games
+                })
+              "
+            >
+              <template #role-a>
+                <span class="synergy-role-pair-role">
+                  <PositionIcon
+                    v-if="Object.hasOwn(roleKeys, selected.commonRoles!.roleA)"
+                    :position="selected.commonRoles!.roleA"
+                    class="joint-role-icon"
+                    aria-hidden="true"
+                  />{{ roleLabel(selected.commonRoles!.roleA) }}
+                </span>
+              </template>
+              <template #role-b>
+                <span class="synergy-role-pair-role">
+                  <PositionIcon
+                    v-if="Object.hasOwn(roleKeys, selected.commonRoles!.roleB)"
+                    :position="selected.commonRoles!.roleB"
+                    class="joint-role-icon"
+                    aria-hidden="true"
+                  />{{ roleLabel(selected.commonRoles!.roleB) }}
+                </span>
+              </template>
+            </TranslationComponent>
+            <template v-else>{{ uiText('synergyUnknownRole') }}</template>
           </p>
           <section>
             <h4>{{ uiText('synergyBaselineSource') }}</h4>
@@ -205,7 +337,6 @@
               <dt>{{ uiText('synergyBaselineMean') }}</dt>
               <dd>{{ pct(selected.baseline) }}</dd>
             </dl>
-            <p class="synergy-note">{{ uiText('synergyBaselineNote') }}</p>
             <h4>{{ uiText('synergyShrinkageHeading') }}</h4>
             <dl>
               <dt>{{ uiText('synergyObserved') }}</dt>
@@ -215,14 +346,6 @@
               <dt>{{ uiText('synergyAdjusted') }}</dt>
               <dd>{{ points(selected.adjustedDifference) }}</dd>
             </dl>
-            <p class="synergy-note">
-              {{
-                uiText('synergyShrinkageNote', {
-                  count: selected.games,
-                  weight: pct(selected.shrinkageWeight)
-                })
-              }}
-            </p>
           </section>
           <section class="coverage-section">
             <h4>{{ uiText('synergyCoverage') }}</h4>
@@ -255,8 +378,6 @@
                 </dd>
               </div>
             </dl>
-            <p class="synergy-note">{{ uiText('synergyIntervalNote') }}</p>
-            <p class="synergy-note">{{ uiText('synergyCoverageNote') }}</p>
           </section>
         </aside>
         <aside
@@ -268,7 +389,6 @@
           <p>{{ uiText('combinationSelectMembers') }}</p>
         </aside>
       </div>
-      <p class="synergy-note synergy-limit">{{ uiText('synergyLimit') }}</p>
       <SynergyHeroStats v-if="heroStats" :key="selectedKey" :stats="heroStats" :minimum="minimum" />
       <section v-if="selected" class="joint-section" :aria-label="uiText('synergyJointGames')">
         <header class="joint-heading">
@@ -295,6 +415,7 @@
         <div
           :id="jointTableId"
           class="synergy-table-wrap"
+          :class="{ 'joint-table-paged': showAll && selected.games > 10 }"
           tabindex="0"
           role="region"
           :aria-label="uiText('synergyJointTable')"
@@ -322,12 +443,19 @@
                   <span v-if="playerIn(game, member)" class="joint-player"
                     ><ChampionIcon
                       :champion-id="championInfo(playerIn(game, member)!.champion)?.id ?? -1"
-                    /><span
-                      >{{ roleLabel(playerIn(game, member)!.role) }} ·
-                      {{
+                    /><span class="joint-player-copy"
+                      ><b class="joint-player-champion">{{
                         championInfo(playerIn(game, member)!.champion)?.name ??
                         playerIn(game, member)!.champion
-                      }}</span
+                      }}</b
+                      ><small class="joint-player-role"
+                        ><PositionIcon
+                          v-if="Object.hasOwn(roleKeys, playerIn(game, member)!.role)"
+                          :position="playerIn(game, member)!.role"
+                          class="joint-role-icon"
+                          aria-hidden="true"
+                        />{{ roleLabel(playerIn(game, member)!.role) }}</small
+                      ></span
                     ></span
                   ><span v-else>—</span>
                 </td>
@@ -378,14 +506,6 @@
         </header>
         <MatchNativeDetails :key="selectedGameId" :game-id="selectedGameId" />
       </section>
-      <details class="synergy-method">
-        <summary>{{ uiText('synergyMethod') }}</summary>
-        <p>{{ uiText('synergyMethodText', { count: minimum }) }}</p>
-      </details>
-      <details class="synergy-values">
-        <summary>{{ uiText('synergyExactValues') }}</summary>
-        <MemberAnalysisMetricTable :columns="columns" :rows="visibleEdges" :scroll-x="980" />
-      </details>
     </template>
   </div>
 </template>
@@ -393,13 +513,16 @@
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
+import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
 import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
 import { useResizeObserver } from '@vueuse/core'
-import { NButton, NPagination, NSelect, useThemeVars, type DataTableColumns } from 'naive-ui'
+import { NButton, NPagination, NSelect, useThemeVars } from 'naive-ui'
+import { TranslationComponent } from 'i18next-vue'
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import type { SynergyAggregate } from './analytics'
 import MatchNativeDetails from './MatchNativeDetails.vue'
-import MemberAnalysisMetricTable from './MemberAnalysisMetricTable.vue'
+import WinRateInterval from './WinRateInterval.vue'
+import MetricHelp from './MetricHelp.vue'
 import SynergyHeroStats from './SynergyHeroStats.vue'
 import { formatMetric } from './metric-defs'
 import {
@@ -417,6 +540,7 @@ import { useMemberAnalysisData } from './useMemberAnalysisData'
 import { identicalRosters, reliabilityLabel } from './visualization'
 import './combination-comparison.css'
 import { relatedSynergy, type CombinationMembers } from './combination-navigation'
+import { nextRoleTableSort, sortAnalysisTableRows, type RoleTableSort } from './role-table-sort'
 const emit = defineEmits<{ 'open-role-pairs': [members: CombinationMembers] }>()
 const themeVars = useThemeVars()
 const store = useMemberAnalysisStore(),
@@ -430,7 +554,8 @@ useResizeObserver(root, ([entry]) => {
   wide.value = entry.contentRect.width >= 1560
 })
 const focus = ref<string | null>(null),
-  sort = ref<SynergySort>('sample'),
+  sort = ref('sample'),
+  baseSort = ref<SynergySort>('sample'),
   selectedKey = ref(''),
   selectionUnavailable = ref(false),
   showAll = ref(false),
@@ -451,17 +576,71 @@ const memberOptions = computed(() =>
     value
   }))
 )
+const memberColumns = computed(() => [
+  { key: 'playerA', label: uiText('synergyMemberA') },
+  { key: 'playerB', label: uiText('synergyMemberB') }
+])
+const sortableColumns = computed(() => [
+  ...memberColumns.value,
+  { key: 'games', label: uiText('synergyJointGames') },
+  { key: 'observedAbsolute', label: uiText('synergyObservedAbsolute') },
+  { key: 'adjustedAbsolute', label: uiText('synergyAdjustedAbsolute') }
+])
+const memberSort = computed<RoleTableSort>(() => {
+  const [key, direction] = sort.value.split(':')
+  return sortableColumns.value.some((column) => column.key === key) &&
+    (direction === 'ascending' || direction === 'descending')
+    ? { key, direction }
+    : null
+})
+const sortMark = (key: string) =>
+  memberSort.value?.key === key ? (memberSort.value.direction === 'descending' ? '↓' : '↑') : '↕'
+function selectSort(value: string) {
+  if (value === 'sample' || value === 'deviation') baseSort.value = value
+  sort.value = value
+}
+function toggleMemberSort(key: string) {
+  const next = nextRoleTableSort(memberSort.value, key)
+  sort.value = next ? `${next.key}:${next.direction}` : baseSort.value
+}
+function memberSortLabel(key: string, label: string) {
+  const next = nextRoleTableSort(memberSort.value, key)
+  return uiText(
+    next ? (next.direction === 'descending' ? 'sortDescending' : 'sortAscending') : 'sortDefault',
+    { label }
+  )
+}
 const sortOptions = computed(() => [
   { value: 'sample', label: uiText('synergySortSample') },
-  { value: 'deviation', label: uiText('synergySortDeviation') }
+  { value: 'deviation', label: uiText('synergySortDeviation') },
+  ...sortableColumns.value.flatMap((column) =>
+    ['descending', 'ascending'].map((direction) => ({
+      value: `${column.key}:${direction}`,
+      label: uiText(direction === 'descending' ? 'sortDescending' : 'sortAscending', {
+        label: column.label
+      })
+    }))
+  )
 ])
-const presentations = computed(() => presentSynergy(synergy.value))
+const presentations = computed(() =>
+  presentSynergy(synergy.value.filter((edge) => edge.games >= 4))
+)
 const visibleEdges = computed(() =>
   focus.value
     ? presentations.value.filter((e) => e.playerA === focus.value || e.playerB === focus.value)
     : presentations.value
 )
-const rows = computed(() => sortSynergy(visibleEdges.value, sort.value))
+const rows = computed(() =>
+  sortAnalysisTableRows(
+    sortSynergy(visibleEdges.value, baseSort.value).map((edge) => ({
+      ...edge,
+      observedAbsolute: Math.abs(edge.observedDifference),
+      adjustedAbsolute: Math.abs(edge.adjustedDifference)
+    })),
+    memberSort.value,
+    ['playerA', 'playerB']
+  )
+)
 const selected = computed(() =>
   sameRoster.value ? undefined : rows.value.find((e) => e.key === selectedKey.value)
 )
@@ -496,19 +675,10 @@ const roleKeys = {
 } as const
 const roleLabel = (role: string) =>
   uiText(roleKeys[role as keyof typeof roleKeys] ?? 'synergyUnknownRole')
-const rolePair = (edge: SynergyPresentation) =>
-  edge.commonRoles
-    ? uiText('synergyRolePair', {
-        a: roleLabel(edge.commonRoles.roleA),
-        b: roleLabel(edge.commonRoles.roleB),
-        count: edge.commonRoles.games,
-        total: edge.games
-      })
-    : uiText('synergyUnknownRole')
 const pairAction = (edge: SynergyAggregate) =>
   uiText(edge.key === selectedKey.value ? 'synergyClearPair' : 'synergySelectPair', {
-    a: short(edge.playerA),
-    b: short(edge.playerB),
+    a: edge.playerA,
+    b: edge.playerB,
     count: edge.games,
     value: difference(edge.adjustedDifference)
   })
@@ -534,9 +704,32 @@ const champions = computed(() => {
   return map
 })
 const championInfo = (value: string) => champions.value.get(normalize(value))
+function selectRow(key: string, event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button, a, input, select, textarea, [role="button"]')) return
+  return selectEdge(key, event)
+}
 async function selectEdge(key: string, event: Event) {
-  edgeTrigger = event.currentTarget as HTMLElement
-  if (selectedKey.value === key) return clearEdge()
+  const source = event.currentTarget as HTMLElement
+  edgeTrigger = source.matches('tr') ? source.querySelector<HTMLElement>('.pair-select') : source
+  if (selectedKey.value === key) {
+    const scrolls = [
+      source.closest('.combination-comparison-list'),
+      source.closest('.member-analysis-scroll')
+    ]
+      .filter((element): element is HTMLElement => !!element)
+      .map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }))
+    selectedKey.value = ''
+    selectionUnavailable.value = false
+    await nextTick()
+    root.value?.getBoundingClientRect()
+    for (const { element, top, left } of scrolls) {
+      element.scrollTop = top
+      element.scrollLeft = left
+    }
+    edgeTrigger?.focus({ preventScroll: true })
+    return
+  }
   selectedKey.value = key
   selectionUnavailable.value = false
   await nextTick()
@@ -548,22 +741,16 @@ async function clearEdge() {
   selectionUnavailable.value = false
   await nextTick()
   if (edgeTrigger?.isConnected) {
-    const list = edgeTrigger.closest<HTMLElement>('.combination-comparison-list')
-    if (list)
-      list.scrollTop = Math.max(
-        0,
-        list.scrollTop +
-          edgeTrigger.getBoundingClientRect().top -
-          list.getBoundingClientRect().top -
-          100
-      )
     edgeTrigger.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     edgeTrigger.focus({ preventScroll: true })
   }
 }
 async function selectMembers(members: CombinationMembers) {
   focus.value = null
-  const edge = relatedSynergy(synergy.value, members)
+  const edge = relatedSynergy(
+    synergy.value.filter((edge) => edge.games >= 4),
+    members
+  )
   if (!edge || sameRoster.value) {
     selectedKey.value = ''
     selectionUnavailable.value = !edge
@@ -622,37 +809,6 @@ watch([rows, sameRoster], () => {
   if (selected.value)
     page.value = Math.min(page.value, Math.max(1, Math.ceil(selected.value.games / 10)))
 })
-const columns: DataTableColumns<Record<string, unknown>> = [
-  { title: () => uiText('synergyMemberA'), key: 'playerA', width: 160 },
-  { title: () => uiText('synergyMemberB'), key: 'playerB', width: 160 },
-  { title: () => uiText('synergyJointGames'), key: 'games', sorter: 'default' },
-  {
-    title: () => uiText('synergyJointRate'),
-    key: 'winRate',
-    render: (r) => formatMetric(r.winRate, 'pct')
-  },
-  {
-    title: () => uiText('synergyBaseline'),
-    key: 'baseline',
-    render: (r) => formatMetric(r.baseline, 'pct')
-  },
-  {
-    title: () => uiText('synergyObserved'),
-    key: 'observedDifference',
-    render: (r) => points(Number(r.observedDifference))
-  },
-  {
-    title: () => uiText('synergyWeight'),
-    key: 'shrinkageWeight',
-    render: (r) => formatMetric(r.shrinkageWeight, 'pct')
-  },
-  {
-    title: () => uiText('synergyAdjusted'),
-    key: 'adjustedDifference',
-    sorter: 'default',
-    render: (r) => points(Number(r.adjustedDifference))
-  }
-]
 </script>
 <style scoped>
 .synergy-view {
@@ -726,24 +882,31 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   padding: 10px 12px;
   color: var(--ma-muted);
 }
-.synergy-comparison th:first-child {
+.synergy-comparison th.combination-member-column {
+  width: 150px;
   text-align: left;
-  width: 220px;
 }
-.synergy-comparison th:nth-child(2) {
-  width: 110px;
+.synergy-comparison th.combination-sample-column {
+  width: 130px;
 }
-.synergy-comparison th:nth-child(3) {
-  width: auto;
+.synergy-comparison .pair-member-cell {
+  text-align: left;
 }
-.synergy-comparison th:nth-child(4) {
-  width: 120px;
+.synergy-comparison tbody tr {
+  height: 64px;
 }
-.synergy-comparison th:nth-child(5) {
-  width: 220px;
+.synergy-comparison thead tr {
+  height: 72px;
 }
 .synergy-comparison tbody th {
   font-weight: 400;
+}
+.deviation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
 }
 .synergy-comparison tbody tr.selected {
   background: color-mix(in srgb, var(--la-color-link) 7%, transparent);
@@ -766,12 +929,11 @@ const columns: DataTableColumns<Record<string, unknown>> = [
 .pair-name {
   display: block;
   font-weight: 500;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.pair-name > span {
-  color: var(--ma-muted);
-  margin: 0 4px;
-}
+
 .pair-select small,
 .sample-cell small,
 .synergy-comparison thead small {
@@ -779,6 +941,18 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   font-size: 12px;
   font-weight: 400;
   color: var(--ma-muted);
+}
+.sample-count {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+.sample-count :deep(.metric-help) {
+  min-height: 24px;
+  min-width: 24px;
+  padding: 0;
 }
 .rate-heading {
   text-align: left !important;
@@ -800,49 +974,8 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   font-weight: 500;
   min-width: 52px;
 }
-.rate-track {
-  position: relative;
+.rate-cell :deep(.win-rate-interval) {
   flex: 1;
-  height: 24px;
-  background: linear-gradient(to right, var(--ma-grid) 1px, transparent 1px);
-  background-size: 25% 100%;
-  border-bottom: 1px solid var(--ma-grid);
-}
-.rate-interval {
-  position: absolute;
-  top: 11px;
-  height: 1px;
-  background: var(--ma-muted);
-}
-.rate-interval::before,
-.rate-interval::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  height: 9px;
-  border-left: 1px solid var(--ma-muted);
-}
-.rate-interval::after {
-  right: 0;
-}
-.rate-baseline {
-  position: absolute;
-  top: 7px;
-  width: 9px;
-  height: 9px;
-  border: 1.5px solid var(--la-color-text-primary);
-  background: var(--la-color-bg-primary);
-  transform: translateX(-50%) rotate(45deg);
-  box-sizing: border-box;
-}
-.rate-point {
-  position: absolute;
-  top: 7px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--la-color-link) 80%, var(--la-color-text-primary));
-  transform: translateX(-50%);
 }
 .difference-cell {
   display: flex;
@@ -970,9 +1103,7 @@ const columns: DataTableColumns<Record<string, unknown>> = [
 .side-coverage b {
   font-weight: 500;
 }
-.synergy-limit {
-  margin: 0;
-}
+
 .joint-section {
   min-width: 0;
   margin-top: 8px;
@@ -1000,6 +1131,18 @@ const columns: DataTableColumns<Record<string, unknown>> = [
 .joint-table {
   min-width: 1060px;
 }
+.joint-table-paged {
+  /* Ten matches per page; retain the same viewport on a short final page. */
+  height: 560px;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+.joint-table-paged thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--la-color-bg-primary);
+}
 .joint-table th,
 .joint-table td {
   padding: 10px 12px;
@@ -1023,6 +1166,38 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   height: 28px;
   flex: none;
 }
+.joint-player-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.5;
+}
+.joint-player-role {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ma-muted);
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.joint-role-icon {
+  flex: none;
+  font-size: 14px;
+}
+.synergy-role-pair-role {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.joint-player-champion {
+  font-weight: 600;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .joint-section :deep(.n-pagination) {
   margin-top: 12px;
 }
@@ -1031,21 +1206,6 @@ const columns: DataTableColumns<Record<string, unknown>> = [
   border-top: 1px solid var(--ma-grid-strong);
   padding-top: 16px;
   min-width: 0;
-}
-.synergy-method,
-.synergy-values {
-  font-size: 12px;
-  color: var(--ma-muted);
-}
-.synergy-method summary,
-.synergy-values summary {
-  cursor: pointer;
-  padding: 10px 0;
-  color: var(--la-color-text-primary);
-}
-.synergy-method p {
-  margin: 0;
-  line-height: 1.6;
 }
 .synergy-unavailable h3 {
   margin: 0;

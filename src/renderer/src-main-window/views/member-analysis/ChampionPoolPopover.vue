@@ -15,7 +15,17 @@
     >
       <header class="popover-header">
         <div>
-          <strong>{{ short(pool.player) }} · {{ roleLabel }}</strong
+          <strong class="popover-member-role">
+            <span>{{ short(pool.player) }} ·</span>
+            <span class="popover-role-label">
+              <PositionIcon
+                v-if="championPoolRoles.includes(pool.role)"
+                class="popover-role-icon"
+                :position="pool.role"
+                aria-hidden="true"
+              />
+              <span>{{ roleLabel }}</span>
+            </span> </strong
           ><span>{{ uiText('poolGames', { count: pool.games }) }}</span>
         </div>
         <NButton
@@ -104,40 +114,18 @@
             </dd>
           </div>
         </dl>
-        <template v-if="evidenceContext">
-          <NSelect
-            v-model:value="evidenceMetric"
-            :options="evidenceMetricOptions"
-            :aria-label="uiText('evidenceMetricSelect')"
-            size="small"
-          />
-          <NSelect
-            v-if="evidenceMetric === 'games' || evidenceMetric === 'winRate'"
-            v-model:value="evidenceSide"
-            :options="evidenceSideOptions"
-            :aria-label="uiText('evidenceSideSelect')"
-            size="small"
-          />
-          <p v-if="evidenceMetric === 'pickRate'">{{ uiText('evidencePickPopulation') }}</p>
-          <EvidenceMatchAction :evidence="matchEvidence" />
-        </template>
       </section>
-      <div class="popover-help">
-        <MetricHelp :label="uiText('poolHelp')" :definition="uiText('poolInterpretation')" />
-      </div>
     </NScrollbar>
   </section>
 </template>
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
-import { NButton, NIcon, NScrollbar, NSelect } from 'naive-ui'
-import type { MemberAnalysisGame } from '@shared/shards/member-analysis'
-import EvidenceMatchAction from './EvidenceMatchAction.vue'
-import { memberRoleEvidenceGames, type MemberRoleEvidenceMetric } from './evidence-selection'
+import { NButton, NIcon, NScrollbar } from 'naive-ui'
 import ChevronUp20Regular from '@vicons/fluent/es/ChevronUp20Regular'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
-import type { ChampionPool } from './champion-pools'
+import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
+import { championPoolRoles, type ChampionPool } from './champion-pools'
 import MetricHelp from './MetricHelp.vue'
 import { formatMetric, roleMetricMeta, roleMetricName, roleMetricDetail } from './metric-defs'
 import { finiteOrNull, formatSigned, wilsonInterval } from './visualization'
@@ -149,7 +137,6 @@ const props = defineProps<{
   championId: (name: string) => number
   championName: (name: string) => string
   initialChampion: string | null
-  evidenceContext?: { games: MemberAnalysisGame[]; publishedGeneration: number }
 }>()
 const emit = defineEmits<{ close: [] }>()
 const panel = ref<HTMLElement | null>(null)
@@ -161,51 +148,6 @@ const selectedChampion = ref(props.initialChampion)
 const selected = computed(() =>
   props.pool.rows.find((row) => row.champion === selectedChampion.value)
 )
-const evidenceMetric = ref<MemberRoleEvidenceMetric | 'pickRate'>('games')
-const evidenceSide = ref<'all' | 'Blue' | 'Red'>('all')
-const evidenceSideOptions = computed(() => [
-  { value: 'all', label: uiText('evidenceAllSides') },
-  { value: 'Blue', label: uiText('evidenceBlueSide') },
-  { value: 'Red', label: uiText('evidenceRedSide') }
-])
-const evidenceMetricOptions = computed(() => [
-  { value: 'games', label: roleMetricMeta.games.label },
-  { value: 'winRate', label: uiText('poolWinRate') },
-  { value: 'pickRate', label: uiText('poolPickRate') },
-  ...detailMetrics.map((metric) => ({ value: metric.key, label: metric.label }))
-])
-const matchEvidence = computed(() => {
-  const row = selected.value
-  const metricLabel =
-    evidenceMetricOptions.value.find((option) => option.value === evidenceMetric.value)?.label ?? ''
-  const side =
-    evidenceMetric.value === 'games' || evidenceMetric.value === 'winRate'
-      ? evidenceSide.value
-      : 'all'
-  const available =
-    !!row &&
-    (evidenceMetric.value === 'games' ||
-      evidenceMetric.value === 'winRate' ||
-      evidenceMetric.value === 'pickRate' ||
-      (typeof row.performance[evidenceMetric.value as keyof typeof row.performance] === 'number' &&
-        Number.isFinite(row.performance[evidenceMetric.value as keyof typeof row.performance])))
-  return {
-    publishedGeneration: props.evidenceContext?.publishedGeneration ?? -1,
-    source: `${props.pool.player} · ${props.roleLabel} · ${row?.champion ?? ''} · ${metricLabel} · ${evidenceSideOptions.value.find((option) => option.value === side)?.label}`,
-    metricLabel,
-    available,
-    games:
-      available && props.evidenceContext && row
-        ? memberRoleEvidenceGames(props.evidenceContext.games, {
-            player: props.pool.player,
-            role: props.pool.role,
-            champion: evidenceMetric.value === 'pickRate' ? undefined : row.champion,
-            metric: evidenceMetric.value === 'pickRate' ? 'games' : evidenceMetric.value,
-            side: side === 'all' ? undefined : side
-          })
-        : []
-  }
-})
 const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 const detailMotion = createChampionPoolMotion(() => reducedMotion.value)
 watch(reducedMotion, () => detailMotion.finish())
@@ -402,11 +344,43 @@ const displayedMetrics = computed(() =>
   align-items: baseline;
   gap: 8px 12px;
   overflow-wrap: anywhere;
+  min-width: 0;
+  flex: 1;
+}
+.popover-header > :deep(.n-button) {
+  flex: none;
+}
+.popover-member-role {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  line-height: 1.5;
+}
+.popover-role-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.popover-role-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  font-size: 16px;
+  line-height: 1;
+}
+.popover-role-icon :deep(svg) {
+  display: block;
 }
 .popover-header strong {
   font-size: 14px;
 }
-.popover-header span,
+.popover-header > div > span,
 .pool-missing {
   font-size: 12px;
   color: var(--ma-muted);
@@ -552,11 +526,6 @@ const displayedMetrics = computed(() =>
   margin-inline-start: 4px;
   font-size: 13px;
   font-weight: 400;
-  color: var(--ma-muted);
-}
-.popover-help {
-  margin-top: 8px;
-  font-size: 12px;
   color: var(--ma-muted);
 }
 @container (max-width: 438px) {

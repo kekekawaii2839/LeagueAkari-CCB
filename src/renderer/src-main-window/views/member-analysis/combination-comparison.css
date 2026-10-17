@@ -24,6 +24,7 @@
 .member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) {
   gap: 8px 12px;
   align-items: center;
+  min-height: 35px;
 }
 .member-analysis-page .combination-workspace :is(.pair-controls, .synergy-toolbar) > .n-select {
   width: 280px;
@@ -32,6 +33,9 @@
 .member-analysis-page .combination-workspace .pair-controls > .pair-sort-select,
 .member-analysis-page .combination-workspace .synergy-toolbar > .n-select:nth-of-type(2) {
   width: 210px;
+}
+.member-analysis-page .combination-workspace .pair-controls > .pair-metric-select {
+  width: 240px;
 }
 .member-analysis-page .combination-workspace .pair-controls > .ma-view-meta {
   flex-basis: auto;
@@ -44,12 +48,19 @@
   font-size: 12px;
   font-weight: 400;
 }
-.member-analysis-page .combination-workspace .synergy-legend {
-  order: 4;
-  flex-basis: 100%;
+.member-analysis-page .combination-workspace .combination-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 34px;
   gap: 8px 16px;
   margin: 0;
+  font-size: 12px;
   line-height: 1.5;
+}
+.member-analysis-page .combination-workspace .pair-legend > .n-select {
+  width: 280px;
+  max-width: 100%;
 }
 .member-analysis-page .combination-workspace .combination-comparison-list {
   padding-bottom: 4px;
@@ -61,35 +72,79 @@
   padding: 8px 12px;
   vertical-align: middle;
 }
+.member-analysis-page .combination-workspace .synergy-comparison tbody td:nth-child(5) {
+  /* Separate the observed value from the adjacent adjusted-difference encoding. */
+  padding-right: 36px;
+  white-space: nowrap;
+}
 .member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
-  height: 72px;
+  height: 80px;
   box-sizing: border-box;
   font-size: 14px;
   font-weight: 500;
-  line-height: 32px;
+  line-height: 18px;
   border-top: 1px solid var(--ma-grid-strong);
   border-bottom: 1px solid var(--ma-grid-strong);
 }
 .member-analysis-page .combination-workspace .ma-table-sort {
   padding: 0;
 }
-.member-analysis-page .combination-workspace .synergy-comparison thead th:nth-child(4) > small,
-.member-analysis-page .combination-workspace .synergy-comparison thead th:nth-child(5) > small {
-  display: inline;
-  margin-left: 4px;
+.member-analysis-page
+  .combination-workspace
+  :is(.pair-table, .synergy-comparison)
+  thead
+  .metric-help__icon {
+  /* Align the painted circle with the heading glyphs without moving its hit area. */
+  transform: translateY(-1px);
 }
-.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) th:first-child {
-  width: 220px;
+.member-analysis-page .combination-workspace .synergy-comparison .ma-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
-.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) th:nth-child(2) {
-  width: 110px;
+.member-analysis-page
+  .combination-workspace
+  .pair-table
+  th:last-child
+  .combination-heading-primary {
+  justify-content: center;
+  white-space: nowrap;
 }
-.member-analysis-page .combination-workspace .pair-table th:nth-child(3) {
-  width: auto;
-  text-align: left;
+.member-analysis-page .combination-workspace .pair-table th:last-child .ma-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
 }
-.member-analysis-page .combination-workspace .pair-table th:nth-child(4) {
-  width: 340px;
+.member-analysis-page .combination-workspace .pair-table th:last-child .combination-heading-scale {
+  text-align: center;
+}
+.member-analysis-page .combination-workspace .combination-column-heading {
+  display: grid;
+  grid-template-rows: 32px 18px;
+  gap: 6px;
+  min-width: 0;
+}
+.member-analysis-page .combination-workspace .combination-heading-primary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  line-height: 18px;
+}
+.member-analysis-page
+  .combination-workspace
+  .combination-column-heading--single
+  > .combination-heading-primary {
+  grid-row: 1 / -1;
+}
+.member-analysis-page
+  .combination-workspace
+  :is(.pair-member-cell, .combination-member-column, .rate-heading)
+  .combination-heading-primary {
+  justify-content: flex-start;
 }
 .member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) small {
   font-size: 12px;
@@ -119,6 +174,11 @@
   margin: 0;
   color: inherit;
 }
+.member-analysis-page .combination-workspace .role-pair-select b,
+.member-analysis-page .combination-workspace .pair-name,
+.member-analysis-page .combination-workspace :is(.population-table, .baseline-table) tbody th {
+  font-weight: 600;
+}
 .member-analysis-page .combination-workspace :is(.pair-rate-axis, .rate-axis) {
   margin: 6px 64px 0 0;
   line-height: 18px;
@@ -126,51 +186,22 @@
 .member-analysis-page .combination-workspace .difference-axis {
   line-height: 18px;
 }
+.member-analysis-page .combination-workspace .combination-heading-scale {
+  margin-top: 0;
+  margin-bottom: 0;
+  height: 18px;
+  line-height: 18px;
+}
 .member-analysis-page .combination-workspace .rate-cell {
   gap: 12px;
+  height: 21px;
+  line-height: 21px;
 }
-.member-analysis-page .combination-workspace .pair-table td:nth-child(3) > strong {
-  float: right;
-  min-width: 52px;
-  line-height: 24px;
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval {
-  width: calc(100% - 64px);
-  height: 24px;
-  margin-top: 0;
-  background: linear-gradient(to right, var(--ma-grid) 1px, transparent 1px);
-  background-size: 25% 100%;
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .baseline {
-  top: auto;
-  bottom: 0;
-  background: var(--ma-grid);
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .balance {
-  display: none;
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range {
-  top: 11px;
-  height: 1px;
-  border-radius: 0;
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::before,
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::after {
-  content: '';
-  position: absolute;
-  top: -4px;
-  height: 9px;
-  border-left: 1px solid var(--ma-muted);
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval .range::after {
-  right: 0;
-}
-.member-analysis-page .combination-workspace .pair-table .win-rate-interval em {
-  top: 7px;
-  width: 9px;
-  height: 9px;
-  margin-left: -4.5px;
-  background: color-mix(in srgb, var(--la-color-link) 80%, var(--la-color-text-primary));
+.member-analysis-page .combination-workspace :is(.pair-view, .synergy-view) .rate-cell > strong,
+.member-analysis-page .combination-workspace .pair-value > strong,
+.member-analysis-page .combination-workspace .difference-cell > span,
+.member-analysis-page .combination-workspace .pair-detail dl > div:first-child dd {
+  font-weight: 600;
 }
 .member-analysis-page .combination-workspace .pair-value {
   display: flex;
@@ -199,6 +230,12 @@
   padding-top: 16px;
   scroll-margin-top: 64px;
   font-size: 14px;
+}
+.member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) {
+  padding-right: 12px;
+}
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) tbody tr {
+  cursor: pointer;
 }
 .member-analysis-page .combination-workspace :is(.pair-detail-heading, .evidence-heading) {
   display: flex;
@@ -268,6 +305,11 @@
   z-index: 2;
   background: var(--la-color-bg-primary);
 }
+.member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
+  /* Collapsed table borders can scroll away from a sticky header. Paint inside it. */
+  border-top: 0;
+  box-shadow: inset 0 1px var(--ma-grid-strong);
+}
 .combination-comparison-evidence {
   box-sizing: border-box;
   min-width: 0;
@@ -295,24 +337,32 @@
 }
 @container (min-width: 1560px) {
   .member-analysis-page .combination-workspace :is(.pair-detail, .synergy-evidence) {
-    padding: 0 0 0 24px;
+    padding: 0 12px 0 24px;
   }
   .member-analysis-page .combination-workspace .synergy-evidence {
+    padding-right: 12px;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
   }
   .combination-comparison-grid {
     grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
   }
-  .combination-comparison-evidence {
+  .member-analysis-page .combination-workspace .combination-comparison-evidence {
+    /* Size containment keeps the left list in charge of the shared visible height. */
+    contain: size;
+    align-self: stretch;
+    min-height: 0;
     max-height: min(560px, 52vh);
     overflow: auto;
     scrollbar-gutter: stable;
+    border-left: 0;
+    background: linear-gradient(var(--ma-grid-strong), var(--ma-grid-strong)) left center / 1px
+      calc(100% - 16px) no-repeat;
   }
   .combination-comparison-placeholder {
     display: block;
     padding: 0 0 0 24px;
-    border-left: 1px solid var(--ma-grid-strong);
+    border-left: 0;
   }
 }
 @media (max-height: 600px) {
@@ -326,7 +376,6 @@
     margin-left: auto;
   }
   .member-analysis-page .combination-workspace :is(.pair-table, .synergy-comparison) thead th {
-    height: 60px;
     line-height: 24px;
     padding-top: 6px;
     padding-bottom: 6px;

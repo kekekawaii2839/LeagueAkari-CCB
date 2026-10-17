@@ -7,9 +7,15 @@ import type { ChampionAggregate } from './analytics'
 import ChampionPoolPopover from './ChampionPoolPopover.vue'
 
 vi.mock('@renderer-shared/components/widgets/ChampionIcon.vue', () => ({ default: () => null }))
+vi.mock('@renderer-shared/components/icons/position-icons/PositionIcon.vue', () => ({
+  default: (props: { position: string }) => h('position-icon', { position: props.position })
+}))
 vi.mock('./MetricHelp.vue', () => ({
   default: (props: { label: string; definition: string }) =>
     h('button', { 'aria-description': props.definition }, props.label)
+}))
+vi.mock('./EvidenceMatchAction.vue', () => ({
+  default: () => h('button', '查看计算样本对局')
 }))
 vi.mock('naive-ui', () => ({
   NButton: {
@@ -19,6 +25,7 @@ vi.mock('naive-ui', () => ({
         h('button', attrs, slots.default?.())
   },
   NIcon: () => null,
+  NSelect: () => h('select', { 'aria-label': '计算样本筛选' }),
   NScrollbar: {
     setup:
       (_: unknown, { slots }: any) =>
@@ -48,13 +55,13 @@ const row: ChampionAggregate = {
     gd15: -1200.5
   } as ChampionAggregate['performance']
 }
-const render = (initialChampion: string | null) =>
+const render = (initialChampion: string | null, role = row.role) =>
   renderToString(
     createSSRApp(ChampionPoolPopover, {
       pool: {
         key: 'synthetic-top',
         player: row.player,
-        role: row.role,
+        role,
         games: row.games,
         heroCount: 1,
         unidentifiedGames: 0,
@@ -84,7 +91,8 @@ test('selected hero retains all names, exact values, units, missingness, sides a
     '—',
     '伤害转化率',
     '0.0%',
-    '15 分钟经济差',
+    '经济差 @ 15',
+    '15 分钟相对同位置对手的经济差',
     '−1200.5',
     '金币',
     '蓝方 0.0% · 2 场',
@@ -97,6 +105,12 @@ test('selected hero retains all names, exact values, units, missingness, sides a
     expect(html).toContain(text)
   expect(html).toMatch(/aria-expanded="true"/)
   expect(html).toMatch(/aria-controls="[^"]+"/)
+  expect(html).not.toContain('<select')
+  expect(html).not.toContain('计算样本筛选')
+  expect(html).not.toContain('查看计算样本对局')
+  expect(html).not.toContain('选用率依据该成员同分路的全部英雄对局，包括未选用该英雄的对局。')
+  expect(html).not.toContain('英雄池指标说明')
+  expect(html).not.toContain('不等同于熟练度或因果效果')
 })
 
 test('unselected hero remains a named expandable control without fabricated metric values', async () => {
@@ -106,5 +120,22 @@ test('unselected hero remains a named expandable control without fabricated metr
   expect(html).toContain('aria-pressed="false"')
   expect(html).not.toContain('<dl')
   expect(html).not.toContain('收起英雄指标')
-  expect(html).toContain('英雄池指标说明')
+  expect(html).not.toContain('英雄池指标说明')
+})
+
+test.each(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'] as const)(
+  'popover title decorates the actual %s role without interpreting the translated label',
+  async (role) => {
+    const html = await render(null, role)
+    expect(html).toContain(`<position-icon position="${role}"`)
+    expect(html).toContain('aria-label="Member 1 · 上路英雄池"')
+    expect(html).toContain('aria-label="关闭英雄池"')
+  }
+)
+
+test('unknown pool roles remain text without the PositionIcon ALL fallback', async () => {
+  const html = await render(null, 'UNKNOWN' as typeof row.role)
+  expect(html).not.toContain('<position-icon')
+  expect(html).toContain('Member 1')
+  expect(html).toContain('上路')
 })
