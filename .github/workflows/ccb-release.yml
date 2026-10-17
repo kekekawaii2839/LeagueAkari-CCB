@@ -89,6 +89,12 @@ jobs:
       - name: Install dependencies
         run: corepack yarn install --immutable
 
+      - name: Test worker Python extraction safety without network or execution
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File packaging/setup-worker-python.test.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Worker Python bootstrap safety tests failed" }
+
       - name: Test and build
         shell: pwsh
         run: |
@@ -97,10 +103,9 @@ jobs:
           corepack yarn build
           if ($LASTEXITCODE -ne 0) { throw "Release application build failed" }
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12.14'
-          architecture: x64
+      - name: Bootstrap fixed Astral CPython 3.12.14 Windows x64
+        shell: pwsh
+        run: ./packaging/setup-worker-python.ps1 -RunnerTemp $env:RUNNER_TEMP
 
       - name: Rebuild the source-current worker in isolation
         shell: pwsh
@@ -116,7 +121,11 @@ jobs:
           }
           New-Item -ItemType Directory -Path $buildRoot | Out-Null
           $venv = Join-Path $buildRoot 'venv'
-          python -m venv $venv
+          $bootstrapPython = $env:WORKER_BOOTSTRAP_PYTHON
+          if (-not $bootstrapPython -or -not (Test-Path -LiteralPath $bootstrapPython -PathType Leaf)) {
+            throw "Verified worker Python bootstrap is missing"
+          }
+          & $bootstrapPython -I -m venv $venv
           if ($LASTEXITCODE -ne 0) { throw "Worker virtual environment creation failed" }
           $python = Join-Path $venv 'Scripts/python.exe'
           & $python -m pip install --require-hashes -r packaging/worker-build-requirements.lock
@@ -124,6 +133,41 @@ jobs:
           $freshResources = Join-Path $buildRoot 'member-analysis'
           node packaging/build-worker.mjs $python $freshResources (Join-Path $buildRoot 'work')
           if ($LASTEXITCODE -ne 0) { throw "Source-current worker build failed" }
+          $bootstrapReceipt = $env:WORKER_PYTHON_BOOTSTRAP_PROVENANCE
+          if (-not $bootstrapReceipt -or -not (Test-Path -LiteralPath $bootstrapReceipt -PathType Leaf)) {
+            throw "Verified worker Python bootstrap provenance is missing"
+          }
+          $bootstrap = Get-Content -LiteralPath $bootstrapReceipt -Raw | ConvertFrom-Json
+          $fixedURL = 'https://github.com/astral-sh/python-build-standalone/releases/download/20260929/cpython-3.12.14%2B20260929-x86_64-pc-windows-msvc-install_only.tar.gz'
+          $fixedSHA = '28728baf30b65e263f0b25c5a85be8226e7ab0d212fbadd6a8f0f796139fa804'
+          if ($bootstrap.provider -cne 'Astral python-build-standalone (not a PSF Windows installer)' -or
+              $bootstrap.release -cne '20260929' -or $bootstrap.target -cne 'x86_64-pc-windows-msvc' -or
+              $bootstrap.sourceURL -cne $fixedURL -or $bootstrap.archive.sha256 -cne $fixedSHA -or
+              $bootstrap.reported.version -cne '3.12.14' -or $bootstrap.reported.platform -cne 'win32' -or
+              $bootstrap.reported.machine -notin @('AMD64', 'x86_64') -or $bootstrap.reported.bits -ne 64 -or
+              $bootstrap.executable.path -cne 'python/python.exe' -or
+              $bootstrap.executable.sha256 -cnotmatch '^[a-f0-9]{64}$' -or
+              (Get-FileHash -LiteralPath $bootstrapPython -Algorithm SHA256).Hash.ToLowerInvariant() -cne $bootstrap.executable.sha256) {
+            throw "Worker Python bootstrap provenance does not match the fixed verified runtime"
+          }
+          # Copy only safe, explicit supply-chain metadata, never arbitrary JSON,
+          # runner paths, environment values or logs into the distributable.
+          $safeBootstrap = [ordered]@{
+            provider = 'Astral python-build-standalone'
+            release = '20260929'
+            version = '3.12.14'
+            arch = 'x86_64-pc-windows-msvc'
+            sourceURL = $fixedURL
+            assetSHA256 = $fixedSHA
+            pythonExeSHA256 = $bootstrap.executable.sha256
+            executable = 'python/python.exe'
+          }
+          $provenancePath = Join-Path $freshResources 'build-provenance.json'
+          $provenance = Get-Content -LiteralPath $provenancePath -Raw | ConvertFrom-Json
+          $provenance | Add-Member -NotePropertyName pythonBootstrap -NotePropertyValue $safeBootstrap
+          [IO.File]::WriteAllText($provenancePath, ($provenance | ConvertTo-Json -Depth 20) + "`n", [Text.UTF8Encoding]::new($false))
+          node packaging/generate-worker-manifest.mjs (Join-Path $freshResources 'worker') (Join-Path $freshResources 'worker-manifest.json') $provenancePath
+          if ($LASTEXITCODE -ne 0) { throw "Worker bootstrap provenance manifest binding failed" }
           # Retain the old tracked resource directory only in this disposable runner,
           # outside the packaging root. Never package it as a fallback.
           if (Test-Path -LiteralPath $resourceTarget) {
@@ -165,7 +209,11 @@ jobs:
               throw "The executable contract must not fall back to source Python"
             }
             $tests = Join-Path $env:GITHUB_WORKSPACE 'python/member_analysis/tests'
-            python -I -m unittest discover -s $tests -p test_worker.py -k test_processes_manifest_and_stages_sqlite -v
+            $bootstrapPython = $env:WORKER_BOOTSTRAP_PYTHON
+            if (-not $bootstrapPython -or -not (Test-Path -LiteralPath $bootstrapPython -PathType Leaf)) {
+              throw "Verified worker Python bootstrap is missing for the executable contract"
+            }
+            & $bootstrapPython -I -m unittest discover -s $tests -p test_worker.py -k test_processes_manifest_and_stages_sqlite -v
             if ($LASTEXITCODE -ne 0) { throw "Final packaged worker executable contract failed" }
           } finally {
             Remove-Item Env:MEMBER_ANALYSIS_WORKER_EXECUTABLE -ErrorAction SilentlyContinue
