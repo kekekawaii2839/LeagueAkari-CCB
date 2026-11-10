@@ -60,6 +60,17 @@
         :size="embedded ? 'medium' : 'small'"
         aria-label="结果"
       />
+      <NSelect
+        v-if="promotePatch"
+        v-model:show="menus.patch"
+        :menu-props="menuProps('patch')"
+        :disabled="disabled"
+        v-model:value="store.filters.patch"
+        class="member-analysis-filters__select"
+        :options="patchOptions"
+        :size="embedded ? 'medium' : 'small'"
+        aria-label="版本"
+      />
       <NButton
         ref="advancedButton"
         :size="embedded ? 'medium' : 'small'"
@@ -108,6 +119,7 @@
             class="member-analysis-filters__select"
             :options="roleOptions"
             :render-label="renderRoleSelectLabel"
+            :render-tag="renderRoleSelectTag"
             aria-label="分路"
           />
           <NSelect
@@ -122,6 +134,7 @@
             aria-label="英雄"
           />
           <NSelect
+            v-if="!promotePatch"
             v-model:show="menus.patch"
             :menu-props="menuProps('patch')"
             :disabled="disabled"
@@ -182,7 +195,7 @@ import { computed, nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watc
 import type { HTMLAttributes } from 'vue'
 import { useMediaQuery } from '@vueuse/core'
 import { uiText } from './ui-text'
-import { renderRoleSelectLabel } from './role-select-label'
+import { renderRoleSelectLabel, renderRoleSelectTag } from './role-select-label'
 import { createAdvancedFilterMotion } from './advanced-filter-motion'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
@@ -190,7 +203,12 @@ import { useLeagueClientStore } from '@renderer-shared/shards/league-client/stor
 
 const store = useMemberAnalysisStore()
 const league = useLeagueClientStore()
-const props = defineProps<{ disabled?: boolean; compact?: boolean; embedded?: boolean }>()
+const props = defineProps<{
+  disabled?: boolean
+  compact?: boolean
+  embedded?: boolean
+  promotePatch?: boolean
+}>()
 const expanded = ref(false)
 const advanced = ref(false)
 const advancedShown = ref(false)
@@ -315,7 +333,7 @@ const activeAdvanced = computed(
       store.filters.participant,
       store.filters.matchRole,
       store.filters.champion,
-      store.filters.patch
+      ...(props.promotePatch ? [] : [store.filters.patch])
     ].filter((value) => value !== 'all').length +
     [
       store.filters.durationMin,
@@ -327,6 +345,7 @@ const activeAdvanced = computed(
 const activeFilters = computed(
   () =>
     activeAdvanced.value +
+    Number(props.promotePatch && store.filters.patch !== 'all') +
     Number(Boolean(store.filters.query)) +
     Number(store.filters.outcome !== 'all') +
     Number(store.analysisSide !== 'all')
@@ -357,7 +376,12 @@ const roleOptions = [
 ]
 const patchOptions = computed(() => [
   { label: '全部版本', value: 'all' },
-  ...Array.from(new Set(store.overview?.games.map((game) => game.patch) ?? []))
+  ...Array.from(
+    new Set([
+      ...(store.overview?.games.map((game) => game.patch) ?? []),
+      ...(store.filters.patch === 'all' ? [] : [store.filters.patch])
+    ])
+  )
     .sort((a, b) => patchVersionCollator.compare(b, a))
     .map((patch) => ({ label: patch, value: patch }))
 ])

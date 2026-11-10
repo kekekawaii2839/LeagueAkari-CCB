@@ -85,3 +85,10 @@ export const rankTierBoundaries = RANK_TIERS.slice(0, 8).map((tier, index) => ({
   tier,
   value: index * 400
 }))
+
+// Shared ordinal coordinates compress unrecorded intervals, not recorded rank values.
+export function observationAxisTimes(series: readonly (readonly RankProgressPoint[])[]): number[] {
+  return [...new Set(series.flatMap((points) => points.map((point) => point.x)))].sort(
+    (a, b) => a - b
+  )
+}

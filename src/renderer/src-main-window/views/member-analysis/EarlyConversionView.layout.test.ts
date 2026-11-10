@@ -1,7 +1,15 @@
 // sort-imports-ignore
 import './test-i18n'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { calculateEarlyEvidenceHeight } from './EarlyConversionView.vue'
+
+// This suite calls the real SFC export without mounting the view. Keep unrelated
+// render-only control/table dependencies out of module collection.
+vi.mock('naive-ui', () => ({ NButton: () => null, NSelect: () => null }))
+vi.mock('./MemberAnalysisEvidenceTable.vue', () => ({ default: () => null }))
+vi.mock('./WinRateInterval.vue', () => ({ default: () => null }))
+vi.mock('./MetricHelp.vue', () => ({ default: () => null }))
+vi.mock('./components/MemberAnalysisSegments.vue', () => ({ default: () => null }))
 
 describe('early-results secondary evidence viewport budget', () => {
   test('uses actual remaining viewport space while keeping the long match list inside its own viewport', () => {

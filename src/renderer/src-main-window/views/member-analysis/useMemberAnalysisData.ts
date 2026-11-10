@@ -4,7 +4,6 @@ import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/stor
 
 import {
   aggregateChampions,
-  aggregateConversion,
   aggregateJungle,
   aggregatePairs,
   aggregateRoles,
@@ -71,7 +70,6 @@ function createData(store: ReturnType<typeof useMemberAnalysisStore>) {
         ? []
         : aggregateJungle(sampleGames.value, 'all', store.filters.participant)
     ),
-    conversion: computed(() => aggregateConversion(sampleGames.value)),
     synergy: computed(() => {
       return aggregateSynergy(sampleGames.value).filter(
         (row) =>

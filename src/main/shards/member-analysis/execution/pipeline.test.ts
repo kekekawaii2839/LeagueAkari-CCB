@@ -328,10 +328,43 @@ test('required summary failure is safe, never publishes, and does not leak into 
   await waitFor(() => pipeline.get()?.status === 'failed')
   expect(pipeline.get()?.error).toEqual({
     code: 'PIPELINE_FAILED',
-    message: 'Member analysis refresh failed'
+    message: 'Member analysis refresh failed',
+    diagnostic: 'worker-failed'
   })
   expect(repository.publishStagingAsync).not.toHaveBeenCalled()
 })
+
+test.each([
+  ['Identity reader unavailable', false, 'identity-worker-unavailable'],
+  ['Identity source verification failed', false, 'identity-verification-failed'],
+  ['Identity worker failed', false, 'identity-worker-failed'],
+  ['PRIVATE_SYNTHETIC_PATH_AND_TOKEN', true, 'publication-failed']
+])(
+  'refresh preserves only a safe publication failure reason: %s',
+  async (failure, committed, diagnostic) => {
+    const repository = {
+      writeJobManifest: () => ({}),
+      publishStagingAsync: async (_r: unknown, options: { onCommit: () => void }) => {
+        if (committed) options.onCommit()
+        throw new Error(String(failure))
+      }
+    }
+    const pipeline = new MemberAnalysisPipeline(
+      { collect: async () => ({ items: [], memberErrors: 0 }) } as any,
+      repository as any,
+      { available: true, run: async () => ({ type: 'result', status: 'completed' }) } as any,
+      settings
+    )
+    pipeline.start()
+    await waitFor(() => pipeline.get()?.status === 'failed')
+    expect(pipeline.get()?.error).toEqual({
+      code: 'PIPELINE_FAILED',
+      message: 'Member analysis refresh failed',
+      diagnostic
+    })
+    expect(JSON.stringify(pipeline.get())).not.toContain('PRIVATE_SYNTHETIC')
+  }
+)
 
 vi.mock('../opponent-ranks/rank-publication-executor', () => ({
   executeRankPublication: async (request: {
@@ -427,4 +460,27 @@ test('successful verification enters non-cancellable commit only via onCommit', 
   await waitFor(() => pipeline.get()?.status === 'completed')
   expect(entered).toBe(true)
   expect(worker.cancel).not.toHaveBeenCalled()
+})
+
+test('member resolution failure keeps the unresolved count without starting the worker', async () => {
+  const collector = { collect: vi.fn(async () => ({ items: [], memberErrors: 3 })) }
+  const repository = {
+    writeJobManifest: vi.fn(() => ({})),
+    publishStagingAsync: vi.fn(async () => {})
+  }
+  const worker = { available: true, run: vi.fn(), cancel: vi.fn(), dispose: vi.fn() }
+  const pipeline = new MemberAnalysisPipeline(
+    collector as any,
+    repository as any,
+    worker as any,
+    settings
+  )
+  pipeline.start()
+  await waitFor(() => pipeline.get()?.status === 'failed')
+  expect(pipeline.get()?.error).toEqual({
+    code: 'PIPELINE_FAILED',
+    message: 'failed to resolve 3 configured member(s)'
+  })
+  expect(worker.run).not.toHaveBeenCalled()
+  expect(repository.publishStagingAsync).not.toHaveBeenCalled()
 })

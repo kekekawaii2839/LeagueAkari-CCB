@@ -725,6 +725,53 @@ def lane_differences(
     }
 
 
+def build_team_metrics(value: dict[str, Any], frames: list[dict[str, Any]], target_team: int) -> dict[str, Any]:
+    """Match-level observations, independent of the configured jungler's identity."""
+    participants = value.get("participants") or []
+    kills = [optional_number(row.get("kills")) for row in participants]
+    total_kills = complete_sum(kills) if len(participants) == 10 else None
+    result = {"totalKills": total_kills, "firstDragonTime": None, "firstTowerTime": None,
+              "dragons": None, "barons": None, "dragonSouls": None, "elderDragons": None}
+    if not event_coverage(frames, number(value.get("gameDuration")) * 1000):
+        return result
+    result.update(dragons=0, barons=0, dragonSouls=0, elderDragons=0)
+    teams = {int(row.get("participantId") or 0): int(row.get("teamId") or 0) for row in participants}
+    for event in sorted(all_events(frames), key=lambda row: number(row.get("timestamp"))):
+        kind = event.get("type")
+        owner = int(event.get("killerTeamId") or 0) or teams.get(int(event.get("killerId") or 0))
+        timestamp = number(event.get("timestamp")) / 1000
+        if kind == "DRAGON_SOUL_GIVEN" and int(event.get("teamId") or 0) == target_team:
+            result["dragonSouls"] += 1
+        if kind == "BUILDING_KILL" and event.get("buildingType") == "TOWER_BUILDING":
+            # Building teamId belongs to the destroyed structure, not the killer.
+            if int(event.get("teamId") or 0) == 300 - target_team and result["firstTowerTime"] is None:
+                result["firstTowerTime"] = timestamp
+        if kind != "ELITE_MONSTER_KILL" or owner != target_team:
+            continue
+        if event.get("monsterType") == "BARON_NASHOR":
+            result["barons"] += 1
+        elif event.get("monsterType") == "DRAGON":
+            if event.get("monsterSubType") == "ELDER_DRAGON":
+                result["elderDragons"] += 1
+            else:
+                result["dragons"] += 1
+                if result["firstDragonTime"] is None:
+                    result["firstDragonTime"] = timestamp
+    return result
+
+
+def build_bans(value: dict[str, Any], target_team: int) -> dict[str, Any]:
+    def for_team(team_id: int):
+        team = next((row for row in value.get("teams") or [] if int(row.get("teamId") or 0) == team_id), None)
+        if team is None or not isinstance(team.get("bans"), list):
+            return None
+        bans = team["bans"]
+        if len(bans) > 5 or any(not isinstance(row, dict) or (row.get("championId") != -1 and optional_number(row.get("championId")) is None) for row in bans):
+            return None
+        return [int(row["championId"]) for row in bans if int(row["championId"]) > 0]
+    return {"own": for_team(target_team), "enemy": for_team(300 - target_team)}
+
+
 def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, Any]:
     value = summary.get("json", summary)
     timeline = details.get("json", details)
@@ -825,6 +872,8 @@ def derive_game(summary: dict[str, Any], details: dict[str, Any]) -> dict[str, A
         "side": "Blue" if target_team == 100 else "Red",
         "win": bool(team.get("win", selected[0].get("win", False))),
         "duration": number(value.get("gameDuration")),
+        "teamMetrics": build_team_metrics(value, frames, target_team),
+        "bans": build_bans(value, target_team),
         "roster": " + ".join(sorted(player["player"] for player in players)),
         "dragon15Diff": objective["m15_dragon_diff"],
         "grub15Diff": objective["m15_grub_diff"],

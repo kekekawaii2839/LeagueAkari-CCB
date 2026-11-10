@@ -121,6 +121,7 @@ function harness(
     enabled?: boolean
     flag?: boolean
     active?: boolean
+    axis?: 'observation' | 'time'
     reader?: (request: Request) => Promise<Reply>
   } = {}
 ) {
@@ -204,6 +205,9 @@ function harness(
   const all = () => walk(root)
   const control = (kind: string, predicate: (n: HostNode) => boolean = () => true) =>
     all().find((n) => n.props.kind === kind && predicate(n))!
+  // Existing cases exercise real-time coordinates explicitly; the ordinal default is tested below.
+  if (options.axis !== 'observation')
+    control('NSelect', (n) => n.props['aria-label'] === '横轴方式').props['onUpdate:value']('time')
   return {
     store,
     active,
@@ -531,7 +535,7 @@ test('only loads older cursor pages on explicit request and retains anomalous fa
     await settle()
     expect(io.read).toHaveBeenCalledTimes(10)
     expect(io.read.mock.calls.slice(5).every(([request]) => request.cursor === cursor)).toBe(true)
-    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(2)
+    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(3)
     expect(f.chart().props.data.datasets[0].data[0]).toEqual({
       x: Date.parse('2026-10-12T01:00:00Z'),
       y: Number.NaN
@@ -602,7 +606,7 @@ test('suspends chart and IO while another tab is active, retaining older pages w
       n.children.some((c) => c.text.includes('加载更早记录'))
     ).props.onClick()
     await settle()
-    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(2)
+    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(3)
     f.active.value = false
     await settle()
     expect(f.chart()).toBeUndefined()
@@ -666,7 +670,7 @@ test('reading order is filters then member legend then chart, without a duplicat
     await settle()
     const nodes = f.all()
     const filters = nodes.filter((n) => n.props.kind === 'NSelect')
-    expect(filters).toHaveLength(2)
+    expect(filters).toHaveLength(3)
     expect(nodes.indexOf(filters.at(-1)!)).toBeLessThan(nodes.findIndex((n) => n.type === 'li'))
     expect(nodes.indexOf(nodes.filter((n) => n.type === 'li').at(-1)!)).toBeLessThan(
       nodes.indexOf(f.chart())
@@ -906,7 +910,7 @@ test('feeds real Chart.js object parsing safe time points for missing LP without
   }
 })
 
-test('only offers time coordinates and preserves all real observations without patch metadata', async () => {
+test('time axis preserves all real observations without requiring patch metadata', async () => {
   const f = harness({
     reader: async (request) =>
       page(request, [
@@ -916,7 +920,7 @@ test('only offers time coordinates and preserves all real observations without p
   })
   try {
     await settle()
-    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(2)
+    expect(f.all().filter((n) => n.props.kind === 'NSelect')).toHaveLength(3)
     expect(f.chart().props.options.scales.x.type).toBe('linear')
     expect(f.chart().props.data.labels).toBeUndefined()
     expect(f.chart().props.data.datasets[0].data).toEqual([
@@ -1171,5 +1175,37 @@ test('chart budgets ancestor padding, wrapped content and scroll offsets without
   } finally {
     f.dispose()
     vi.unstubAllGlobals()
+  }
+})
+
+test('defaults to equally spaced real records, retains missing ranks, and switches to actual time without IO', async () => {
+  const f = harness({
+    axis: 'observation',
+    reader: async (request) =>
+      page(request, [
+        { fetchedAt: '2026-01-01T01:00:00Z', queueRank: rank(10) },
+        { fetchedAt: '2026-10-01T01:00:00Z', queueRank: rank(120) },
+        { fetchedAt: '2026-10-02T01:00:00Z', queueRank: rank(40) }
+      ])
+  })
+  try {
+    await settle()
+    const axis = f.control('NSelect', (n) => n.props['aria-label'] === '横轴方式')
+    expect(axis.props.value).toBe('observation')
+    expect(f.chart().props.data.datasets[0].data).toEqual([
+      { x: 0, y: 1210 },
+      { x: 1, y: NaN },
+      { x: 2, y: 1240 }
+    ])
+    expect(f.chart().props.data.datasets[0].spanGaps).toBe(false)
+    expect(
+      f.chart().props.options.plugins.tooltip.callbacks.title([{ datasetIndex: 0, dataIndex: 2 }])
+    ).toBe(new Date('2026-10-02T01:00:00Z').toLocaleString())
+    axis.props['onUpdate:value']('time')
+    await nextTick()
+    expect(f.chart().props.data.datasets[0].data[2].x).toBe(Date.parse('2026-10-02T01:00:00Z'))
+    expect(io.read).toHaveBeenCalledTimes(5)
+  } finally {
+    f.dispose()
   }
 })

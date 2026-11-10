@@ -379,6 +379,7 @@
               </div>
             </dl>
           </section>
+          <CombinationTeamMetrics :games="selected.gamesList" />
         </aside>
         <aside
           v-else
@@ -510,6 +511,7 @@
   </div>
 </template>
 <script setup lang="ts">
+import CombinationTeamMetrics from './CombinationTeamMetrics.vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'

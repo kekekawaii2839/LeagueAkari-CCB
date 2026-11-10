@@ -78,6 +78,9 @@ export class MemberAnalysisPipeline {
     settings: MemberAnalysisSettings
   ) {
     let summaryStatisticsUnavailable = false
+    let unresolvedMembers = 0
+    let failureStage: 'collection' | 'worker' | 'identity' = 'collection'
+    let publicationStarted = false
     try {
       this._update({ status: 'collecting', progress: 0.02, message: 'collecting' })
       const collected = await this._collector.collect({
@@ -99,9 +102,12 @@ export class MemberAnalysisPipeline {
           })
       })
       if (signal.aborted) throw signal.reason
-      if (collected.memberErrors > 0)
-        throw new Error(`failed to resolve ${collected.memberErrors} configured member(s)`)
+      if (collected.memberErrors > 0) {
+        unresolvedMembers = collected.memberErrors
+        throw new Error('member resolution failed')
+      }
       const paths = this._repository.writeJobManifest(job.jobId, collected.items, collected.audit)
+      failureStage = 'worker'
       this._update({ status: 'analyzing', progress: 0.5, message: 'analyzing' })
       const message = await this._worker.run(
         [
@@ -128,10 +134,13 @@ export class MemberAnalysisPipeline {
       if (signal.aborted || message.status === 'cancelled') throw new Error('cancelled')
       if (message.type !== 'result' || message.status !== 'completed')
         throw new Error('worker did not complete successfully')
+      failureStage = 'identity'
       await this._repository.publishStagingAsync(collected.rankSnapshots, {
         signal,
-        onCommit: () =>
+        onCommit: () => {
+          publicationStarted = true
           this._update({ status: 'publishing', progress: 0.95, message: 'publishing' })
+        }
       })
       this._finish('completed', 'completed')
     } catch (error) {
@@ -141,9 +150,32 @@ export class MemberAnalysisPipeline {
       }
       this._finish('failed', 'failed', {
         code: summaryStatisticsUnavailable ? 'SUMMARY_STAT_UNAVAILABLE' : 'PIPELINE_FAILED',
+        ...(!summaryStatisticsUnavailable && !unresolvedMembers
+          ? {
+              diagnostic:
+                failureStage === 'collection'
+                  ? ('collection-failed' as const)
+                  : failureStage === 'worker'
+                    ? ('worker-failed' as const)
+                    : publicationStarted
+                      ? ('publication-failed' as const)
+                      : error instanceof Error && error.message === 'Identity reader unavailable'
+                        ? ('identity-worker-unavailable' as const)
+                        : error instanceof Error &&
+                            [
+                              'Identity worker failed',
+                              'Identity worker exited',
+                              'Invalid identity worker reply'
+                            ].includes(error.message)
+                          ? ('identity-worker-failed' as const)
+                          : ('identity-verification-failed' as const)
+            }
+          : {}),
         message: summaryStatisticsUnavailable
           ? 'Required match summary statistics unavailable'
-          : 'Member analysis refresh failed'
+          : unresolvedMembers > 0
+            ? `failed to resolve ${unresolvedMembers} configured member(s)`
+            : 'Member analysis refresh failed'
       })
     }
   }

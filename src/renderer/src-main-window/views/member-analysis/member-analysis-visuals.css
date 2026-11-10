@@ -285,6 +285,42 @@
   }
 }
 
+/* Native lookup pages share one content origin; no additional card surface. */
+.member-analysis-page .ma-native-data-view {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0 16px;
+  color: var(--la-color-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+.ma-native-data-view .ma-data-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.ma-native-data-view .ma-data-context,
+.ma-native-data-view .ma-data-note {
+  color: var(--ma-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ma-native-data-view p {
+  margin: 0;
+}
+.ma-native-data-view .n-data-table {
+  --n-th-font-weight: 500;
+  font-size: 14px;
+}
+.ma-native-data-view .n-data-table-td,
+.ma-native-data-view .n-data-table-th {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Feature-only analytical surface; role comparison and hero pool keep their layout. */
 .member-analysis-page .ma-workspace {
   padding: 24px 28px;

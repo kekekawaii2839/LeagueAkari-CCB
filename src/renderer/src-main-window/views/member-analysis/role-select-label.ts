@@ -21,7 +21,18 @@ export type RoleSelectOption = SelectOption & {
 function roleSelectLabel(option: SelectOption, selected: boolean): VNodeChild {
   const metadata = option as RoleSelectOption
   const roles = metadata.roles ?? [metadata.role ?? option.value]
-  // Do not turn ALL, unknown keys or an unproved composite into a real lane.
+  // ALL is an explicit aggregate, not a fallback for unknown or composite roles.
+  if (roles.length === 1 && (roles[0] === 'all' || roles[0] === 'ALL')) {
+    return h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '4px' } }, [
+      h(PositionIcon, {
+        position: 'ALL',
+        'aria-hidden': 'true',
+        style: { fontSize: '16px', flexShrink: 0 }
+      }),
+      h('span', typeof option.label === 'string' ? option.label : '')
+    ])
+  }
+  // Do not turn unknown keys or an unproved composite into a real lane.
   if (
     !roles.length ||
     roles.some((role) => typeof role !== 'string' || !Object.hasOwn(roleNames, role))

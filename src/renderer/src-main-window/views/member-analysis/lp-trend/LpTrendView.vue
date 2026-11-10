@@ -8,6 +8,11 @@
         :options="memberOptions"
         :aria-label="uiText('synergyAllMembers')"
       />
+      <NSelect
+        v-model:value="axisMode"
+        :options="axisOptions"
+        :aria-label="uiText('lpTrendAxis')"
+      />
       <span class="ma-view-meta">{{
         uiText('lpTrendObservationCount', { count: visibleObservationCount })
       }}</span>
@@ -38,6 +43,11 @@
         ><template #icon><NIcon :component="CloseRound" /></template
       ></NButton>
     </div>
+    <p class="ma-view-meta">
+      {{
+        uiText(axisMode === 'observation' ? 'lpTrendObservationAxisHelp' : 'lpTrendTimeAxisHelp')
+      }}
+    </p>
     <p v-if="currentRankMessage" class="ma-view-meta lp-trend-refresh-status" role="status">
       {{ currentRankMessage }}
     </p>
@@ -121,7 +131,9 @@
             ref="xAxisTitle"
             class="lp-trend-axis-title lp-trend-axis-title-x"
             aria-hidden="true"
-            >{{ uiText('lpTrendObservedAt') }}</span
+            >{{
+              uiText(axisMode === 'observation' ? 'lpTrendObservationAxis' : 'lpTrendObservedAt')
+            }}</span
           >
           <Line :data="chartData" :options="chartOptions" :plugins="chartPlugins" />
         </div>
@@ -165,6 +177,7 @@ import { uiText } from '../ui-text'
 import {
   MASTER_PROGRESS_BASE,
   observationSeries,
+  observationAxisTimes,
   rankProgressDomain,
   rankProgressTick,
   rankTierBoundaries,
@@ -330,6 +343,15 @@ const visibleObservationCount = computed(() =>
   visibleSeries.value.reduce((count, member) => count + member.observations.length, 0)
 )
 const plotSeries = visibleSeries
+const axisMode = ref<'observation' | 'time'>('observation')
+const axisOptions = computed(() => [
+  { value: 'observation', label: uiText('lpTrendObservationAxis') },
+  { value: 'time', label: uiText('lpTrendObservedAt') }
+])
+const axisTimes = computed(() =>
+  observationAxisTimes(plotSeries.value.map((member) => member.plotPoints))
+)
+const axisIndex = computed(() => new Map(axisTimes.value.map((time, index) => [time, index])))
 const domain = computed(() => {
   const points = plotSeries.value
     .flatMap((member) => member.plotPoints)
@@ -379,8 +401,11 @@ function recordRankLabel(observation: RankObservationPoint) {
 const chartData = computed<ChartData<'line'>>(() => ({
   datasets: plotSeries.value.map((member) => ({
     label: member.name,
-    // Linear time coordinates retain every real query, including missing-rank gaps.
-    data: member.plotPoints.map((point) => ({ x: point.x, y: point.y ?? Number.NaN })),
+    // Missing ranks remain gaps; ordinal spacing does not imply elapsed time.
+    data: member.plotPoints.map((point) => ({
+      x: axisMode.value === 'observation' ? axisIndex.value.get(point.x)! : point.x,
+      y: point.y ?? Number.NaN
+    })),
     borderColor: memberColor(member.slot),
     backgroundColor: memberColor(member.slot),
     borderWidth: 2.5,
@@ -413,12 +438,30 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
   scales: {
     x: {
       type: 'linear',
-      min: domain.value
-        ? domain.value.from - (domain.value.from === domain.value.to ? 60000 : 0)
-        : undefined,
-      max: domain.value
-        ? domain.value.to + (domain.value.from === domain.value.to ? 60000 : 0)
-        : undefined,
+      min:
+        axisMode.value === 'observation'
+          ? axisTimes.value.length <= 1
+            ? -0.5
+            : 0
+          : domain.value
+            ? domain.value.from - (domain.value.from === domain.value.to ? 60000 : 0)
+            : undefined,
+      max:
+        axisMode.value === 'observation'
+          ? axisTimes.value.length <= 1
+            ? 0.5
+            : axisTimes.value.length - 1
+          : domain.value
+            ? domain.value.to + (domain.value.from === domain.value.to ? 60000 : 0)
+            : undefined,
+      afterBuildTicks: (axis) => {
+        if (axisMode.value !== 'observation') return
+        const count = axisTimes.value.length
+        const step = Math.max(1, Math.ceil((count - 1) / 3))
+        const indexes = new Set<number>([0, Math.max(0, count - 1)])
+        for (let index = step; index < count - 1; index += step) indexes.add(index)
+        axis.ticks = [...indexes].sort((a, b) => a - b).map((value) => ({ value }))
+      },
       grid: { color: theme.value.grid },
       ticks: {
         color: theme.value.muted,
@@ -428,15 +471,24 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
         maxRotation: 0,
         font: { family: uiFont.value, size: 12, weight: 400 },
         callback: (value, index, ticks) => {
+          const timestamp =
+            axisMode.value === 'observation' ? axisTimes.value[Number(value)] : Number(value)
+          if (timestamp === undefined) return ''
           const adjacent = ticks[index === 0 ? 1 : index - 1]
-          const interval = adjacent ? Math.abs(Number(value) - adjacent.value) : Infinity
-          const from = domain.value?.from
-          const to = domain.value?.to
+          const adjacentTime = adjacent
+            ? axisMode.value === 'observation'
+              ? axisTimes.value[adjacent.value]
+              : adjacent.value
+            : undefined
+          const interval =
+            adjacentTime === undefined ? Infinity : Math.abs(timestamp - adjacentTime)
+          const from = axisTimes.value[0]
+          const to = axisTimes.value.at(-1)
           const crossesYear =
             from !== undefined &&
             to !== undefined &&
             new Date(from).getFullYear() !== new Date(to).getFullYear()
-          return new Date(Number(value)).toLocaleString(undefined, {
+          return new Date(timestamp).toLocaleString(undefined, {
             ...(crossesYear ? { year: 'numeric' as const } : {}),
             month: 'numeric',
             day: 'numeric',
@@ -449,7 +501,9 @@ const chartOptions = computed<ChartOptions<'line'>>(() => ({
       },
       title: {
         display: false,
-        text: uiText('lpTrendObservedAt'),
+        text: uiText(
+          axisMode.value === 'observation' ? 'lpTrendObservationAxis' : 'lpTrendObservedAt'
+        ),
         color: themeVars.value.textColor1,
         font: { family: uiFont.value, size: 13, weight: 600 },
         padding: { top: 12, bottom: 0 }

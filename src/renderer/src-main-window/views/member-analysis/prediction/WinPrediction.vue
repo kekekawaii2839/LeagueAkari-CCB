@@ -98,9 +98,6 @@
               >{{ uiText('retry') }}</NButton
             ><NButton v-else size="small" secondary @click="openCollectionSettings">{{
               uiText('openCollectionSettings')
-            }}</NButton
-            ><NButton size="small" quaternary @click="showSupportConditions">{{
-              uiText('predictionViewSupport')
             }}</NButton>
           </div>
         </section>
@@ -256,19 +253,6 @@
             </div>
           </div>
         </template>
-        <section
-          ref="supportConditions"
-          tabindex="-1"
-          :aria-label="uiText('predictionSupportMethodTitle')"
-        >
-          <h4>{{ uiText('predictionSupportMethodTitle') }}</h4>
-          <p v-if="supportExpanded">{{ uiText('predictionEntertainmentMethod') }}</p>
-          <MetricHelp
-            v-else
-            :label="uiText('predictionSupportMethodTitle')"
-            :definition="uiText('predictionEntertainmentMethod')"
-          />
-        </section>
       </div>
     </div>
   </section>
@@ -276,7 +260,7 @@
 <script setup lang="ts">
 import PositionIcon from '@renderer-shared/components/icons/position-icons/PositionIcon.vue'
 import { ChevronDown20Regular, ChevronRight20Regular } from '@vicons/fluent'
-import { computed, h, nextTick, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
+import { computed, h, onActivated, onBeforeUnmount, onDeactivated, ref, watch } from 'vue'
 import {
   NButton,
   NIcon,
@@ -349,7 +333,6 @@ const sideOptions = computed(() => [
 ])
 const details = ref(false)
 const featureDetails = ref(false)
-const supportExpanded = ref(false)
 const result = ref<EntertainmentPredictionResult | null>(null)
 const unavailableReasonKeys = {
   'invalid-lineup': 'predictionReasonLineup',
@@ -362,14 +345,6 @@ const unavailableText = computed(() =>
   result.value?.status === 'unavailable' ? uiText(unavailableReasonKeys[result.value.reason]) : ''
 )
 const groupCount = Object.keys(entertainmentGroups).length
-const supportConditions = ref<HTMLElement | null>(null)
-async function showSupportConditions() {
-  supportExpanded.value = true
-  details.value = true
-  await nextTick()
-  supportConditions.value?.scrollIntoView({ block: 'start' })
-  supportConditions.value?.focus({ preventScroll: true })
-}
 function openCollectionSettings() {
   store.settingsFocus = 'collection'
   store.settingsDrawerVisible = true
@@ -553,7 +528,6 @@ function invalidate() {
   result.value = null
   details.value = false
   featureDetails.value = false
-  supportExpanded.value = false
   messageKey.value = hadResult ? 'predictionInvalidated' : ''
 }
 watch(() => ({ ...lineup.value }), invalidate)
@@ -587,7 +561,6 @@ function start() {
   result.value = null
   details.value = false
   featureDetails.value = false
-  supportExpanded.value = false
   progress.value = 0
   const current = generation
   messageKey.value = 'predictionCalculating'

@@ -161,6 +161,7 @@ const comparableMetrics = {
   vspm: { source: 'vision', perMinute: true },
   takenShare: { source: 'takenShare' },
   damageTakenPM: { source: 'damageTaken', perMinute: true },
+  damageTakenPerDeath: { source: 'damageTaken', positiveDeaths: true },
   mitigatedPM: { source: 'damageMitigated', perMinute: true },
   healPM: { source: 'healTeammates', perMinute: true },
   shieldPM: { source: 'shieldTeammates', perMinute: true },
@@ -172,7 +173,12 @@ const comparableMetrics = {
   soloDiff15: { source: 'soloDiff15', signed: true }
 } satisfies Record<
   string,
-  { source: keyof MemberAnalysisPlayerGame | null; signed?: boolean; perMinute?: boolean }
+  {
+    source: keyof MemberAnalysisPlayerGame | null
+    signed?: boolean
+    perMinute?: boolean
+    positiveDeaths?: boolean
+  }
 >
 const metric = ref<keyof typeof comparableMetrics>('gd15')
 const metricOptions = Object.keys(comparableMetrics).map((value) => ({
@@ -192,6 +198,7 @@ const metricSpec = computed<{
   source: keyof MemberAnalysisPlayerGame | null
   signed?: boolean
   perMinute?: boolean
+  positiveDeaths?: boolean
 }>(() => comparableMetrics[metric.value])
 const seriesLabels = ['合计', '蓝方', '红方'] as const
 const rows = computed(() => {
@@ -233,6 +240,8 @@ const validCounts = computed(() => {
       if (
         typeof value !== 'number' ||
         !Number.isFinite(value) ||
+        (spec.positiveDeaths &&
+          (player.deaths === null || !Number.isFinite(player.deaths) || player.deaths <= 0)) ||
         (spec.perMinute &&
           (player.minutes === null || !Number.isFinite(player.minutes) || player.minutes <= 0))
       )

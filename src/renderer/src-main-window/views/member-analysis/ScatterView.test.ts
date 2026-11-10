@@ -11,12 +11,14 @@ import ScatterView from './ScatterView.vue'
 
 const data = vi.hoisted(() => ({
   roles: null as any,
+  games: null as any,
   matches: [] as any[],
   table: null as any,
-  minimum: null as any
+  minimum: null as any,
+  mode: null as any
 }))
 vi.mock('./useMemberAnalysisData', () => ({
-  useMemberAnalysisData: () => ({ roles: data.roles, games: ref([]) })
+  useMemberAnalysisData: () => ({ roles: data.roles, games: data.games })
 }))
 vi.mock('./scatter-analysis', async (original) => ({
   ...(await original<object>()),
@@ -41,7 +43,10 @@ vi.mock('./ScatterExactTable.vue', () => ({
   }
 }))
 vi.mock('naive-ui', () => ({
-  NSelect: () => null,
+  NSelect: (props: any) => {
+    if (props['aria-label'] === '散点模式') data.mode = props
+    return null
+  },
   NSwitch: () => null,
   NCheckbox: () => null,
   NInputNumber: (props: any) => {
@@ -66,9 +71,105 @@ const render = () => renderToString(createSSRApp(ScatterView))
 beforeEach(() => {
   setActivePinia(createPinia())
   data.roles = ref([row('成员甲', 0), row('成员乙', 0), row('缺失成员', null)])
+  data.games = ref([])
   data.matches = []
   data.table = null
   data.minimum = null
+  data.mode = null
+})
+
+const patchGame = (gameId: number, patch: string, gd15: number | null = 100) => ({
+  gameId,
+  patch,
+  win: gameId % 2 === 1,
+  duration: 1800,
+  players: [
+    {
+      player: '合成成员',
+      role: 'MIDDLE',
+      champion: 'Synthetic',
+      gd15,
+      kp: null,
+      damageShare: 0.2,
+      goldShare: 0.2
+    }
+  ],
+  laneGankDeaths: null
+})
+
+test('mode selector adds patch aggregation without changing either existing mode', async () => {
+  data.games.value = [patchGame(1, '16.1'), patchGame(2, '16.2')]
+  await render()
+  expect(data.mode.options.map((option: any) => option.label)).toEqual([
+    '成员汇总',
+    '每场散点',
+    '成员 × 版本散点'
+  ])
+  data.mode['onUpdate:value']('patch')
+  const state = useMemberAnalysisStore().scatterViewState
+  expect(state.patchMode).toBe(true)
+  expect(state.matchMode).toBe(false)
+  await render()
+  expect(data.table.rows).toHaveLength(2)
+  expect(data.table.rows.map((r: any) => r.patch)).toEqual(['16.1', '16.2'])
+  data.mode['onUpdate:value']('match')
+  expect(state.patchMode).toBe(false)
+  expect(state.matchMode).toBe(true)
+  data.mode['onUpdate:value']('member')
+  expect(state.matchMode).toBe(false)
+  expect(state.patchMode).toBe(false)
+})
+
+test('patch mode shows version, per-axis support, exact values and no regression', async () => {
+  const state = useMemberAnalysisStore().scatterViewState
+  state.patchMode = true
+  state.xMetric = 'gd15'
+  data.games.value = [
+    patchGame(1, '16.1', -100),
+    patchGame(2, '16.1', null),
+    patchGame(3, '16.2', 200)
+  ]
+  const html = await render()
+  expect(data.table.rows.map((r: any) => [r.patch, r.games, r.x, r.validX, r.y, r.validY])).toEqual(
+    [
+      ['16.1', 2, -100, 1, 0.5, 2],
+      ['16.2', 1, 200, 1, 1, 1]
+    ]
+  )
+  expect(html).toContain('16.1')
+  expect(html).toContain('有效 1/2 场')
+  expect(html).toContain('横轴有效 1/2')
+  expect(html).toContain('成员分路版本最小场次')
+  expect(html).not.toContain('scatter-fit-sidebar')
+  expect(new Set(data.table.rows.map(data.table['row-key'])).size).toBe(2)
+  state.minimumGames = 2
+  const filtered = await render()
+  expect(data.table.rows).toHaveLength(1)
+  expect(filtered).toContain('已隐藏 1 个成员分路版本组')
+})
+
+test('same-member cross-patch overlap says records, not multiple people', async () => {
+  const state = useMemberAnalysisStore().scatterViewState
+  state.patchMode = true
+  state.xMetric = 'gd15'
+  data.games.value = [patchGame(1, '16.1'), patchGame(3, '16.2')]
+  const html = await render()
+  expect(html).toContain('2 条重叠')
+  expect(data.table.rows).toHaveLength(2)
+})
+
+test('patch mode retains missing/unknown versions in exact table and respects global role mismatch', async () => {
+  const store = useMemberAnalysisStore()
+  store.scatterViewState.patchMode = true
+  store.scatterViewState.xMetric = 'gd15'
+  data.games.value = [patchGame(1, 'unknown', null)]
+  const html = await render()
+  expect(data.table.rows[0]).toMatchObject({ patch: '', x: null, validX: 0 })
+  expect(html).toContain('未知版本')
+  expect(html).toContain('—')
+  store.filters.matchRole = 'TOP'
+  await render()
+  expect(data.table.rows).toEqual([])
 })
 
 test('aggregate mode omits the redundant point count while retaining missing and exact values', async () => {
@@ -178,7 +279,7 @@ test('aggregate zoom tools do not appear in per-match mode or change full observ
   expect(data.table.rows).toHaveLength(1)
 })
 
-test('member-role minimum games starts at zero only in aggregate mode, without filtering missing metrics', async () => {
+test('member-role minimum games starts at zero in both modes, without filtering missing metrics', async () => {
   const aggregate = await render()
   expect(aggregate).toContain('成员分路最小场次')
   expect(data.minimum.value).toBe(0)
@@ -191,7 +292,7 @@ test('member-role minimum games starts at zero only in aggregate mode, without f
   useMemberAnalysisStore().scatterViewState.matchMode = true
   data.matches = [{ ...row('成员甲', 0), gameId: 101 }]
   const matches = await render()
-  expect(matches).not.toContain('成员分路最小场次')
+  expect(matches).toContain('成员分路最小场次')
   expect(matches).not.toContain('已隐藏')
   expect(data.table.rows).toHaveLength(1)
 })
@@ -260,6 +361,7 @@ test('match table retains date, champion, result and distinct identities at the 
     'date',
     'champion',
     'result',
+    'gameDuration',
     'x',
     'y'
   ])
@@ -278,6 +380,25 @@ test('zero observations retain a permanent exact table and explicit empty state'
   expect(html).toContain('当前范围没有可比较的数据。')
   expect(data.table.rows).toHaveLength(0)
   expect(html).not.toContain('aria-pressed="true"')
+})
+
+test('per-match native axes expose units, duration evidence and an explicit zero-death reason', async () => {
+  const state = useMemberAnalysisStore().scatterViewState
+  state.matchMode = true
+  state.xMetric = 'gameDuration'
+  state.yMetric = 'damageTakenPerDeath'
+  data.matches = [
+    { ...row('零死成员', 0), gameId: 101, gameDuration: 30, damageTakenPerDeath: null, deaths: 0 },
+    { ...row('有效成员', 0), gameId: 102, gameDuration: 35, damageTakenPerDeath: 5000, deaths: 3 }
+  ]
+  const html = await render()
+  expect(html).toContain('对局时长（分钟）')
+  expect(html).toContain('每死承伤（伤害/死亡）')
+  expect(data.table.columns.find((column: any) => column.key === 'x').title).toBe('对局时长')
+  expect(data.table.columns.find((column: any) => column.key === 'y').title).toBe('每死承伤')
+  expect(html).toContain('—（零死亡）')
+  expect(data.table.rows.map((row: any) => row.gameDuration)).toEqual([30, 35])
+  expect(html).toContain('缺失 1 条')
 })
 
 const yAxisLabels = (html: string) =>

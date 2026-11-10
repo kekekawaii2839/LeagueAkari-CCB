@@ -11,6 +11,7 @@ import {
   MemberAnalysisStartRefreshRequestSchema,
   MemberAnalysisUpdateSettingsRequestSchema
 } from '@shared/shards/member-analysis'
+import { PatchNotesRequestSchema } from '@shared/shards/member-analysis/patch-notes'
 import {
   PredictionOpportunityIdSchema,
   PredictionOpportunityRequestSchema
@@ -30,6 +31,11 @@ export class MemberAnalysisIpcHandlers {
   ) {}
 
   register() {
+    this._context.ipc.onCall(this._context.namespace, 'getPatchNotes', (event, ...args) => {
+      const parsed = this._parseArgs(event, z.tuple([PatchNotesRequestSchema]), args)
+      if (!parsed.ok) return parsed.result
+      return this._controller.getPatchNotes(parsed.value[0])
+    })
     this._context.ipc.onCall(this._context.namespace, 'refreshCurrentRanks', (event, ...args) => {
       const parsed = this._parseArgs(
         event,

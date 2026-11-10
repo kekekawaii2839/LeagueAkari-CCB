@@ -6,22 +6,25 @@
     :class="{ 'short-fallback': shortFallback }"
   >
     <div class="controls ma-view-toolbar">
-      <div class="mode-toggle">
-        <NSwitch v-model:value="matchMode" aria-label="每场散点模式" />
-        <span>{{ matchMode ? '每场散点' : '成员汇总' }}</span>
-      </div>
+      <NSelect
+        v-model:value="scatterMode"
+        class="mode-toggle"
+        :options="modeOptions"
+        :aria-label="uiText('scatterMode')"
+      />
       <NSelect
         v-model:value="roleFilter"
         class="role-filter"
-        :options="matchMode ? roleOptions.filter((r) => r.value !== 'ALL') : roleOptions"
+        :options="roleOptions"
         :render-label="renderRoleSelectLabel"
+        :render-tag="renderRoleSelectTag"
         aria-label="分路范围"
       />
       <NSelect v-model:value="xMetric" :options="options" filterable aria-label="横轴指标" /><span
         >对比</span
       ><NSelect v-model:value="yMetric" :options="options" filterable aria-label="纵轴指标" />
-      <div v-if="!matchMode" class="summary-minimum-control">
-        <label for="scatter-summary-minimum">成员分路最小场次</label>
+      <div class="summary-minimum-control">
+        <label for="scatter-summary-minimum">{{ minimumLabel }}</label>
         <NInputNumber
           :value="summaryMinimumGames"
           :min="0"
@@ -31,17 +34,39 @@
             id: 'scatter-summary-minimum',
             'aria-describedby': 'scatter-summary-minimum-help'
           }"
-          aria-label="成员分路最小场次"
+          :aria-label="minimumLabel"
           @update:value="summaryMinimumGames = normalizeSummaryMinimumGames($event)"
         />
-        <span id="scatter-summary-minimum-help" class="scatter-zoom-help"
-          >按当前样本中该成员该分路的实际场次筛选，不是指标非缺失观测数；不修改全局样本或原统计。</span
-        >
+        <span id="scatter-summary-minimum-help" class="scatter-zoom-help">{{
+          patchMode
+            ? uiText('scatterPatchMinimumHelp')
+            : '按当前样本中该成员该分路的实际场次筛选，不是指标非缺失观测数；不修改全局样本或原统计。'
+        }}</span>
         <span v-if="summaryMinimumGames > 0" class="summary-minimum-status" role="status"
-          >已隐藏 {{ summarySample.hidden }} 个成员分路</span
+          >{{
+            patchMode
+              ? uiText('scatterPatchHidden', { count: summarySample.hidden })
+              : `已隐藏 ${summarySample.hidden} 个成员分路`
+          }}<template v-if="matchMode">
+            · {{ matchMinimumSample.hiddenObservations }} 条逐场观测</template
+          ></span
         >
       </div>
     </div>
+    <ScatterFilterPanel
+      v-model="store.scatterViewState.filters"
+      :members="filterMembers"
+      :champions="filterChampions"
+    />
+    <p v-if="filterLoading" class="scatter-filter-status" role="status">
+      {{ uiText('scatterIdentityLoading') }}
+    </p>
+    <p v-if="scatterSelection.error" class="scatter-filter-status" role="alert">
+      {{ scatterSelection.error }}
+    </p>
+    <p v-if="scatterSelection.unresolved" class="scatter-filter-status" role="status">
+      {{ uiText('scatterUnresolved', { count: scatterSelection.unresolved }) }}
+    </p>
     <div v-if="matchMode" class="member-controls">
       <NCheckbox v-model:checked="perMember">每位成员单独拟合</NCheckbox>
       <div class="member-visibility" role="group" aria-label="当前分路显示成员">
@@ -94,12 +119,16 @@
             >开启后在图内空白处拖框。此组控件聚焦时可用加减号缩放、方向键平移，Escape取消框选。缩放不改变统计或精确表。</span
           >
         </div>
-        <span v-if="matchMode || omittedCount" class="scatter-chart-meta ma-view-meta">
+        <span v-if="matchMode || patchMode || omittedCount" class="scatter-chart-meta ma-view-meta">
+          <template v-if="patchMode">{{
+            uiText('scatterPatchCount', { count: observations.length })
+          }}</template>
           <template v-if="matchMode"
             >共 <span class="scatter-meta-value">{{ matchCount }}</span> 场</template
           >
           <template v-if="omittedCount"
-            ><template v-if="matchMode"> · </template>缺失 {{ omittedCount }} 条</template
+            ><template v-if="matchMode || patchMode"> · </template>缺失
+            {{ omittedCount }} 条</template
           >
         </span>
         <svg
@@ -115,6 +144,7 @@
             xMetric,
             yMetric,
             matchMode,
+            patchMode,
             allMembers,
             zoomSelecting,
             zoomDrag,
@@ -255,7 +285,7 @@
               text-anchor="middle"
               class="axis-title"
             >
-              {{ label(xMetric) }}
+              {{ axisLabel(xMetric) }}
             </text>
             <text
               x="18"
@@ -291,6 +321,7 @@
               group,
               selectedIndex === index,
               matchMode,
+              patchMode,
               xMetric,
               yMetric,
               allMembers,
@@ -339,6 +370,7 @@
               :cy="group.y"
               :r="matchMode ? 6 : 10"
               :class="`role-${group.rows[0].role}`"
+              :style="patchMode ? { stroke: memberColor(group.rows[0].player) } : undefined"
             />
             <text
               v-if="group.rows.length > 1"
@@ -442,7 +474,7 @@
           :selected-row-key="selectedGroup ? tableRowKey(selectedGroup.rows[0]) : null"
           :scroll-x="tableScrollWidth"
           :viewport-height="exactHeight"
-          :context-key="`${matchMode}|${roleFilter}|${xMetric}|${yMetric}|${matchMode ? '' : summaryMinimumGames}`"
+          :context-key="`${scatterMode}|${roleFilter}|${xMetric}|${yMetric}|${summaryMinimumGames}`"
         />
       </section>
     </div>
@@ -463,19 +495,27 @@ import {
   type ScatterMetric
 } from './scatter-analysis'
 import { binaryPerformanceMetrics } from '@shared/shards/member-analysis/performance-metrics'
+import {
+  aggregateNativeMetric,
+  nativeMetricKeys,
+  type NativeMetric
+} from '@shared/shards/member-analysis/native-metrics'
+import { aggregateRoles } from './analytics'
+import ScatterFilterPanel from './ScatterFilterPanel.vue'
+import { useScatterPopulation } from './useScatterPopulation'
 import { scatterMemberStyle } from './scatter-member-style'
 import { themeMemberColor, themeMemberNeutral } from './theme-member-color'
 import { uiText } from './ui-text'
 import { groupScatterPoints } from './visualization'
 import type { DataTableColumns } from 'naive-ui'
-import { NButton, NCheckbox, NInputNumber, NSelect, NSwitch } from 'naive-ui'
+import { NButton, NCheckbox, NInputNumber, NSelect } from 'naive-ui'
 import { computed, nextTick, onMounted, onBeforeUnmount, ref, toRefs, watch } from 'vue'
 import { roleMetricMeta, formatMetric, type MetricFormat } from './metric-defs'
 import ScatterExactTable from './ScatterExactTable.vue'
 import { scatterLayoutBudget } from './scatter-layout'
 import ScatterFitSummary from './ScatterFitSummary.vue'
 import { useMemberAnalysisData } from './useMemberAnalysisData'
-import { renderRoleSelectLabel } from './role-select-label'
+import { renderRoleSelectLabel, renderRoleSelectTag } from './role-select-label'
 import { finiteOrNull, scatterDomain, scatterPosition, scatterWinRateDomain } from './visualization'
 import {
   boundedScatterRange,
@@ -486,11 +526,16 @@ import {
   selectedScatterViewport,
   type ScatterViewport
 } from './scatter-viewport'
-import { filterSummaryByMinimumGames, normalizeSummaryMinimumGames } from './scatter-summary-filter'
+import {
+  filterMatchByMinimumGames,
+  filterSummaryByMinimumGames,
+  normalizeSummaryMinimumGames
+} from './scatter-summary-filter'
 import { scatterZeroLabels, scatterZeroReferenceAxes } from './scatter-reference-lines'
 import { layoutNearbyScatterLabels } from './scatter-label-layout'
 import { scatterAxisTickPolicy, scatterAutomaticTickText } from './scatter-axis-ticks'
 import { compactScatterYAxis } from './scatter-y-axis-display'
+import { patchScatterRows } from './scatter-patch'
 const props = withDefaults(defineProps<{ active?: boolean }>(), { active: true })
 // Native mounting waits for the real plot box; SSR retains its static chart evidence.
 const geometryReady = ref(typeof window === 'undefined')
@@ -520,13 +565,17 @@ function measureLayout() {
   const gap = parseFloat(style.rowGap) || 12
   const toolbar = root.querySelector<HTMLElement>('.controls')
   const members = root.querySelector<HTMLElement>('.member-controls')
+  const filters = root.querySelector<HTMLElement>('.scatter-filter-panel')
+  const filterStatuses = [...root.querySelectorAll<HTMLElement>('.scatter-filter-status')]
   const available =
     workspaceHeight.value -
     (parseFloat(style.paddingTop) || 0) -
     (parseFloat(style.paddingBottom) || 0) -
     (toolbar?.offsetHeight || 0) -
     (members?.offsetHeight || 0) -
-    gap * (members ? 3 : 2)
+    (filters?.offsetHeight || 0) -
+    filterStatuses.reduce((sum, status) => sum + status.offsetHeight, 0) -
+    gap * ((members ? 4 : 3) + filterStatuses.length)
   const heading = bottomRegion.value?.querySelector<HTMLElement>('.scatter-values-heading')
   const header = bottomRegion.value?.querySelector<HTMLElement>('.n-data-table-thead')
   const row = bottomRegion.value?.querySelector<HTMLElement>('.n-data-table-tbody > tr')
@@ -550,7 +599,9 @@ function measureLayout() {
     window.innerWidth,
     window.innerHeight,
     toolbar?.offsetHeight,
-    members?.offsetHeight
+    members?.offsetHeight,
+    filters?.offsetHeight,
+    filterStatuses.map((status) => status.offsetHeight).join(',')
   ].join('|')
   const advanced = root
     .closest('.member-analysis-page')
@@ -654,6 +705,14 @@ watch(
 onBeforeUnmount(disconnectLayout)
 const { roles, games } = useMemberAnalysisData()
 const store = useMemberAnalysisStore()
+const {
+  enabled: additionalFilters,
+  selection: scatterSelection,
+  loading: filterLoading
+} = useScatterPopulation(
+  games,
+  computed(() => props.active)
+)
 const league = useLeagueClientStore()
 const championKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
 const championIds = computed(() => {
@@ -670,18 +729,38 @@ const championLabel = (value: string) => {
   return id === undefined ? value : league.gameData.championName(id)
 }
 const { matchMode, perMember, xMetric, yMetric, roleFilter } = toRefs(store.scatterViewState)
+const patchMode = computed(() => !matchMode.value && store.scatterViewState.patchMode)
+const scatterMode = computed({
+  get: () => (matchMode.value ? 'match' : patchMode.value ? 'patch' : 'member'),
+  set: (mode: string) => {
+    store.scatterViewState.patchMode = mode === 'patch'
+    matchMode.value = mode === 'match'
+  }
+})
+const modeOptions = computed(() => [
+  { label: uiText('scatterMemberMode'), value: 'member' },
+  { label: uiText('scatterMatchMode'), value: 'match' },
+  { label: uiText('scatterPatchMode'), value: 'patch' }
+])
+const minimumLabel = computed(() =>
+  patchMode.value ? uiText('scatterPatchMinimum') : '成员分路最小场次'
+)
+const patchLabel = (patch: string) => patch || uiText('scatterUnknownPatch')
 const metricKeys = scatterMetricKeys
 type Metric = ScatterMetric
-const isBinary = (key: Metric) => binaryPerformanceMetrics.includes(key)
+const isBinary = (key: Metric) => (binaryPerformanceMetrics as readonly string[]).includes(key)
 const label = (key: Metric) => {
   if (matchMode.value && key === 'winRate') return '单局胜负（胜 1 / 负 0）'
   if (matchMode.value && isBinary(key))
     return `${roleMetricMeta[key].label.replace('率', '')}（是 1 / 否 0）`
   return roleMetricMeta[key].label
 }
+const axisLabel = (key: Metric) =>
+  (nativeMetricKeys as readonly string[]).includes(key)
+    ? `${label(key)}（${roleMetricMeta[key].unit}）`
+    : label(key)
 const options = computed(() => metricKeys.map((value) => ({ label: label(value), value })))
 watch(matchMode, (enabled) => {
-  if (enabled && roleFilter.value === 'ALL') roleFilter.value = 'MIDDLE'
   if (enabled && isBinary(xMetric.value) && !isBinary(yMetric.value)) {
     const binary = xMetric.value
     xMetric.value = yMetric.value
@@ -709,38 +788,122 @@ const roleOptions = [
   { label: '下路', value: 'BOTTOM' },
   { label: '辅助', value: 'UTILITY' }
 ]
+const filterMembers = computed(() =>
+  (store.settings?.members ?? []).map((member, index) => ({
+    value: `member-slot-${index + 1}`,
+    label: `${member.gameName}#${member.tagLine}`
+  }))
+)
+const filterChampions = computed(() =>
+  [
+    ...new Set(
+      games.value.flatMap((game) =>
+        game.players
+          .filter(
+            (row) =>
+              (roleFilter.value === 'ALL' || row.role === roleFilter.value) &&
+              (store.filters.participant === 'all' || row.player === store.filters.participant)
+          )
+          .map((row) => row.champion)
+      )
+    )
+  ]
+    .sort()
+    .map((value) => ({ value, label: championLabel(value) }))
+)
+const selectedGames = computed(() => {
+  const input = scatterSelection.value.games
+  if (store.scatterViewState.filters.completeness !== 'metric-known') return input
+  return input
+    .map((game) => ({
+      ...game,
+      players: game.players.filter((row) => {
+        const values = matchScatterRows([{ ...game, players: [row] }], 'ALL')[0]
+        return (
+          values &&
+          finiteOrNull(values[xMetric.value]) !== null &&
+          finiteOrNull(values[yMetric.value]) !== null
+        )
+      })
+    }))
+    .filter((game) => game.players.length)
+})
+const selectedRoles = computed(() =>
+  additionalFilters.value
+    ? aggregateRoles(selectedGames.value, store.filters.matchRole, store.filters.participant)
+    : roles.value
+)
 const filteredRoles = computed(() =>
   roleFilter.value === 'ALL'
-    ? roles.value
-    : roles.value.filter((row) => row.role === roleFilter.value)
+    ? selectedRoles.value
+    : selectedRoles.value.filter((row) => row.role === roleFilter.value)
 )
+const nativeSummaryMetrics = (
+  player: string,
+  role: string
+): Record<NativeMetric, number | null> => {
+  const input = selectedGames.value.filter((game) =>
+    game.players.some((row) => row.player === player && row.role === role)
+  )
+  return Object.fromEntries(
+    nativeMetricKeys.map((key) => [key, aggregateNativeMetric(input, key, player, role).value])
+  ) as Record<NativeMetric, number | null>
+}
 const liveRoleObservations = computed(() =>
   matchMode.value
     ? matchScatterRows(
-        games.value,
+        selectedGames.value,
         roleFilter.value,
         store.filters.participant,
         store.filters.champion
       ).filter((row) => store.filters.matchRole === 'all' || row.role === store.filters.matchRole)
-    : filteredRoles.value.map((row) => ({
-        ...row,
-        gameId: null,
-        date: '',
-        champion: '',
-        result: ''
-      }))
+    : patchMode.value
+      ? patchScatterRows(
+          selectedGames.value,
+          roleFilter.value === 'ALL'
+            ? store.filters.matchRole === 'all'
+              ? 'ALL'
+              : store.filters.matchRole
+            : roleFilter.value,
+          store.filters.participant,
+          xMetric.value,
+          yMetric.value
+        ).filter((row) => store.filters.matchRole === 'all' || row.role === store.filters.matchRole)
+      : filteredRoles.value.map((row) => ({
+          ...row,
+          ...nativeSummaryMetrics(row.player, row.role),
+          deaths: null,
+          gameId: null,
+          date: '',
+          champion: '',
+          result: ''
+        }))
 )
 // A hidden, lazily retained pane keeps its last render, but does not evaluate new
 // publications. Reactivation reads the latest live result in the same update.
+const isPatchObservation = (
+  row: (typeof liveRoleObservations.value)[number]
+): row is ReturnType<typeof patchScatterRows>[number] => 'patch' in row
 let displayedObservations: typeof liveRoleObservations.value = []
 const roleObservations = computed(() => {
   if (props.active) displayedObservations = liveRoleObservations.value
   return displayedObservations
 })
-const summaryMinimumGames = ref(0)
+const summaryMinimumGames = computed({
+  get: () => store.scatterViewState.minimumGames,
+  set: (value: number) => {
+    store.scatterViewState.minimumGames = value
+  }
+})
+const matchMinimumSample = computed(() =>
+  filterMatchByMinimumGames<(typeof roleObservations.value)[number]>(
+    roleObservations.value,
+    summaryMinimumGames.value
+  )
+)
 const summarySample = computed(() =>
   matchMode.value
-    ? { visible: roleObservations.value, hidden: 0 }
+    ? matchMinimumSample.value
     : filterSummaryByMinimumGames<(typeof roleObservations.value)[number]>(
         roleObservations.value,
         summaryMinimumGames.value
@@ -769,7 +932,7 @@ const roleMembers = computed(() =>
 const matchColor = (color: string) => themeMemberColor(color, 'var(--scatter-match-neutral)')
 const memberStyle = (player: string) => {
   const style = scatterMemberStyle(allMembers.value.indexOf(player))
-  return matchMode.value ? { ...style, color: matchColor(style.color) } : style
+  return matchMode.value || patchMode.value ? { ...style, color: matchColor(style.color) } : style
 }
 const memberColor = (player: string) => memberStyle(player).color
 const pointMembers = (rows: { player: string }[]) =>
@@ -783,7 +946,7 @@ function setMemberVisible(player: string, visible: boolean) {
 }
 const observations = computed(() =>
   matchMode.value
-    ? roleObservations.value.filter((row) => !hiddenMembers.value.includes(row.player))
+    ? summarySample.value.visible.filter((row) => !hiddenMembers.value.includes(row.player))
     : summarySample.value.visible
 )
 const comparableRoles = computed(() =>
@@ -955,7 +1118,7 @@ function finishZoomDrag(event: PointerEvent) {
   }
   cancelZoomDrag()
 }
-watch([observations, xMetric, yMetric, roleFilter, matchMode, summaryMinimumGames], resetZoom)
+watch([observations, xMetric, yMetric, roleFilter, scatterMode, summaryMinimumGames], resetZoom)
 watch(zoomSelecting, (active) => {
   if (!active) cancelZoomDrag()
 })
@@ -1060,6 +1223,8 @@ const pointKeys = computed(() => {
   const groups = readyPointGroups.value ?? []
   const identities = groups.map((group) => {
     const row = group.rows[0]
+    if (patchMode.value && group.rows.length === 1 && isPatchObservation(row))
+      return `patch:${JSON.stringify([row.player, row.role, row.patch])}`
     return matchMode.value &&
       group.rows.length === 1 &&
       Number.isSafeInteger(row.gameId) &&
@@ -1082,7 +1247,7 @@ watch(readyPointGroups, (groups, previous) => {
   if (!groups || selectedIndex.value === null) return
   const oldGroup = previous?.[selectedIndex.value]
   const identity = (row: (typeof points.value)[number]) =>
-    JSON.stringify([row.player, row.role, row.gameId])
+    JSON.stringify([row.player, row.role, row.gameId, isPatchObservation(row) ? row.patch : null])
   const keys = oldGroup?.rows.map(identity) ?? []
   const counts = new Map<string, number>()
   for (const group of groups)
@@ -1133,8 +1298,8 @@ const pointCopies = computed(() => {
   const titleXFormat = matchMode.value && isBinary(x) ? 'int' : xFormat
   const titleYFormat = matchMode.value && isBinary(y) ? 'int' : yFormat
   return comparableRoles.value.map((row) => ({
-    title: `${row.player} · ${roleName[row.role]} · ${xLabel} ${formatted(row[x], titleXFormat)} · ${yLabel} ${formatted(row[y], titleYFormat)}`,
-    aria: `${row.player}，${xLabel} ${formatted(row[x], xFormat)}，${yLabel} ${formatted(row[y], yFormat)}`
+    title: `${row.player} · ${roleName[row.role]}${isPatchObservation(row) ? ` · ${patchLabel(row.patch)} · ${uiText('scatterPatchSupport', { total: row.games, x: row.validX, y: row.validY })}` : ''} · ${xLabel} ${formatted(row[x], titleXFormat)} · ${yLabel} ${formatted(row[y], titleYFormat)}`,
+    aria: `${row.player}${isPatchObservation(row) ? `，${patchLabel(row.patch)}，${uiText('scatterPatchSupport', { total: row.games, x: row.validX, y: row.validY })}` : ''}，${xLabel} ${formatted(row[x], xFormat)}，${yLabel} ${formatted(row[y], yFormat)}`
   }))
 })
 const pointDescription = (rows: typeof points.value) =>
@@ -1157,14 +1322,20 @@ const pointLabels = computed(() => {
           visible: groupVisible(group),
           text:
             group.rows.length > 1
-              ? uiText('overlap', { count: group.rows.length })
-              : duplicate
-                ? name
-                : short(name),
+              ? patchMode.value
+                ? uiText('scatterPatchOverlap', { count: group.rows.length })
+                : uiText('overlap', { count: group.rows.length })
+              : patchMode.value && isPatchObservation(group.rows[0])
+                ? `${duplicate ? name : short(name)} · ${patchLabel(group.rows[0].patch)}`
+                : duplicate
+                  ? name
+                  : short(name),
           suffix:
-            duplicate && group.rows.length === 1 && name.includes('#')
-              ? name.slice(name.indexOf('#'))
-              : undefined
+            patchMode.value && group.rows.length === 1 && isPatchObservation(group.rows[0])
+              ? ` · ${patchLabel(group.rows[0].patch)}`
+              : duplicate && group.rows.length === 1 && name.includes('#')
+                ? name.slice(name.indexOf('#'))
+                : undefined
         }
       }),
       { left: 82, top: 35, width: plotWidth.value, height: plotHeight.value }
@@ -1310,7 +1481,7 @@ const unscaledAxisFormat = (v: number, key: Metric, axis: 'x' | 'y') => {
 const yAxisTitle = computed(() =>
   binaryOutcome.value
     ? `${yMetric.value === 'winRate' ? '胜负' : roleMetricMeta[yMetric.value].label.replace('率', '')}概率（%）`
-    : label(yMetric.value)
+    : axisLabel(yMetric.value)
 )
 const yAxisDisplay = computed(() =>
   compactScatterYAxis({
@@ -1356,15 +1527,20 @@ const tableRows = computed(() =>
     date: row.date,
     champion: row.champion,
     result: row.result,
+    gameDuration: row.gameDuration,
+    deaths: row.deaths,
     player: row.player,
     role: roleName[row.role],
     games: row.games,
+    patch: isPatchObservation(row) ? row.patch : null,
+    validX: isPatchObservation(row) ? row.validX : null,
+    validY: isPatchObservation(row) ? row.validY : null,
     x: row[xMetric.value],
     y: row[yMetric.value]
   }))
 )
 const tableRowKey = (row: Record<string, unknown>) =>
-  JSON.stringify([row.player, row.roleKey ?? row.role, row.gameId])
+  JSON.stringify([row.player, row.roleKey ?? row.role, row.gameId, row.patch ?? null])
 const isSelectedRow = (row: Record<string, unknown>) =>
   selectedGroup.value?.rows.some((point) => tableRowKey(point) === tableRowKey(row)) ?? false
 const tableRowClassName = (row: Record<string, unknown>) =>
@@ -1377,6 +1553,16 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
     render: (row) => String(row.player)
   },
   { title: '分路', key: 'role', width: 70 },
+  ...(patchMode.value
+    ? [
+        {
+          title: uiText('scatterPatchColumn'),
+          key: 'patch',
+          width: 110,
+          render: (row: Record<string, unknown>) => patchLabel(String(row.patch ?? ''))
+        }
+      ]
+    : []),
   ...(matchMode.value
     ? [
         { title: '对局', key: 'gameId', width: 100 },
@@ -1387,20 +1573,36 @@ const columns = computed<DataTableColumns<Record<string, unknown>>>(() => [
           width: 120,
           render: (row: Record<string, unknown>) => championLabel(String(row.champion ?? ''))
         },
-        { title: '结果', key: 'result', width: 70 }
+        { title: '结果', key: 'result', width: 70 },
+        {
+          title: label('gameDuration'),
+          key: 'gameDuration',
+          width: 110,
+          render: (row: Record<string, unknown>) => formatMetric(row.gameDuration, 'num')
+        }
       ]
     : [{ title: '样本', key: 'games', width: 80 }]),
   {
     title: label(xMetric.value),
     key: 'x',
     width: 180,
-    render: (r) => displayValue(r.x, xMetric.value)
+    render: (r) =>
+      matchMode.value && xMetric.value === 'damageTakenPerDeath' && r.deaths === 0
+        ? uiText('scatterZeroDeaths')
+        : patchMode.value
+          ? `${displayValue(r.x, xMetric.value)} · ${uiText('scatterPatchValid', { valid: r.validX, total: r.games })}`
+          : displayValue(r.x, xMetric.value)
   },
   {
     title: label(yMetric.value),
     key: 'y',
     width: 230,
-    render: (r) => displayValue(r.y, yMetric.value)
+    render: (r) =>
+      matchMode.value && yMetric.value === 'damageTakenPerDeath' && r.deaths === 0
+        ? uiText('scatterZeroDeaths')
+        : patchMode.value
+          ? `${displayValue(r.y, yMetric.value)} · ${uiText('scatterPatchValid', { valid: r.validY, total: r.games })}`
+          : displayValue(r.y, yMetric.value)
   }
 ])
 const tableScrollWidth = computed(() =>
@@ -1411,6 +1613,11 @@ const tableScrollWidth = computed(() =>
 )
 </script>
 <style scoped>
+.scatter-filter-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ma-muted);
+}
 .win-rate-reference {
   pointer-events: none;
 }
@@ -1866,5 +2073,9 @@ circle.point:hover {
   .scatter-wrap {
     padding: 0;
   }
+}
+.controls :deep(.mode-toggle) {
+  width: 190px;
+  flex: 0 1 190px;
 }
 </style>

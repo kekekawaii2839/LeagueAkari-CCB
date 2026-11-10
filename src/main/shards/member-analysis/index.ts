@@ -255,7 +255,9 @@ export class MemberAnalysisMain implements IAkariShardInitDispose {
           pipeline,
           repository,
           currentProfileIcons,
-          currentRankRefresh
+          currentRankRefresh,
+          clientReady: () =>
+            this._leagueClient.state.connectionState === 'connected' && this._sgp.state.isTokenReady
         }
         const controller = new MemberAnalysisController(context)
         this._controller = controller

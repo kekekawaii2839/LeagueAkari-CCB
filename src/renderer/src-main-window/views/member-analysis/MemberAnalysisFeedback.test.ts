@@ -39,6 +39,7 @@ vi.mock('@renderer-shared/providers/akari-resource', () => ({
 vi.mock('naive-ui', () => {
   const Stub = (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.default?.()
   return {
+    useMessage: () => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }),
     NIcon: Stub,
     NEmpty: Stub,
     NProgress: Stub,
@@ -232,7 +233,6 @@ test('page wires member recovery and ordinary settings to the same drawer withou
   }))
   for (const name of [
     'MemberAnalysisFilters',
-    'ConversionView',
     'EarlyConversionView',
     'JungleView',
     'MatchesView',

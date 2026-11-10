@@ -10,7 +10,7 @@ import {
 } from './metric-defs'
 import { trendMetrics } from './version-trend/domain'
 
-test('four compact role groups preserve all 21 original utility and lane metrics exactly once', () => {
+test('four compact role groups preserve all 21 original metrics and add damage per death exactly once to individual utility', () => {
   const groups = [
     roleMetricGroups.utility,
     roleMetricGroups.lane,
@@ -41,9 +41,26 @@ test('four compact role groups preserve all 21 original utility and lane metrics
     'grub15',
     'objectiveFight15'
   ]
-  expect(keys.toSorted()).toEqual(expected.toSorted())
-  expect(new Set(keys).size).toBe(21)
-  expect(groups.map((group) => group.columns.length - 1)).toEqual([6, 4, 5, 6])
+  expect(keys.filter((key) => key !== 'damageTakenPerDeath').toSorted()).toEqual(
+    expected.toSorted()
+  )
+  expect(keys.filter((key) => key === 'damageTakenPerDeath')).toHaveLength(1)
+  expect(roleMetricGroups.utility.columns).toContain('damageTakenPerDeath')
+  expect(groups.slice(1).flatMap((group) => group.columns)).not.toContain('damageTakenPerDeath')
+  expect(new Set(keys).size).toBe(22)
+  expect(groups.map((group) => group.columns.length - 1)).toEqual([7, 4, 5, 6])
+  expect(
+    keys.some((key) =>
+      [
+        'gameDuration',
+        'bloodiness',
+        'teamDragonsPG',
+        'teamBaronsPG',
+        'teamDragonSoulsPG',
+        'teamElderDragonsPG'
+      ].includes(key)
+    )
+  ).toBe(false)
   expect(keys.every((key) => roleMetricMeta[key])).toBe(true)
 })
 

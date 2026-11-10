@@ -182,6 +182,74 @@ function harness(props: { linkedContext?: readonly [string, string] } = {}) {
   app.mount(root)
   return { root, app, open, instance, all: () => walk(root) }
 }
+
+test('team metric selection uses only the ordered pair population and retains zero vs missing', async () => {
+  const base = {
+    gameId: 1,
+    win: true,
+    side: 'Blue',
+    duration: 1800,
+    teamMetrics: {
+      totalKills: 30,
+      firstDragonTime: null,
+      firstTowerTime: null,
+      dragons: 0,
+      barons: 0,
+      dragonSouls: 0,
+      elderDragons: 0
+    },
+    players: [
+      { player: 'Synthetic A', role: 'TOP', champion: 'Garen' },
+      { player: 'Synthetic B', role: 'JUNGLE', champion: 'Vi' }
+    ]
+  } as MemberAnalysisGame
+  data.games.value = [
+    base,
+    {
+      ...base,
+      gameId: 2,
+      duration: 2400,
+      teamMetrics: { ...base.teamMetrics!, totalKills: 50, dragons: null }
+    },
+    {
+      ...base,
+      gameId: 3,
+      duration: 900,
+      teamMetrics: { ...base.teamMetrics!, totalKills: 900 },
+      players: [{ ...base.players[0], player: 'Outsider' }, base.players[1]]
+    }
+  ]
+  data.pairs.value = aggregatePairs(data.games.value)
+  const f = harness()
+  const value = () =>
+    f
+      .all()
+      .find((n) => n.props.class === 'pair-value')!
+      .children.find((n) => n.type === 'strong')!.text
+  try {
+    const select = f.all().find((n) => n.props['aria-label'] === '组合比较指标')!
+    expect(select.props.options).toContainEqual({
+      value: 'bloodiness',
+      label: '血腥程度',
+      unit: '击杀/分钟'
+    })
+    expect(select.props.options.some((o: any) => o.value === 'damageTakenPerDeath')).toBe(false)
+    select.props['onUpdate:value']('bloodiness')
+    await nextTick()
+    expect(value()).toBe('1.14')
+    select.props['onUpdate:value']('teamDragonsPG')
+    await nextTick()
+    expect(value()).toBe('0.00')
+    expect(
+      f.all().some((n) => n.text.includes(uiText('nativeValidGames', { valid: 1, total: 2 })))
+    ).toBe(true)
+    select.props['onUpdate:value']('firstDragonTime')
+    await nextTick()
+    expect(value()).toBe('—')
+  } finally {
+    f.app.unmount()
+  }
+})
 test('expanded role pair retains linked member navigation and inline hero evidence without sample-query entry', async () => {
   vi.stubGlobal('document', { activeElement: null })
   const names = ['Synthetic + A#TEST_ONLY', 'Synthetic B#TEST_ONLY']

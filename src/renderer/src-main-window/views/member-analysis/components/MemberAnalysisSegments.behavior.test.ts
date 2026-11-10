@@ -17,11 +17,13 @@ import {
 import MemberAnalysisSegments from './MemberAnalysisSegments.vue'
 
 // Load actual controls during module preparation, not a behavior timeout.
+// The Node test runner must use the library CJS build: its ESM tabs entry
+// externalizes vueuc as CJS and cannot import VResizeObserver as a named export.
 const actualTabs = await vi.importActual<{ default: (typeof import('naive-ui'))['NTabs'] }>(
-  'naive-ui/es/tabs/src/Tabs.mjs'
+  'naive-ui/lib/tabs/src/Tabs.js'
 )
 const actualTab = await vi.importActual<{ default: (typeof import('naive-ui'))['NTab'] }>(
-  'naive-ui/es/tabs/src/Tab.mjs'
+  'naive-ui/lib/tabs/src/Tab.js'
 )
 
 vi.mock('naive-ui', () => ({

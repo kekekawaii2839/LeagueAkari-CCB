@@ -125,8 +125,14 @@
                     >
                       <span v-for="tick in [0, 25, 50, 75, 100]" :key="tick">{{ tick }}%</span>
                     </div>
-                    <small v-if="column.key === metric" class="pair-scale combination-heading-scale"
-                      >−{{ formatMetric(domain) }} · 0 · +{{ formatMetric(domain) }}</small
+                    <small
+                      v-if="column.key === metric"
+                      class="pair-scale combination-heading-scale"
+                      >{{
+                        metricSigned
+                          ? `−${formatMetric(domain)} · 0 · +${formatMetric(domain)}`
+                          : `0 · ${formatPairMetric(domain / 2)} · ${formatPairMetric(domain)}`
+                      }}</small
                     >
                   </div>
                 </th>
@@ -177,16 +183,25 @@
                 </td>
                 <td>
                   <div class="pair-value">
-                    <strong :class="toneClass(row[metric])">{{
-                      formatSigned(row[metric], 1)
+                    <strong :class="metricSigned ? toneClass(row[metric]) : ''">{{
+                      formatPairMetric(row[metric])
                     }}</strong
-                    ><span class="pair-track" aria-hidden="true"
+                    ><span
+                      class="pair-track"
+                      :class="{ unsigned: !metricSigned }"
+                      aria-hidden="true"
                       ><i
                         v-if="finiteOrNull(row[metric]) !== null"
-                        :class="toneClass(row[metric])"
+                        :class="metricSigned ? toneClass(row[metric]) : ''"
                         :style="barStyle(row[metric])"
                     /></span>
                   </div>
+                  <small v-if="isCombinationNativeMetric(metric)">{{
+                    uiText('nativeValidGames', {
+                      valid: row.nativeMetricSamples[metric],
+                      total: row.games
+                    })
+                  }}</small>
                 </td>
               </tr>
             </tbody>
@@ -252,7 +267,15 @@
               <dt>
                 <MetricHelp :label="option.label" :definition="pairMetricDefinition(option)" />
               </dt>
-              <dd>{{ formatSigned(selectedRow[option.value], 1) }}</dd>
+              <dd>
+                {{ formatPairMetric(selectedRow[option.value], option.value)
+                }}<small v-if="isCombinationNativeMetric(option.value)">{{
+                  uiText('nativeValidGames', {
+                    valid: selectedRow.nativeMetricSamples[option.value],
+                    total: selectedRow.games
+                  })
+                }}</small>
+              </dd>
             </div>
           </dl>
           <div class="pair-side-results">
@@ -314,6 +337,11 @@ import { wilsonInterval } from './visualization'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import './combination-comparison.css'
 import { uiText } from './ui-text'
+import {
+  aggregateCombinationNativeMetrics,
+  combinationNativeMetricKeys,
+  type CombinationNativeMetric
+} from './combination-native-metrics'
 import { nextRoleTableSort, sortAnalysisTableRows, type RoleTableSort } from './role-table-sort'
 import {
   relatedRolePairs,
@@ -346,9 +374,18 @@ const metricOptions = [
   { value: 'tower20Diff', label: '防御塔差 @ 20', unit: '座' },
   { value: 'objectiveFight15Diff', label: roleMetricMeta.objectiveFight15.label, unit: '次' },
   { value: 'dragon15Diff', label: roleMetricMeta.dragon15.label, unit: '条' },
-  { value: 'grub15Diff', label: roleMetricMeta.grub15.label, unit: '只' }
+  { value: 'grub15Diff', label: roleMetricMeta.grub15.label, unit: '只' },
+  ...combinationNativeMetricKeys.map((value) => ({
+    value,
+    label: roleMetricMeta[value].label,
+    unit: roleMetricMeta[value].unit!
+  }))
 ] as const
+const isCombinationNativeMetric = (key: string): key is CombinationNativeMetric =>
+  (combinationNativeMetricKeys as readonly string[]).includes(key)
 function pairMetricDefinition(option: (typeof metricOptions)[number]) {
+  if (isCombinationNativeMetric(option.value))
+    return `${roleMetricMeta[option.value].description} 单位：${option.unit}。仅统计当前有序分路组合对应的对局。`
   return `${option.label}；单位：${option.unit}。按所选有序分路搭配的对局计算团队或区域差值，不是两位成员贡献之和；缺失观察不记为零。`
 }
 const metric = ref<(typeof metricOptions)[number]['value']>('upperGold15')
@@ -357,9 +394,16 @@ const detailId = useId()
 const metricLabel = computed(
   () => metricOptions.find((option) => option.value === metric.value)?.label
 )
-const metricUnit = computed(
-  () => metricOptions.find((option) => option.value === metric.value)?.unit
+const metricUnit = computed(() =>
+  isCombinationNativeMetric(metric.value) && roleMetricMeta[metric.value].fmt === 'time'
+    ? uiText('nativeClockUnit')
+    : metricOptions.find((option) => option.value === metric.value)?.unit
 )
+const metricSigned = computed(() => !isCombinationNativeMetric(metric.value))
+const formatPairMetric = (value: unknown, key = metric.value) =>
+  isCombinationNativeMetric(key)
+    ? formatMetric(value, roleMetricMeta[key].fmt)
+    : formatSigned(value, 1)
 const eligiblePairs = computed(() => pairs.value.filter((row) => row.games >= minimum.value))
 const defaultRows = computed(() =>
   eligiblePairs.value
@@ -367,8 +411,13 @@ const defaultRows = computed(() =>
     .sort((a, b) => b.games - a.games)
     .map((row) => {
       const members = rolePairMembers(games.value, row)
+      const native = aggregateCombinationNativeMetrics(
+        rolePairEvidence(games.value, row)?.gamesList ?? []
+      )
       return {
         ...row,
+        ...native.values,
+        nativeMetricSamples: native.samples,
         losses: row.games - row.wins,
         memberA: members?.[0] ?? null,
         memberB: members?.[1] ?? null
@@ -461,8 +510,8 @@ const domain = computed(() =>
 const barStyle = (value: unknown) => {
   const n = finiteOrNull(value) ?? 0
   return {
-    width: `${(Math.abs(n) / domain.value) * 50}%`,
-    left: `${n < 0 ? 50 - (Math.abs(n) / domain.value) * 50 : 50}%`
+    width: `${(Math.abs(n) / domain.value) * (metricSigned.value ? 50 : 100)}%`,
+    left: metricSigned.value ? `${n < 0 ? 50 - (Math.abs(n) / domain.value) * 50 : 50}%` : '0%'
   }
 }
 const selected = ref('')
@@ -772,6 +821,9 @@ const toneClass = (value: unknown) => {
   bottom: -3px;
   width: 1px;
   background: var(--ma-muted);
+}
+.pair-track.unsigned::after {
+  left: 0;
 }
 .pair-track i {
   position: absolute;

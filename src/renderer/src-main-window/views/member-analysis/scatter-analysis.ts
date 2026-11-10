@@ -1,12 +1,17 @@
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
 import {
+  type NativeMetric,
+  nativeGameMetrics,
+  nativeMetricKeys
+} from '@shared/shards/member-analysis/native-metrics'
+import {
   type PerformanceMetric,
   performanceMetricKeys,
   playerPerformanceMetrics
 } from '@shared/shards/member-analysis/performance-metrics'
 
-export const scatterMetricKeys = performanceMetricKeys
-export type ScatterMetric = PerformanceMetric
+export const scatterMetricKeys = [...performanceMetricKeys, ...nativeMetricKeys]
+export type ScatterMetric = PerformanceMetric | NativeMetric
 
 export function regressScatterGroups(
   rows: { player: string; x: number; y: number }[],
@@ -43,7 +48,7 @@ export function matchScatterRows(
     game.players
       .filter(
         (row) =>
-          row.role === role &&
+          (role === 'ALL' || row.role === role) &&
           (participant === 'all' || row.player === participant) &&
           (champion === 'all' || row.champion === champion)
       )
@@ -55,7 +60,9 @@ export function matchScatterRows(
         date: game.date,
         champion: row.champion,
         result: game.win ? '胜' : '负',
-        ...playerPerformanceMetrics(game, row)
+        ...playerPerformanceMetrics(game, row),
+        ...nativeGameMetrics(game, row),
+        deaths: row.deaths
       }))
   )
 }

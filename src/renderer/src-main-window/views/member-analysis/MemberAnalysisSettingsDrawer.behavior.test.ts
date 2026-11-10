@@ -660,3 +660,91 @@ describe('settings draft and contract behavior', () => {
     expect(f.close).not.toHaveBeenCalled()
   })
 })
+
+test('imports pasted identities into a draft, retains unrelated settings and saves through existing flow', async () => {
+  const f = harness()
+  try {
+    const text = f.control('NInput', (n) => n.props.type === 'textarea')
+    text.props['onUpdate:value'](
+      Array.from({ length: 5 }, (_, i) => `Imported${i}#TEST`).join('\n')
+    )
+    await nextTick()
+    const button = f.control('NButton', (n) =>
+      n.children.some((child) => child.text.includes('导入并替换'))
+    )
+    button.props.onClick()
+    await nextTick()
+    expect(f.name().props.value).toBe('Imported0')
+    expect(f.props.settings.members[0].gameName).toBe('Member0')
+    f.submit()
+    expect(f.save.mock.calls[0][0].members[0]).toEqual({
+      serverId: 'SYNTHETIC',
+      gameName: 'Imported0',
+      tagLine: 'TEST'
+    })
+    expect(f.save.mock.calls[0][0].historyDepth).toBe(100)
+    expect(f.close).not.toHaveBeenCalled()
+  } finally {
+    f.app.unmount()
+  }
+})
+
+test('direct client ID entry splits name and tag, and invalid batch import leaves the list intact', async () => {
+  const f = harness()
+  try {
+    await f.editName('Client Name ＃ CLIENT')
+    f.submit()
+    expect(f.save.mock.calls[0][0].members[0]).toEqual({
+      serverId: 'SYNTHETIC',
+      gameName: 'Client Name',
+      tagLine: 'CLIENT'
+    })
+    f.save.mock.calls[0][1](null)
+    f.control('NInput', (n) => n.props.type === 'textarea').props['onUpdate:value']('MissingTag')
+    await nextTick()
+    f.control('NButton', (n) =>
+      n.children.some((child) => child.text.includes('导入并替换'))
+    ).props.onClick()
+    await nextTick()
+    expect(f.name().props.value).toBe('Client Name')
+    expect(
+      f.all().some((n) => n.props.role === 'status' && n.text.includes('第 1 名成员无效'))
+    ).toBe(true)
+  } finally {
+    f.app.unmount()
+  }
+})
+
+test('imports one explicitly dropped JSON file but ignores a read completed after drawer close', async () => {
+  const f = harness()
+  try {
+    const dropZone = () => f.all().find((n) => n.props.class === 'member-import')!
+    const event = (text: () => Promise<string>) => ({
+      preventDefault: vi.fn(),
+      stopPropagation: vi.fn(),
+      dataTransfer: { types: ['Files'], files: [{ name: 'members.json', size: 150, text }] }
+    })
+    const original = fixture().members
+    const imported = original.map((member, i) => ({ ...member, gameName: `Dropped${i}` }))
+    await dropZone().props.onDrop(event(async () => JSON.stringify({ members: imported })))
+    await nextTick()
+    expect(f.name().props.value).toBe('Dropped0')
+    let resolve!: (value: string) => void
+    const pending = dropZone().props.onDrop(
+      event(
+        () =>
+          new Promise<string>((done) => {
+            resolve = done
+          })
+      )
+    )
+    f.props.show = false
+    await nextTick()
+    resolve(JSON.stringify(original))
+    await pending
+    expect(f.name().props.value).toBe('Dropped0')
+    expect(f.props.settings.members).toEqual(original)
+  } finally {
+    f.app.unmount()
+  }
+})

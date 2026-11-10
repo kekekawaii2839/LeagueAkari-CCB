@@ -1,13 +1,6 @@
 <template>
   <section ref="root" class="combination-workspace" :aria-label="uiText('combinationWorkspace')">
     <div class="combination-selector">
-      <MemberAnalysisSegments
-        :model-value="view"
-        :options="viewOptions"
-        :slot-width="i18next.language.startsWith('en') ? 184 : 112"
-        :ariaLabel="uiText('combinationView')"
-        @update:model-value="changeView"
-      />
       <NPopover
         v-model:show="scopeHelp"
         trigger="click"
@@ -59,9 +52,7 @@
 
 <script setup lang="ts">
 import { NButton, NPopover } from 'naive-ui'
-import { i18next } from '@renderer-shared/i18n'
 import { computed, nextTick, ref, useId, watch } from 'vue'
-import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 import PairView from './PairView.vue'
 import SynergyView from './SynergyView.vue'
 import {
@@ -88,10 +79,6 @@ async function closeScopeHelp() {
 }
 const roleView = ref<InstanceType<typeof PairView> | null>(null)
 const memberView = ref<InstanceType<typeof SynergyView> | null>(null)
-const viewOptions = computed(() => [
-  { value: 'pairs', label: uiText('combinationRoles') },
-  { value: 'synergy', label: uiText('combinationMembers') }
-])
 const linkedMembers = ref<CombinationMembers | null>(null)
 const origin = ref<{ view: View; trigger: HTMLElement | null } | null>(null)
 const { games, pairs, synergy } = useMemberAnalysisData()
@@ -119,9 +106,7 @@ watch(
     const current = scroller()
     if (current && saved) current.scrollTop = saved.top
     else if (current && root.value) {
-      const nav = current.querySelector<HTMLElement>(
-        '.member-analysis-ready > .n-tabs > .n-tabs-nav'
-      )
+      const nav = current.querySelector<HTMLElement>('.member-analysis-navigation')
       current.scrollTop +=
         root.value.getBoundingClientRect().top -
         (nav?.getBoundingClientRect().bottom ?? current.getBoundingClientRect().top) -
@@ -140,9 +125,6 @@ watch(
     scopeHelp.value = false
   }
 )
-function changeView(value: string | number) {
-  if ((value === 'pairs' || value === 'synergy') && value !== props.view) emit('update:view', value)
-}
 async function openSynergy(link: RolePairLink) {
   origin.value = { view: 'pairs', trigger: document.activeElement as HTMLElement | null }
   linkedMembers.value = link.members

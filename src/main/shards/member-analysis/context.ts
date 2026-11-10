@@ -23,4 +23,6 @@ export interface MemberAnalysisMainContext {
   repository: MemberAnalysisRepository
   currentProfileIcons?: CurrentProfileIcons
   currentRankRefresh?: CurrentRankRefresh
+  /** League client connected and SGP token ready; collection cannot resolve members otherwise. */
+  clientReady?: () => boolean
 }

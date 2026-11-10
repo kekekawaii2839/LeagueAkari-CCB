@@ -215,6 +215,38 @@
               >添加成员</NButton
             >
           </div>
+          <div class="member-import" @dragover="allowImportDrop" @drop="dropImportFile">
+            <p class="member-analysis-settings__description">{{ uiText('memberImportHelp') }}</p>
+            <NInput
+              v-model:value="importServerId"
+              :disabled="sortingLocked"
+              :aria-label="uiText('memberImportServer')"
+              :placeholder="uiText('memberImportServer')"
+            />
+            <NInput
+              v-model:value="importText"
+              type="textarea"
+              :disabled="sortingLocked"
+              :aria-label="uiText('memberImportInput')"
+              :placeholder="uiText('memberImportInput')"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+            />
+            <NButton
+              size="small"
+              :disabled="sortingLocked || Boolean(draggedMember) || !importText.trim()"
+              @click="importMembers(importText)"
+              >{{ uiText('memberImportReplace') }}</NButton
+            >
+            <p
+              v-if="importFeedback"
+              :class="
+                importFailed ? 'settings-field-error' : 'member-analysis-settings__description'
+              "
+              role="status"
+            >
+              {{ importFeedback }}
+            </p>
+          </div>
           <p
             v-if="draft.enabled && draft.members.length < 5"
             class="settings-field-error"
@@ -277,7 +309,8 @@
                 class="member-input-field"
               >
                 <NInput
-                  v-model:value="member[field.key]"
+                  :value="member[field.key]"
+                  @update:value="updateMemberField(member, field.key, $event)"
                   :input-props="memberInputProps(member, draft.members.indexOf(member), field.key)"
                   :aria-label="field.label"
                   :placeholder="field.placeholder"
@@ -391,6 +424,7 @@ import type {
 import { MemberAnalysisSettingsSchema } from '@shared/shards/member-analysis'
 
 import { parseRiotId } from './riot-id'
+import { MEMBER_IMPORT_MAX_BYTES, MemberImportError, parseMemberImport } from './member-import'
 
 type Member = MemberAnalysisSettings['members'][number]
 
@@ -808,6 +842,92 @@ async function removeMember(index: number) {
   rows?.[Math.min(index, rows.length - 1)]?.querySelector<HTMLInputElement>('input')?.focus()
 }
 
+const importText = ref('')
+const importServerId = ref(props.settings.members[0]?.serverId ?? '')
+const importFeedback = ref('')
+const importFailed = ref(false)
+let importGeneration = 0
+watch(
+  () => props.show,
+  () => {
+    importGeneration++
+    importText.value = ''
+    importFeedback.value = ''
+    importServerId.value = draft.members[0]?.serverId ?? ''
+  }
+)
+onBeforeUnmount(() => {
+  importGeneration++
+})
+function importMembers(text: string) {
+  if (sortingLocked.value || draggedMember.value) return
+  try {
+    const members = parseMemberImport(text, importServerId.value)
+    draft.members = members
+    touched.value.clear()
+    revealIssues.value = false
+    importFailed.value = false
+    importFeedback.value = uiText('memberImportSuccess', { count: members.length })
+  } catch (error) {
+    importFailed.value = true
+    const issue = error instanceof MemberImportError ? error.issue : 'file'
+    const keys = {
+      empty: 'memberImportErrorEmpty',
+      json: 'memberImportErrorJson',
+      shape: 'memberImportErrorShape',
+      limit: 'memberImportErrorLimit',
+      member: 'memberImportErrorMember',
+      duplicate: 'memberImportErrorDuplicate',
+      file: 'memberImportErrorFile'
+    } as const
+    importFeedback.value = uiText(keys[issue], {
+      row: error instanceof MemberImportError ? error.row : 0
+    })
+  }
+}
+function allowImportDrop(event: DragEvent) {
+  if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = sortingLocked.value ? 'none' : 'copy'
+}
+async function dropImportFile(event: DragEvent) {
+  if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) return
+  event.preventDefault()
+  event.stopPropagation()
+  if (sortingLocked.value || draggedMember.value) return
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  if (
+    files.length !== 1 ||
+    !/\.json$/i.test(files[0].name) ||
+    files[0].size > MEMBER_IMPORT_MAX_BYTES
+  ) {
+    importFailed.value = true
+    importFeedback.value = uiText('memberImportErrorFile')
+    return
+  }
+  const generation = ++importGeneration
+  try {
+    const text = await files[0].text()
+    if (generation !== importGeneration || !props.show) return
+    importText.value = text
+    importMembers(text)
+  } catch {
+    if (generation !== importGeneration) return
+    importFailed.value = true
+    importFeedback.value = uiText('memberImportErrorFile')
+  }
+}
+function updateMemberField(member: Member, field: MemberField, value: string) {
+  if (field === 'gameName') {
+    const parsed = parseRiotId(value)
+    if (parsed) {
+      Object.assign(member, parsed)
+      return
+    }
+  }
+  member[field] = value
+}
+
 function riotIdInputProps(member: Member) {
   return {
     onPaste: (event: ClipboardEvent) => {
@@ -829,6 +949,17 @@ function formatBytes(value: number) {
 </script>
 
 <style scoped>
+.member-import {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.member-import > .n-input {
+  width: 100%;
+}
+
 .member-analysis-settings {
   display: flex;
   flex-direction: column;

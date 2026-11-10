@@ -32,7 +32,13 @@ import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import type { MemberAnalysisPublishedMemberIdentitiesPage } from '@shared/shards/member-analysis/published-member-identities'
 import { uiText } from '../ui-text'
-import { trendRequestKey, type TrendInput, type TrendRequest, type TrendResult } from './domain'
+import {
+  filterVersionTrendGames,
+  trendRequestKey,
+  type TrendInput,
+  type TrendRequest,
+  type TrendResult
+} from './domain'
 import VersionTrendView, { type TrendCopyKey } from './VersionTrendView.vue'
 import TrendWorker from './version-trend.worker?worker'
 import type { TrendWorkerMessage, TrendWorkerReply } from './worker-protocol'
@@ -52,21 +58,15 @@ const members = computed(() =>
   }))
 )
 const roles = [
+  { label: uiText('versionTrendAllRoles'), value: 'all' },
   { label: '上', value: 'TOP' },
   { label: '野', value: 'JUNGLE' },
   { label: '中', value: 'MIDDLE' },
   { label: '下', value: 'BOTTOM' },
   { label: '辅', value: 'UTILITY' }
 ] satisfies { label: string; value: TrendRequest['role'] }[]
-const champions = computed(() =>
-  [
-    ...new Set(
-      store.overview?.games.flatMap((game) => game.players.map((player) => player.champion)) ?? []
-    )
-  ]
-    .sort()
-    .map((value) => ({ value, label: value }))
-)
+const championValues = ref<string[]>([])
+const champions = computed(() => championValues.value.map((value) => ({ value, label: value })))
 const request = ref<TrendRequest>({
   axis: 'patch',
   timeBucket: 'week',
@@ -112,6 +112,27 @@ let activeOperationKey: string | null = null
 let resultScope: string | null = null
 const resultCache = new Map<string, TrendResult>()
 let observedReloadSequence = 0
+function syncChampions(input: TrendInput, selection: TrendRequest) {
+  if (!input.configuredMemberIds.includes(selection.memberId)) {
+    championValues.value = []
+    return true
+  }
+  const identities = [
+    ...new Map(input.identities.map((identity) => [identity.gameId, identity])).values()
+  ]
+  const games = filterVersionTrendGames(
+    { ...input, identities },
+    { ...selection, champion: null, completeness: 'all', metric: 'player:winRate' }
+  ).games
+  championValues.value = [
+    ...new Set(games.flatMap((game) => game.players.map((row) => row.champion)))
+  ].sort()
+  if (selection.champion !== null && !championValues.value.includes(selection.champion)) {
+    request.value = { ...request.value, champion: null }
+    return false
+  }
+  return true
+}
 function invalidateData() {
   identitySequence++
   pendingIdentities = null
@@ -210,6 +231,7 @@ async function run() {
   error.value = null
   if (result.value?.generation !== generation) result.value = null
   try {
+    if (cached && !syncChampions(cached.input, selection)) return
     const reused = resultCache.get(key)
     if (reused) {
       rememberResult(key, reused)
@@ -441,6 +463,7 @@ async function run() {
       }
     }
     if (!current()) return
+    if (cached && !syncChampions(cached.input, selection)) return
     if (aggregationFailed) throw new Error('trend-worker-failed')
     const streamed = earlyState.value
     if (streamed) {

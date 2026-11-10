@@ -1,8 +1,176 @@
 zh-CN:
+  scatterMode: 散点模式
+  scatterMemberMode: 成员汇总
+  scatterMatchMode: 每场散点
+  scatterPatchMode: 成员 × 版本散点
+  scatterPatchColumn: 版本
+  scatterUnknownPatch: 未知版本
+  scatterPatchMinimum: 成员分路版本最小场次
+  scatterPatchMinimumHelp: 按当前样本中该成员、该分路、该版本的实际场次筛选，不是指标有效场数；不修改全局样本。
+  scatterPatchHidden: '已隐藏 {{count}} 个成员分路版本组'
+  scatterPatchCount: '{{count}} 个成员分路版本组'
+  scatterPatchSupport: '样本 {{total}} 场 · 横轴有效 {{x}}/{{total}} · 纵轴有效 {{y}}/{{total}}'
+  scatterPatchValid: '有效 {{valid}}/{{total}} 场'
+  scatterPatchOverlap: '{{count}} 条重叠'
+  patchNotesExpandAll: '展开全部'
+  patchNotesCollapseAll: '收起全部'
+  patchNotesShowEntries: '查看 {{count}} 条改动'
+  patchNotesHideEntries: '收起 {{count}} 条改动'
+  patchNotesBuff: '↑ 加强'
+  patchNotesNerf: '↓ 削弱'
+  patchNotesDirectionHelp: '绿 ↑ 加强 · 红 ↓ 削弱；单项按明确属性及公式的数值方向标注；整体列出所有出现的类别，Bug 修复计为调整。不代表整体强度。'
+  patchNotesRefresh: 刷新公告
+  patchNotesVersion: 公告版本
+  patchNotesRetry: 重试
+  patchNotesRetained: 已保留上次公告内容。
+  patchNotesScopeTitle: 摘录范围与版本说明
+  patchNotesNoMatch: 当前搜索或类别没有匹配的改动。
+  patchNotesClearFilters: 清除条件
+  jobDiagnosticCollectionFailed: '对局采集阶段失败，请检查客户端登录状态、服务器和网络后重试；现有分析未改变。'
+  jobDiagnosticWorkerFailed: '分析线程执行失败，请重启开发版 Akari 以加载同版主进程与线程后重试；无需清理本地数据。'
+  jobDiagnosticIdentityWorkerUnavailable: '身份校验线程不可用，请重启开发版 Akari 以加载同版主进程与线程后重试；无需清理本地数据。'
+  jobDiagnosticIdentityWorkerFailed: '身份校验线程执行失败，请重启开发版 Akari 以加载同版主进程与线程后重试；现有分析未改变。'
+  jobDiagnosticIdentityVerificationFailed: '成员身份校验未通过，请确认服务器与成员 ID 后重新采集；现有分析未改变。'
+  jobDiagnosticPublicationFailed: '分析结果保存阶段失败，请重试并检查本地存储是否可用；现有已保存分析仍保留。'
+  nativeClockUnit: 分:秒
+  patchNotesSearch: '搜索改动'
+  patchNotesSearchPlaceholder: '英雄、装备、系统或属性名称'
+  patchNotesAll: '全部改动'
+  patchNotesCounts: '{{targets}} 个对象 / 分组 · {{changes}} 条改动'
+  patchNotesHotfix: '热修'
+  patchNotesRegularGroup: '{{patch}} · 常规改动'
+  patchNotesHotfixGroup: '{{patch}} · 临时热更新'
+  patchNotesAttribute: '属性 / 技能'
+  patchNotesBefore: '改动前'
+  patchNotesAfter: '改动后'
+  patchNotesChange: '调整'
+  patchNotesUnchanged: '未变'
+  patchNotesUnknown: '待核对'
+  patchNotesIntroduced: '新增'
+  patchNotesTruncated: '公告内容超出读取上限，当前仅展示部分已解析条目；请以官方原文为准。'
+  nativeValidGames: 有效 {{valid}}/{{total}} 场
+  combinationTeamMetrics: 组合对局指标
+  combinationTeamMetricScope: 仅统计这两位成员在当前组合对应的对局；团队数据不代表两人的贡献之和，缺失不记零。
+  tierRole: 分路
+  tierMemberTitle: 成员战绩
+  tierDetailTitle: 英雄详情
+  tierBanTitle: 禁用统计
+  tierBanTable: '{{champion}}的禁用统计'
+  tierBanCoverage: '有效 {{valid}}/{{total}} 场'
+  tierBanScope: 禁用按整场记录统计；分路按钮只限定对局范围，不代表该分路玩家执行了禁用。
+  tierBanUnavailable: — 不可用
+  tierBanUnmatched: — 未匹配
+  tierOpenRoleMembers: '查看{{champion}}（{{role}}）的成员战绩'
+  tierOpenMembers: '查看{{champion}}的成员战绩'
+  tierCloseMembers: 关闭详情
+  tierMemberEmpty: 点击英雄行，查看成员战绩与禁用记录。
+  tierMemberRange: '{{role}} · 该英雄 {{games}} 场 · {{members}} 名成员'
+  tierMemberTable: '{{champion}}的成员战绩'
+  tierMemberPlayer: 成员
+  tierMemberRecord: 胜负
+  tierMemberResult: '{{wins}} 胜 {{losses}} 负'
+  tierMemberScope: 仅列出当前公共范围及所选分路中使用过该英雄的成员。成员分别计数；同局多人使用同一英雄时，成员场次不能相加当作对局总数。
+  tierMembersUnavailable: 当前样本缺少可识别的成员身份，无法列出成员战绩。
+  tierSelectionCleared: 所选英雄已不在当前范围，已关闭详情。
+  tierTable: 本地英雄 Tier 榜单
+  tierScoreMetric: 得分
+  tierScoreSortColumn: 本地 Tier（按本地得分）
+  tierSortHeader: '{{column}}：{{order}}；点击切换排序'
+  tierAscending: 升序
+  tierDescending: 降序
+  tierDefault: 默认顺序
+  tierSearch: 搜索英雄名称、别名或拼音
+  tierSearchEmpty: 没有匹配的英雄，请更换关键词或清空搜索
+  tierLocalLabel: 本地样本分级 · 非全服强度
+  tierLocalColumn: 本地 Tier
+  tierLevel: 'Tier {{tier}}'
+  tierExperiment: 实验分级 · 非 OP.GG 官方算法，小样本分档不稳。
+  tierNoVariationReason: 当前分路无可比较差异
+  tierUnrated: 未分级
+  tierLowSampleReason: '出场不足 {{minimum}} 场'
+  tierMissingBanReason: 禁用记录不可用
+  tierUnknownChampionReason: 英雄身份未匹配
+  tierScoreValue: '本地得分 {{score}}'
+  tierRateSample: '{{numerator}}/{{denominator}} 场'
+  tierSortLabel: 排序
+  tierSortScore: 本地得分降序
+  tierSortWinRate: 胜率降序
+  tierSortPickRate: 选取率降序
+  tierSortBanRate: 禁用率降序
+  tierSortGames: 场次降序
+  tierTop: 上路
+  tierJungle: 打野
+  tierMiddle: 中路
+  tierBottom: 下路
+  tierSupport: 辅助
+  tierChampion: 英雄
+  tierWinRate: 胜率
+  tierPickRate: 选取率
+  tierBanRate: 禁用率
+  tierGames: 场次
+  tierCoverage: '当前 {{games}} 场'
+  tierScope: 只统计当前公共样本内我方成员使用的英雄；本地 Tier 为描述性分级，不是 OP.GG 算法、全服强度或下局胜率预测。少于 5 场的英雄—分路不显示。
+  tierMethodTitle: 统计口径与本地 Tier 算法
+  tierMethod: '翡翠型实验得分 = 100 × 原始胜率 + 1.9 × ln(选取率)，比率取 0–1；在当前公共样本的各分路可分级英雄内，用总体标准差计算 z。禁用率不加权，但缺失禁用时不分级。这不是已验证的强度模型或 OP.GG 官方算法。'
+  tierThresholds: '按当前样本内各分路的冻结实验 z 门槛分档为 Tier 1–5；OP 还要求第一名达到额外门槛且与第二名充分分离，不按等人数切分，也不保证每档都有英雄。相同得分保留同档；不足 5 场、身份未匹配、禁用不可用或无可比较差异时不分级。'
+  tierRates: '胜率为该英雄在该分路的我方胜场/出场数；选取率为该分路含该英雄的我方对局/该分路有效对局。全部分路逐路独立计算再合并英雄—分路行。禁用率为双方禁用该英雄的对局/双方禁用记录完整对局，单局去重；禁用无分路归属，只限定对应分路的对局范围。'
+  tierUnknown: '{{count}} 场含未知英雄；未知英雄不列入榜单，样本分母保留。'
+  tierMinimumEmpty: 当前范围没有出场至少 5 场的英雄—分路
+  tierEmpty: 当前范围没有可统计的我方英雄
+  tierLowSample: 样本不足
+  tierMissingBan: 未分级（禁用未知）
+  versionTrendPatchNotesTitle: 版本改动
+  patchNotesTitle: '版本改动'
+  patchNotesGluttonousGreaves: '暴食胫甲'
+  patchNotesBastionBreaker: '破垒者'
+  patchNotesRead: '读取官方公告'
+  patchNotesMapping: '客户端 15.xx / 16.xx 对应官方 25.xx / 26.xx。以下为英文公告摘录，不代表版本改动导致指标变化。'
+  patchNotesLoading: '正在读取官方版本公告…'
+  patchNotesSource: '来源：Riot Games · en-US · 官方 {{patch}}'
+  patchNotesStale: '（旧缓存，更新失败）'
+  patchNotesOriginal: '查看官方原文'
+  patchNotesUnavailable: '该版本公告尚未发布、暂时无法获取或结构暂不支持；不能解释为“没有改动”。'
+  patchNotesCategory: '改动类别'
+  patchNotesEmpty: '官方摘录中没有可识别的此类条目，请以原文为准。'
+  patchNotesPartial: '仅提取可识别的英雄、装备与系统标题和条目；热修及复杂排版可能不完整，以官方原文为准。'
+  patchNotesOfficialVersion: '{{public}}（客户端 {{client}}）'
+  patchNotesChampion: '英雄'
+  patchNotesItem: '装备'
+  patchNotesSystem: '系统'
+  patchNotesFailed: '官方公告暂时无法读取，请重试。'
+  versionTrendAllRoles: '全部分路'
+  banSideLabel: 禁用方
+  banSearch: 搜索英雄
+  banNoMatch: 当前搜索没有匹配的英雄
+  banClearSearch: 清除搜索
+  banPagination: 禁用英雄列表分页
+  banGameCount: '{{count}} 场'
+  banRateSample: '{{count}}/{{total}} 场'
+  banBoth: 双方合计
+  banOwn: 己方
+  banEnemy: 敌方
+  banCoverage: '有效 {{valid}}/{{total}} 场 · 未采集 {{missing}} 场'
+  banEmpty: 有效对局未禁用英雄
+  banUnavailable: 当前范围尚无可用禁用记录
+  banChampion: 英雄
+  banGames: 禁用场数
+  banRate: 禁用对局比例
+  scatterFilters: 对比筛选
+  scatterFilterScope: 在当前公共样本内进一步筛选，与指标趋势使用相同口径。
+  scatterClearFilters: 清除对比筛选
+  scatterAllMembers: 全部成员
+  scatterAllObservations: 保留缺失观测
+  scatterCompletePairs: 仅两轴均有数据的对局
+  scatterMinutes: 分钟
+  scatterIdentityFailed: 成员身份读取失败，无法应用对比筛选；可清除筛选或重新打开页面重试。
+  scatterInvalidFilters: 筛选范围无效或存在冲突，请检查版本、日期、时长和成员条件。
+  scatterIdentityLoading: 正在读取成员身份以应用筛选…
+  scatterUnresolved: 有 {{count}} 场缺少可靠成员身份，未纳入额外筛选。
+  scatterZeroDeaths: —（零死亡）
   predictionEntertainmentTitle: 娱乐预测
   predictionEntertainmentDisclaimer: 仅供娱乐，非校准获胜概率。
   predictionEntertainmentValue: 娱乐预测值
-  predictionEntertainmentMethod: 使用本次所选成员的分路近期画像，适用指标按八组平衡汇总；指标方向来自同分路历史胜负关联并做收缩，资料不足时可借用本人其他分路的标准化画像。团队与分路娱乐值统一采用固定灵敏度展示（指数乘以 6 后映射），非校准胜率；原始指数贡献和支持量不变。结果不代表真实胜率，也不是因果或配合能力评分；相同画像可能得到相同结果。顶部复盘筛选及范围不用于预测。
+  predictionEntertainmentMethod: 根据所选成员的近期分路数据估算，仅供娱乐，不是真实胜率或配合评分。顶部复盘筛选不影响结果。
   predictionEntertainmentSupportNote: 支持量为历史资料覆盖，不是验证样本；未回测或概率校准。
   predictionViewSupport: 查看资料说明
   predictionReasonLineup: 请为五个分路选择五位不同成员。
@@ -241,6 +409,22 @@ zh-CN:
   lpTrendObservationCount: '{{count}} 次观测'
   lpTrendTopRanks: '大师及以上'
   lpTrendObservedAt: '采集时间'
+  lpTrendAxis: '横轴方式'
+  lpTrendObservationAxis: '记录顺序'
+  lpTrendObservationAxisHelp: '按实际记录等距展示，未记录的时间已压缩；日期见横轴与详情，不代表期间段位不变。'
+  lpTrendTimeAxisHelp: '按真实采集时间展示；两次记录之间没有段位观测，连线不代表期间保持不变。'
+  memberImportHelp: '粘贴 JSON 成员数组、含 members 的配置，或每行一个 名称#标签；也可将单个 JSON 拖到这里。只替换当前草稿的成员列表，保存后生效。'
+  memberImportServer: '导入默认服务器 ID（未提供服务器时使用）'
+  memberImportInput: '粘贴成员 JSON 或每行一个 名称#标签'
+  memberImportReplace: '导入并替换成员列表'
+  memberImportSuccess: '已导入 {{count}} 名成员到草稿；请检查并保存设置。'
+  memberImportErrorEmpty: '请输入至少一名成员。'
+  memberImportErrorJson: 'JSON 格式无效，原成员列表未改变。'
+  memberImportErrorShape: '请提供成员数组或含 members 数组的配置。'
+  memberImportErrorLimit: '最多导入 20 名成员，文本或文件不得超过 256 KiB。'
+  memberImportErrorMember: '第 {{row}} 名成员无效，请检查服务器 ID、名称和标签；缺少服务器时先填写默认服务器。'
+  memberImportErrorDuplicate: '第 {{row}} 名成员重复，原成员列表未改变。'
+  memberImportErrorFile: '请拖入单个不超过 256 KiB 的 JSON 文件；文件读取失败时请改用粘贴。'
   lpTrendProgress: '段位'
   lpTrendMethod: '查看说明'
   lpTrendMethodHelp: '按实际采集时间展示段位与胜点，不代表逐局收益。'
@@ -576,6 +760,7 @@ zh-CN:
   errorInitializing: 分析服务尚未就绪，请稍后重试。
   errorSettings: 设置不完整或无效，请检查成员分析设置。
   errorAnalysisUnavailable: 分析功能暂不可用，请重启应用后重试。
+  errorClientUnavailable: 未连接英雄联盟客户端，请启动并登录客户端后再刷新；现有数据没有变化。
   errorJobRunning: 刷新正在进行，请等待完成或先取消刷新。
   errorJobMissing: 刷新任务已结束，请重新刷新。
   errorCancelled: 刷新已取消，现有数据没有变化。
@@ -730,10 +915,178 @@ zh-CN:
   resetFilterConditions: '重置筛选条件'
   recentFirst: '最近对局在前'
 en:
+  scatterMode: Scatter mode
+  scatterMemberMode: Member summary
+  scatterMatchMode: Per-match scatter
+  scatterPatchMode: Member × patch scatter
+  scatterPatchColumn: Patch
+  scatterUnknownPatch: Unknown patch
+  scatterPatchMinimum: Minimum member-role-patch games
+  scatterPatchMinimumHelp: Filters by actual games for each member, role and patch in the current sample, not by valid metric observations. Does not change the global sample.
+  scatterPatchHidden: '{{count}} member-role-patch groups hidden'
+  scatterPatchCount: '{{count}} member-role-patch groups'
+  scatterPatchSupport: '{{total}} games · X valid {{x}}/{{total}} · Y valid {{y}}/{{total}}'
+  scatterPatchValid: '{{valid}}/{{total}} valid games'
+  scatterPatchOverlap: '{{count}} overlapping records'
+  patchNotesExpandAll: 'Expand all'
+  patchNotesCollapseAll: 'Collapse all'
+  patchNotesShowEntries: 'View {{count}} changes'
+  patchNotesHideEntries: 'Hide {{count}} changes'
+  patchNotesBuff: '↑ Buff'
+  patchNotesNerf: '↓ Nerf'
+  patchNotesDirectionHelp: 'Green ↑ buff · red ↓ nerf. Entries follow explicit numeric attributes and formulas. Objects list every observed category; bug fixes count as adjustments. Not an overall strength rating.'
+  patchNotesRefresh: Refresh notes
+  patchNotesVersion: Patch
+  patchNotesRetry: Retry
+  patchNotesRetained: Previous notes have been kept.
+  patchNotesScopeTitle: Excerpt scope and version mapping
+  patchNotesNoMatch: No changes match the current search or category.
+  patchNotesClearFilters: Clear filters
+  jobDiagnosticCollectionFailed: 'Match collection failed. Check client login, server and network, then retry. Existing analysis is unchanged.'
+  jobDiagnosticWorkerFailed: 'The analysis worker failed. Restart Akari Dev to load matching main and worker versions, then retry. Local data does not need clearing.'
+  jobDiagnosticIdentityWorkerUnavailable: 'The identity worker is unavailable. Restart Akari Dev to load matching main and worker versions, then retry. Local data does not need clearing.'
+  jobDiagnosticIdentityWorkerFailed: 'The identity worker failed. Restart Akari Dev to load matching main and worker versions, then retry. Existing analysis is unchanged.'
+  jobDiagnosticIdentityVerificationFailed: 'Member identity verification failed. Check the server and member IDs, then recollect. Existing analysis is unchanged.'
+  jobDiagnosticPublicationFailed: 'Saving analysis failed. Retry and check local storage availability. Existing saved analysis is retained.'
+  nativeClockUnit: min:sec
+  patchNotesSearch: 'Search changes'
+  patchNotesSearchPlaceholder: 'Champion, item, system or attribute'
+  patchNotesAll: 'All changes'
+  patchNotesCounts: '{{targets}} targets / groups · {{changes}} changes'
+  patchNotesHotfix: 'Mid-patch update'
+  patchNotesRegularGroup: '{{patch}} · Regular changes'
+  patchNotesHotfixGroup: '{{patch}} · Mid-patch updates'
+  patchNotesAttribute: 'Attribute / ability'
+  patchNotesBefore: 'Before'
+  patchNotesAfter: 'After'
+  patchNotesChange: 'Change'
+  patchNotesUnchanged: 'Unchanged'
+  patchNotesUnknown: 'Unverified'
+  patchNotesIntroduced: 'New'
+  patchNotesTruncated: 'The article exceeds the reading limits. Only part of the parsed entries is shown; refer to the original article.'
+  nativeValidGames: '{{valid}}/{{total}} valid matches'
+  combinationTeamMetrics: Combination match metrics
+  combinationTeamMetricScope: Only matches belonging to this combination are included. Team context is not the sum of these members’ contributions; missing values are not zero.
+  tierRole: Role
+  tierMemberTitle: Member records
+  tierDetailTitle: Champion details
+  tierBanTitle: Ban statistics
+  tierBanTable: 'Ban statistics for {{champion}}'
+  tierBanCoverage: 'Known in {{valid}}/{{total}} games'
+  tierBanScope: Bans are match-wide. The role selector only limits eligible matches; it does not identify who banned.
+  tierBanUnavailable: — No data
+  tierBanUnmatched: — No ID
+  tierOpenRoleMembers: 'View member records for {{champion}} ({{role}})'
+  tierOpenMembers: 'View member records for {{champion}}'
+  tierCloseMembers: Close details
+  tierMemberEmpty: Select a champion row to see member records and ban statistics.
+  tierMemberRange: '{{role}} · {{games}} champion games · {{members}} members'
+  tierMemberTable: 'Member records for {{champion}}'
+  tierMemberPlayer: Member
+  tierMemberRecord: Record
+  tierMemberResult: '{{wins}} W {{losses}} L'
+  tierMemberScope: Only members who used this champion in the current shared sample and selected role are listed. Members are counted separately; several members in one match are not separate matches.
+  tierMembersUnavailable: Member identities are unavailable in the current sample.
+  tierSelectionCleared: The selected champion is outside the current scope. Details closed.
+  tierTable: Local champion tier table
+  tierScoreMetric: Score
+  tierScoreSortColumn: Local Tier (by local score)
+  tierSortHeader: '{{column}}: {{order}}; activate to change sorting'
+  tierAscending: Ascending
+  tierDescending: Descending
+  tierDefault: Default order
+  tierSearch: Search champion name, alias or pinyin
+  tierSearchEmpty: No matching champions. Change or clear the search.
+  tierLocalLabel: Local sample tiers · Not global strength
+  tierLocalColumn: Local Tier
+  tierLevel: 'Tier {{tier}}'
+  tierExperiment: Experimental tiers · Not the official OP.GG algorithm; small-sample bands are unstable.
+  tierNoVariationReason: No comparable variation in this role
+  tierUnrated: Untiered
+  tierLowSampleReason: 'Fewer than {{minimum}} matches'
+  tierMissingBanReason: Ban records unavailable
+  tierUnknownChampionReason: Champion identity unmatched
+  tierScoreValue: 'Local score {{score}}'
+  tierRateSample: '{{numerator}}/{{denominator}} matches'
+  tierSortLabel: Sort
+  tierSortScore: Local score, descending
+  tierSortWinRate: Win rate, descending
+  tierSortPickRate: Pick rate, descending
+  tierSortBanRate: Ban rate, descending
+  tierSortGames: Matches, descending
+  tierTop: Top
+  tierJungle: Jungle
+  tierMiddle: Mid
+  tierBottom: Bot
+  tierSupport: Support
+  tierChampion: Champion
+  tierWinRate: Win rate
+  tierPickRate: Pick rate
+  tierBanRate: Ban rate
+  tierGames: Games
+  tierCoverage: '{{games}} games'
+  tierScope: Only our members’ champions in the current shared sample. Local tiers are descriptive, not the OP.GG algorithm, global strength, or a forecast. Fewer than 5 games are not tiered.
+  tierMethodTitle: Definitions and local tier formula
+  tierMethod: 'Emerald-style experimental score = 100 × raw win rate + 1.9 × ln(pick rate), using 0–1 ratios. z uses population SD across eligible champions within each current role sample. Bans are unweighted but required for grading. Not a validated strength model or the official OP.GG algorithm.'
+  tierThresholds: 'Frozen within-scope role z thresholds yield Tiers 1–5; OP additionally requires a sufficiently high and separated top score, not equal-sized groups; bands may be empty. Tied scores retain the same band. Fewer than 5 games, unmatched identity, unavailable bans or no comparable variation remain untiered.'
+  tierRates: 'Win rate is own wins/appearances for this champion and role. Pick rate is champion-role match incidence/role-eligible matches. All roles are graded independently before champion-role rows are combined. Ban rate is deduplicated both-team ban incidence/matches with both ban lists. Bans have no role attribution; details retain whole-match bans within that role sample.'
+  tierUnknown: '{{count}} games contain unknown champions, excluded from rows but retained in sample denominators.'
+  tierMinimumEmpty: No champion–role entries with at least 5 games in the current scope
+  tierEmpty: No own-team champions in the current sample
+  tierLowSample: Insufficient sample
+  tierMissingBan: Untiered (bans unknown)
+  versionTrendPatchNotesTitle: Patch changes
+  patchNotesTitle: 'Patch changes'
+  patchNotesGluttonousGreaves: 'Gluttonous Greaves'
+  patchNotesBastionBreaker: 'Bastion Breaker'
+  patchNotesRead: 'Read official notes'
+  patchNotesMapping: 'Client 15.xx / 16.xx maps to official 25.xx / 26.xx. These English excerpts do not establish that patch changes caused metric changes.'
+  patchNotesLoading: 'Reading official patch notes…'
+  patchNotesSource: 'Source: Riot Games · en-US · official {{patch}}'
+  patchNotesStale: '(stale cache; refresh failed)'
+  patchNotesOriginal: 'View official article'
+  patchNotesUnavailable: 'The notes are unpublished, unavailable, or use an unsupported structure; this does not mean there were no changes.'
+  patchNotesCategory: 'Change category'
+  patchNotesEmpty: 'No entries of this category were recognized. Refer to the original article.'
+  patchNotesPartial: 'Only recognized champion, item and system headings and entries are extracted. Hotfixes and complex layouts may be incomplete; the original article is authoritative.'
+  patchNotesOfficialVersion: '{{public}} (client {{client}})'
+  patchNotesChampion: 'Champions'
+  patchNotesItem: 'Items'
+  patchNotesSystem: 'Systems'
+  patchNotesFailed: 'Official notes could not be read. Please retry.'
+  versionTrendAllRoles: 'All roles'
+  banSideLabel: Banning team
+  banSearch: Search champions
+  banNoMatch: No champions match this search
+  banClearSearch: Clear search
+  banPagination: Banned champions pagination
+  banGameCount: '{{count}} matches'
+  banRateSample: '{{count}}/{{total}} matches'
+  banBoth: Both teams
+  banOwn: Own team
+  banEnemy: Enemy team
+  banCoverage: '{{valid}}/{{total}} valid games · {{missing}} not collected'
+  banEmpty: No champions banned in valid games
+  banUnavailable: No available ban records in this selection
+  banChampion: Champion
+  banGames: Matches banned
+  banRate: Match ban rate
+  scatterFilters: Comparison filters
+  scatterFilterScope: Refine the shared sample using the same selection rules as metric trends.
+  scatterClearFilters: Clear comparison filters
+  scatterAllMembers: All members
+  scatterAllObservations: Include missing observations
+  scatterCompletePairs: Matches with both metrics available
+  scatterMinutes: min
+  scatterIdentityFailed: Member identities could not be loaded. Clear filters or reopen this page to retry.
+  scatterInvalidFilters: Invalid or conflicting patch, date, duration or member filters.
+  scatterIdentityLoading: Loading member identities to apply filters…
+  scatterUnresolved: '{{count}} matches lack reliable member identities and were excluded from additional filtering.'
+  scatterZeroDeaths: — (zero deaths)
   predictionEntertainmentTitle: Entertainment prediction
   predictionEntertainmentDisclaimer: For entertainment only; not a calibrated win probability.
   predictionEntertainmentValue: Entertainment prediction value
-  predictionEntertainmentMethod: Uses recent selected member-by-role profiles, balancing applicable metrics across eight groups. Directions use shrunk same-role historical win/loss associations. Sparse history may borrow standardized profiles from the same member in other roles. Team and role entertainment values use the same fixed display sensitivity (index multiplied by 6 before mapping), not a calibrated win rate. Raw index contributions and support remain unchanged. This is not a true win rate or a causal or teamwork score. Identical profiles may receive identical results. Review-page filters and scope do not apply.
+  predictionEntertainmentMethod: Estimated from the selected members’ recent role data, for entertainment only—not a true win rate or teamwork score. Review-page filters do not apply.
   predictionEntertainmentSupportNote: Support describes historical coverage, not validation samples. No backtest or probability calibration.
   predictionViewSupport: View data notes
   predictionReasonLineup: Choose five distinct members for the five roles.
@@ -972,6 +1325,22 @@ en:
   lpTrendObservationCount: '{{count}} observations'
   lpTrendTopRanks: 'Master and above'
   lpTrendObservedAt: 'Observation time'
+  lpTrendAxis: 'Horizontal axis'
+  lpTrendObservationAxis: 'Observation order'
+  lpTrendObservationAxisHelp: 'Observations are equally spaced; unrecorded intervals are compressed. Dates are shown on the axis and in details, not evidence of unchanged rank.'
+  lpTrendTimeAxisHelp: 'Actual observation time. Rank between observations is unknown; connecting lines do not imply unchanged rank.'
+  memberImportHelp: 'Paste a member JSON array, a configuration with members, or one Name#Tag per line; or drop one JSON file here. Replaces only the draft member list. Save to apply.'
+  memberImportServer: 'Default server ID (used when missing)'
+  memberImportInput: 'Paste member JSON or one Name#Tag per line'
+  memberImportReplace: 'Import and replace member list'
+  memberImportSuccess: 'Imported {{count}} draft members. Review and save settings.'
+  memberImportErrorEmpty: 'Enter at least one member.'
+  memberImportErrorJson: 'Invalid JSON. The member list was not changed.'
+  memberImportErrorShape: 'Provide a member array or a configuration containing a members array.'
+  memberImportErrorLimit: 'Import at most 20 members and no more than 256 KiB of text.'
+  memberImportErrorMember: 'Member {{row}} is invalid. Check server ID, name and tag; enter a default server if missing.'
+  memberImportErrorDuplicate: 'Member {{row}} is duplicated. The member list was not changed.'
+  memberImportErrorFile: 'Drop one JSON file no larger than 256 KiB. Paste its text if reading fails.'
   lpTrendProgress: 'Rank'
   lpTrendMethod: 'View explanation'
   lpTrendMethodHelp: 'Ranks and LP are shown at their actual observation times, not as per-match gains.'
@@ -1309,6 +1678,7 @@ en:
   errorInitializing: Analysis is not ready. Try again shortly.
   errorSettings: Some settings are missing or invalid. Check member analysis settings.
   errorAnalysisUnavailable: Analysis is unavailable. Restart the app and try again.
+  errorClientUnavailable: The League client is not connected. Start and sign in to the client, then refresh. Existing data is unchanged.
   errorJobRunning: A refresh is running. Wait for it or cancel it first.
   errorJobMissing: The refresh has ended. Start a new refresh.
   errorCancelled: Refresh cancelled. Existing data is unchanged.

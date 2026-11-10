@@ -4,6 +4,7 @@ import { router } from '@main-window/routes'
 
 import { MEMBER_ANALYSIS_NAVIGATION, MEMBER_ANALYSIS_ROUTE } from './navigation'
 
+vi.mock('@main-window/views/patch-notes/PatchNotes.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/automation/Automation.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/member-analysis/MemberAnalysis.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/ongoing-game/OngoingGame.vue', () => ({ default: {} }))
@@ -31,4 +32,19 @@ describe('member analysis navigation contract', () => {
     const route = router.getRoutes().find((candidate) => candidate.name === 'member-analysis')
     expect(route?.path).toBe('/member-analysis/:section?')
   })
+})
+
+test('patch notes is top-level and legacy links redirect', async () => {
+  await router.push('/patch-notes')
+  expect(router.currentRoute.value.name).toBe('patch-notes')
+  expect(router.currentRoute.value.matched).toHaveLength(1)
+  await router.push('/member-analysis/patch-notes')
+  expect(router.currentRoute.value.path).toBe('/patch-notes')
+  expect(router.currentRoute.value.name).toBe('patch-notes')
+})
+
+test('legacy named navigation redirects too', async () => {
+  await router.push('/')
+  await router.push({ name: 'member-analysis', params: { section: 'patch-notes' } })
+  expect(router.currentRoute.value.name).toBe('patch-notes')
 })

@@ -5,6 +5,7 @@
   MemberAnalysisPlayerGame
 } from '@shared/shards/member-analysis'
 import { isEligibleMemberAnalysisGame } from '@shared/shards/member-analysis/eligibility'
+import { aggregateNativeMetric } from '@shared/shards/member-analysis/native-metrics'
 
 export type SideLabel = '总计' | '蓝方' | '红方'
 export type RoleAggregate = {
@@ -34,6 +35,8 @@ export type RoleAggregate = {
   cwpm: number | null
   takenShare: number | null
   damageTakenPM: number | null
+  damageTakenPerDeath: number | null
+  damageTakenPerDeathGames: number
   mitigatedPM: number | null
   objectiveDamagePM: number | null
   turretDamagePM: number | null
@@ -304,8 +307,18 @@ export function aggregateRoles(
       const deaths = sum(combat.map((x) => x.deaths!))
       const assists = sum(combat.map((x) => x.assists!))
       const damageShare = averageNullable(r.map((x) => x.damageShare))
+      const damageTakenPerDeath = aggregateNativeMetric(
+        g,
+        'damageTakenPerDeath',
+        groupPlayer,
+        groupRole
+      )
       const goldShare = averageNullable(r.map((x) => x.goldShare))
-      const conversionRows = knownMetricPopulation(r, (x) => x.damageShare, (x) => x.goldShare)
+      const conversionRows = knownMetricPopulation(
+        r,
+        (x) => x.damageShare,
+        (x) => x.goldShare
+      )
       const conversionDamageShare = averageNullable(conversionRows.map((x) => x.damageShare))
       const conversionGoldShare = averageNullable(conversionRows.map((x) => x.goldShare))
       const eligibleLaneGankGames =
@@ -390,6 +403,8 @@ export function aggregateRoles(
           (x) => x.minutes
         ),
         takenShare: averageNullable(r.map((x) => x.takenShare)),
+        damageTakenPerDeath: damageTakenPerDeath.value,
+        damageTakenPerDeathGames: damageTakenPerDeath.validGames,
         damageTakenPM: rateForRows(
           r,
           (x) => x.damageTaken,

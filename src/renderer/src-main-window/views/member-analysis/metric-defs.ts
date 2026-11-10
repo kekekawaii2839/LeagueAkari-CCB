@@ -1,3 +1,5 @@
+import { nativeMetricDefinitions } from '@shared/shards/member-analysis/native-metrics'
+
 export type MetricFormat = 'num' | 'pct' | 'pp' | 'int' | 'text' | 'time'
 export const formatMetric = (value: unknown, format: MetricFormat = 'num') => {
   if (format === 'text')
@@ -40,7 +42,16 @@ export const roleMetricGroups = {
   vision: { label: '视野', columns: ['games', 'vspm', 'wpm', 'wcpm', 'cwpm'] },
   utility: {
     label: '承伤与支援',
-    columns: ['games', 'takenShare', 'damageTakenPM', 'mitigatedPM', 'healPM', 'shieldPM', 'ccPM']
+    columns: [
+      'games',
+      'takenShare',
+      'damageTakenPM',
+      'damageTakenPerDeath',
+      'mitigatedPM',
+      'healPM',
+      'shieldPM',
+      'ccPM'
+    ]
   },
   lane: {
     label: '对线发育',
@@ -91,6 +102,7 @@ export const roleMetricMeta: Record<
     unit?: string
   }
 > = {
+  ...nativeMetricDefinitions,
   games: { label: '场次', fmt: 'int' },
   winRate: {
     label: '胜率',

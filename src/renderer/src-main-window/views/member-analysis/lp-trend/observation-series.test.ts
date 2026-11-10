@@ -2,6 +2,7 @@ import type { QueueRank, RankValue } from '@shared/shards/member-analysis/oppone
 import { expect, test } from 'vitest'
 
 import {
+  observationAxisTimes,
   observationSeries,
   rankProgressCoordinate,
   rankProgressDomain,
@@ -59,4 +60,17 @@ test('uses actual observation time, preserves gaps, and determines a common all-
   ])
   expect(rankProgressDomain([one, two])).toMatchObject({ min: 400, max: 4000 })
   expect(rankProgressDomain([])).toBeNull()
+})
+
+test('ordinal axis compresses unrecorded periods and shares member timestamps', () => {
+  const point = (fetchedAt: string) => ({ fetchedAt, rank: ranked('GOLD', 'IV', 50) })
+  const first = observationSeries([point('2026-01-01T00:00:00Z'), point('2026-10-01T00:00:00Z')])
+  const second = observationSeries([point('2026-10-01T00:00:00Z'), point('2026-10-02T00:00:00Z')])
+  expect(observationAxisTimes([second, first])).toEqual([
+    Date.parse('2026-01-01T00:00:00Z'),
+    Date.parse('2026-10-01T00:00:00Z'),
+    Date.parse('2026-10-02T00:00:00Z')
+  ])
+  expect(observationAxisTimes([])).toEqual([])
+  expect(first.map((point) => point.y)).toEqual([1250, 1250])
 })

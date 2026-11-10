@@ -17,7 +17,6 @@ import {
 } from 'vue'
 import { beforeEach, expect, test, vi } from 'vitest'
 import CombinationView from './CombinationView.vue'
-import ConversionView from './ConversionView.vue'
 import EarlyConversionView from './EarlyConversionView.vue'
 import MemberAnalysisSegments from './components/MemberAnalysisSegments.vue'
 
@@ -47,8 +46,12 @@ vi.mock('./useMemberAnalysisData', () => ({ useMemberAnalysisData: () => data })
 vi.mock('@main-window/shards/member-analysis/store', () => ({
   useMemberAnalysisStore: () => ({ overviewGeneration: 1 })
 }))
-vi.mock('./PairView.vue', () => ({ default: () => h('pair-page') }))
-vi.mock('./SynergyView.vue', () => ({ default: () => h('synergy-page') }))
+vi.mock('./PairView.vue', () => ({
+  default: defineComponent({ setup: () => () => h('pair-page') })
+}))
+vi.mock('./SynergyView.vue', () => ({
+  default: defineComponent({ setup: () => () => h('synergy-page') })
+}))
 vi.mock('./MemberAnalysisEvidenceTable.vue', () => ({ default: () => null }))
 vi.mock('./MetricHelp.vue', () => ({ default: () => null }))
 vi.mock('./WinRateInterval.vue', () => ({ default: () => null }))
@@ -67,7 +70,6 @@ beforeEach(() => {
 })
 for (const [component, path] of [
   [CombinationView, './CombinationView.vue'],
-  [ConversionView, './ConversionView.vue'],
   [EarlyConversionView, './EarlyConversionView.vue'],
   [MemberAnalysisSegments, './components/MemberAnalysisSegments.vue']
 ] as const) {
@@ -111,9 +113,7 @@ function node(type: string): Host {
   }
   return n
 }
-function harness(
-  component: typeof CombinationView | typeof ConversionView | typeof EarlyConversionView
-) {
+function harness(component: typeof CombinationView | typeof EarlyConversionView) {
   const renderer = createRenderer<Host, Host>({
     createElement: node,
     createComment: node,
@@ -163,33 +163,25 @@ function harness(
     await tabs()[i].props.onKeydown({ key, preventDefault() {} })
     await nextTick()
   }
-  return { root, tabs, selected, app, click, key, change }
+  return { root, tabs, selected, app, click, key, change, view }
 }
-test('combination click and keyboard emit original view keys, retaining both page instances', async () => {
+test('combination follows shell destinations without nested tabs and retains child instances', async () => {
   const f = harness(CombinationView)
   try {
-    expect(f.selected()).toBe(0)
-    await f.click(1)
-    expect(f.change).toHaveBeenLastCalledWith('synergy')
-    expect(f.selected()).toBe(1)
-    expect(walk(f.root).some((n) => n.type === 'synergy-page')).toBe(true)
-    await f.key(1, 'ArrowLeft')
-    expect(f.change).toHaveBeenLastCalledWith('pairs')
-    expect(f.selected()).toBe(0)
-    expect(walk(f.root).some((n) => n.type === 'pair-page')).toBe(true)
-  } finally {
-    f.app.unmount()
-  }
-})
-test('event results are one page without category tabs, including empty results', async () => {
-  const f = harness(ConversionView)
-  try {
     expect(f.tabs()).toHaveLength(0)
-    data.games.value = []
-    data.conversion.value = []
+    const pair = walk(f.root).find((n) => n.type === 'pair-page')
+    expect(pair).toBeDefined()
+    f.view.value = 'synergy'
     await nextTick()
     expect(f.tabs()).toHaveLength(0)
-    expect(walk(f.root).some((n) => n.text === '当前筛选下没有事件结果。')).toBe(true)
+    const synergy = walk(f.root).find((n) => n.type === 'synergy-page')
+    expect(synergy).toBeDefined()
+    f.view.value = 'pairs'
+    await nextTick()
+    expect(walk(f.root).find((n) => n.type === 'pair-page') === pair).toBe(true)
+    f.view.value = 'synergy'
+    await nextTick()
+    expect(walk(f.root).find((n) => n.type === 'synergy-page') === synergy).toBe(true)
   } finally {
     f.app.unmount()
   }

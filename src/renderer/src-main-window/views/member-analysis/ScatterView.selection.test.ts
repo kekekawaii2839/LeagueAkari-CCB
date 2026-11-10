@@ -13,6 +13,7 @@ import ScatterView from './ScatterView.vue'
 
 const data = vi.hoisted(() => ({
   roles: null as any,
+  games: null as any,
   matches: null as any,
   table: null as any,
   matchCalls: 0,
@@ -21,7 +22,7 @@ const data = vi.hoisted(() => ({
   formatCalls: [] as { value: unknown; format: string | undefined }[]
 }))
 vi.mock('./useMemberAnalysisData', () => ({
-  useMemberAnalysisData: () => ({ roles: data.roles, games: ref([]) })
+  useMemberAnalysisData: () => ({ roles: data.roles, games: data.games })
 }))
 vi.mock('./scatter-analysis', async (original) => ({
   ...(await original<object>()),
@@ -205,7 +206,54 @@ describe('real scatter component selection survives readable reloads', () => {
     setActivePinia(createPinia())
     data.formatCalls = []
     data.roles = ref([row('Synthetic A', 0), row('Synthetic B', 1)])
+    data.games = ref([])
     data.matches = ref([row('Synthetic A', 0, 101), row('Synthetic B', 1, 102)])
+  })
+  test('patch selection follows its member-role-version identity and clears when that version disappears', async () => {
+    const patchGame = (id: number, patch: string, gd15: number) => ({
+      gameId: id,
+      patch,
+      win: true,
+      duration: 1800,
+      laneGankDeaths: null,
+      players: [
+        {
+          player: 'Synthetic A',
+          role: 'MIDDLE',
+          champion: 'Synthetic',
+          gd15,
+          damageShare: 0.2,
+          goldShare: 0.2
+        }
+      ]
+    })
+    data.games.value = [patchGame(1, '16.1', 100), patchGame(2, '16.2', 200)]
+    const state = useMemberAnalysisStore().scatterViewState
+    state.patchMode = true
+    state.xMetric = 'gd15'
+    const host = harness()
+    try {
+      await host.select(1)
+      expect(host.selected(0)).toBe(false)
+      expect(host.selected(1)).toBe(true)
+      const selectedNode = host.all().filter((n) => n.props.role === 'button')[1]
+      const selectedKey = data.table['selected-row-key']
+      data.games.value = [patchGame(3, '16.0', 0), ...data.games.value]
+      await nextTick()
+      expect(host.selected(1)).toBe(false)
+      expect(host.selected(2)).toBe(true)
+      expect(host.all().filter((n) => n.props.role === 'button')[2]).toBe(selectedNode)
+      expect(data.table['selected-row-key']).toBe(selectedKey)
+      data.games.value = data.games.value.filter((game: any) => game.patch !== '16.2')
+      await nextTick()
+      expect(data.table['selected-row-key']).toBeNull()
+      expect(host.all().some((n) => n.props.role === 'status' && n.text.length > 0)).toBe(true)
+      state.patchMode = false
+      await nextTick()
+      expect(data.table.rows).toHaveLength(2)
+    } finally {
+      host.dispose()
+    }
   })
   test('native first SVG waits for actual table geometry without grouping at provisional dimensions', async () => {
     const frames: FrameRequestCallback[] = []
@@ -570,6 +618,30 @@ describe('real scatter component selection survives readable reloads', () => {
       await host.select(0)
       expect(host.selected(0)).toBe(false)
       expect(host.selected(1)).toBe(false)
+    } finally {
+      host.dispose()
+    }
+  })
+  test('match minimum filters the graph, exact rows and fit population while retaining eligible missing values', async () => {
+    data.matches.value = [
+      row('Synthetic A', 0, 101),
+      row('Synthetic A', 1, 103),
+      row('Synthetic B', 2, 102)
+    ]
+    const host = harness(true)
+    try {
+      host.store.scatterViewState.minimumGames = 2
+      await nextTick()
+      expect(data.table.rows.map((row: any) => row.player)).toEqual(['Synthetic A', 'Synthetic A'])
+      expect(host.all().filter((n) => n.props.role === 'button')).toHaveLength(2)
+      expect(data.fitModels[0].n).toBe(2)
+      host.store.scatterViewState.minimumGames = 3
+      await nextTick()
+      expect(data.table.rows).toEqual([])
+      expect(host.all().filter((n) => n.props.role === 'button')).toHaveLength(0)
+      host.store.scatterViewState.minimumGames = 0
+      await nextTick()
+      expect(data.table.rows).toHaveLength(3)
     } finally {
       host.dispose()
     }

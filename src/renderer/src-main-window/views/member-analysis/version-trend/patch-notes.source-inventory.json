@@ -1,0 +1,3401 @@
+{
+  "scope": "Independent HTMLParser inventory of original official SSR. Include main SR/new champion/items/runes/system lists, standalone system announcements and non-other-mode Bugfixes/QoL. Exclude mode-specific/cosmetic marketing, design rationale, reminder-only prose and Spotlight navigation.",
+  "patches": [
+    {
+      "patch": "16.12",
+      "rows": [
+        {
+          "sourceHeading": "Normal Draft Queue Availability",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "We are happy to open up Normal Draft availability for ME, OC and SG from windowed time to 24/7, as we've seen meaningful queue time improvement across regions since late 2025."
+        },
+        {
+          "sourceHeading": "Honor in Social Panel",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "We are introducing Honor and active penalty information to your social panel so you can easily track your standing, view your progress towards redemption, and see how your behavior impacts your games. The panel will display current Honor, restrictions, and actions you must take to restore standing, serving as a constant reminder of the positive community we are building together."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - The Darkin Blade",
+          "tag": "li",
+          "text": "Sweet Spot Bonus Damage: 70 ⇒ 75"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Snip Snip!",
+          "tag": "li",
+          "text": "Base Damage Per Snip: 10/13.5/17/20.5/24 ⇒ 10/14/18/22/26"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E -Skip 'n Slash",
+          "tag": "li",
+          "text": "Bonus Attack Speed: 20/35/50/65/80% ⇒ 30/42.5/55/67.5/80%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Subject: Disaster",
+          "tag": "li",
+          "text": "QQ Damage: 50 / 80 / 110 / 140 / 170 (+70% AP) (+3 / 4 / 5 / 6 / 7% Target Max HP) ⇒ 50 / 80 / 110 / 140 / 170 (+80% AP) (+3 / 4 / 5 / 6 / 7% Target Max HP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Subject: Disaster",
+          "tag": "li",
+          "text": "QW Damage: 60 / 85 / 110 / 135 / 160 (+25% AP), increased to up to 120 / 201.875 / 302.5 / 421.875 / 560 (+50 / 59.375 / 68.75 / 78.125 / 87.5% AP) ⇒ 60 / 85 / 110 / 135 / 160 (+30% AP), increased to up to 120 / 201.875 / 302.5 / 421.875 / 560 (+60 / 71.25 / 82.5 / 93.75 / 105% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Subject: Disaster",
+          "tag": "li",
+          "text": "QE Slow: 30% ⇒ 35%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Subject: Torment",
+          "tag": "li",
+          "text": "Cooldown: 13 / 12.5 / 12 / 11.5 / 11s ⇒ 12 / 11.5 / 11 / 10.5 / 10s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Leap Strike",
+          "tag": "li",
+          "text": "Mana Cost: 65 ⇒ 50"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Counter Strike",
+          "tag": "li",
+          "text": "Target Max Health Damage: 3.5% minimum damage / 7% maximum damage ⇒ 4% minimum damage / 8% maximum damage"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "AD Growth: 3.7 ⇒ 3.4"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q1 - Sonic Wave",
+          "tag": "li",
+          "text": "Damage: 65 / 95 / 125 / 155 / 185 (+95% bonus AD) ⇒ 60 / 90 / 120 / 150 / 180 (+90% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q2 - Resonating Strike",
+          "tag": "li",
+          "text": "Damage: 65 / 95 / 125 / 155 / 185 (+95% bonus AD) ⇒ 60 / 90 / 120 / 150 / 180 (+90% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Duskbringer",
+          "tag": "li",
+          "text": "Damage: 65 / 110 / 155 / 200 / 245 ⇒ 65 / 105 / 145 / 185 / 225"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Health: 585 ⇒ 565"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Clockwork Windup",
+          "tag": "li",
+          "text": "Damage Increase Per Stack: 20% ⇒ 15%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Command: Shockwave",
+          "tag": "li",
+          "text": "Damage: 250/400/550 (+95% AP) ⇒ 225/350/475 (+110% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Health: 645 ⇒ 620"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base AD: 58 ⇒ 55"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Chain Lash",
+          "tag": "li",
+          "text": "Initial Damage: 40 / 60 / 80 / 100 / 120 (+40% AP) ⇒ 40 / 65 / 90 / 115 / 140 (+45% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Kingslayer",
+          "tag": "li",
+          "text": "Heal Amount: 20 / 40 / 60 / 80 / 100 (+20% AP) (+5% Sylas' Bonus HP), increased by up to 100% based on Sylas' missing health ⇒ 20 / 40 / 60 / 80 / 100 (+30% AP) (+5% Sylas' Bonus HP), increased by up to 100% based on Sylas' missing health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Health: 563 ⇒ 583"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Dark Sphere",
+          "tag": "li",
+          "text": "Damage: 80-220 (+65% AP) ⇒ 90-230 (+70% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "AD Growth: 2.9⇒ 3.4"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Rapid Fire",
+          "tag": "li",
+          "text": "Mana: 30 / 35 / 40 / 45 / 50⇒ 15 / 20 / 25 / 30 / 35"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Living Vengeance",
+          "tag": "li",
+          "text": "On Non-Champ Kill AD and AP: 10% of his Total AS ⇒ 11% of his Total AS"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Living Vengeance",
+          "tag": "li",
+          "text": "On Champ Kill AD and AP: 25% of his Total AS ⇒ 33% of his Total AS"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Living Vengeance",
+          "tag": "li",
+          "text": "On Non-Champ Kill AS: +50% AS ⇒ +30% AS"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Arrow",
+          "tag": "li",
+          "text": "Damage: 53.33 / 100 / 146.67 / 193.33 / 240 (+100% bonus AD) to 80 / 150 / 220 / 290 / 360 (+150% bonus AD) ⇒ 53.33 / 100 / 146.67 / 193.33 / 240 (+80% bonus AD) to 80 / 150 / 220 / 290 / 360 (+120% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Blighted Quiver",
+          "tag": "li",
+          "text": "On-Hit Damage: 8 / 17 / 26 / 35 / 44 (+15% bonus AD) (+25% AP) ⇒ 4 / 13 / 22 / 31 / 40 (+15% bonus AD) (+25% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Determination",
+          "tag": "li",
+          "text": "Healing: 3 / 4 / 5% Max HP (+45 / 55 / 80% AP) ⇒ 2 / 3.5 / 5% Max HP (+40 / 50 / 70% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Wind Becomes Lightning",
+          "tag": "li",
+          "text": "Mana Cost: 60 / 55 / 50 / 45 / 40 ⇒ 60"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Audacious Charge",
+          "tag": "li",
+          "text": "Mana Cost: 50 ⇒ 60"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Feline Friendship",
+          "tag": "li",
+          "text": "Heal Amount: 20 - 110 (+25% AP) (Levels 1 - 18) ⇒ 20 - 110 (+30% AP) (Levels 1 - 18)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Zoomies",
+          "tag": "li",
+          "text": "Shield Amount: 65 / 90 / 115 / 140 / 165 (+30% AP) ⇒ 65 / 90 / 115 / 140 / 165 (+40% AP)"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "Teleport",
+          "tag": "li",
+          "text": "Max Health Shield: 30% for 30 seconds ⇒ 35% for 10 seconds"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where the Helping Hand buff from certain starting items wasn't removed when sold or undone."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where dying before smite upgraded at 45 seconds would keep Smite at one charge."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Rift Herald would deal magic damage to turrets instead of true damage if the champion driving it had more AP than AD."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where abilities that don't CC but swapped to CC spells (Elise E, Leblanc R, etc.) gained Ability Haste from Imperial Mandate's Control passive."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Practice Tool keybinds would fail to save when using WASD Inputs in the Options Menu."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Elise's human form death animation was played when she died in Spider form."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed several cases where Neeko would not play the proper homeguard run animation when disguised as Wukong with various skins."
+        }
+      ],
+      "sourceSha256": "b4fd645e41ab8b67f80131b41bae719b67cb285752c7d0700e977688bfbe48fe"
+    },
+    {
+      "patch": "16.13",
+      "rows": [
+        {
+          "sourceHeading": "Locke",
+          "sourceSubheading": "Passive - Silver Stake",
+          "tag": "li",
+          "text": "Locke's attacks deal additional magic damage On-Hit, increased based on enemy missing Health."
+        },
+        {
+          "sourceHeading": "Locke",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Locke readies a set of Soul Nails to throw, dealing damage to and marking enemies hit. Locke can consume the marks to deal bonus damage with his attacks."
+        },
+        {
+          "sourceHeading": "Locke",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Locke ignites his soul, gaining Attack Speed and Move Speed, and dealing damage to himself. At the end of the duration, Locke will heal back a portion of the damage he takes during the effect."
+        },
+        {
+          "sourceHeading": "Locke",
+          "sourceSubheading": "E - Ashen Pursuit",
+          "tag": "li",
+          "text": "Locke teleports to a location before dashing to attack his next target, dealing damage to enemies passed through."
+        },
+        {
+          "sourceHeading": "Locke",
+          "sourceSubheading": "R - Purgatory",
+          "tag": "li",
+          "text": "Locke throws a binding artifact that deals damage and potentially executes enemies hit. Locke gains additional power for sealing away enemy champions."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Calibrum",
+          "tag": "li",
+          "text": "Passive Mark Damage: 15 (10% bonus AD) ⇒ 15 (15% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Severum",
+          "tag": "li",
+          "text": "Q - Onslaught Damage: 19 / 24.25 / 29.5 / 34.75 / 40% Total AD Dmg per attack ⇒ 20 / 25.25 / 30.5 / 35.75 / 41% Total AD Dmg per attack"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Infernum",
+          "tag": "li",
+          "text": "Q - Duskwave Damage: 20 - 110 (Level 1 - 18) (10 - 16% bonus AD) ⇒ 20 - 110 (Level 1 - 18) (15 - 21% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Crescendum",
+          "tag": "li",
+          "text": "Q - Sentry Damage: 35 - 125 (Level 1 - 18) (30 - 48% bonus AD) ⇒ 35 - 125 (Level 1 - 18) (34 - 52% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Traveler's Call",
+          "tag": "li",
+          "text": "Damage Per Meep: 35 (+10 per 5 Chimes) (+40% AP) ⇒ 30 (+6 per 5 Chimes) (+40% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Mana Regeneration: 9 ⇒ 11"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Blaze",
+          "tag": "li",
+          "text": "Detonation Damage: 8 - 12% (Levels 1 - 17) (+2% per 100 AP) ⇒ 6 - 12% (Levels 1 - 18, scaling above 18) (+2% per 100 AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Conflagration",
+          "tag": "li",
+          "text": "Mana Cost: 70 / 75 / 80 / 85 / 90 ⇒ 90"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health per level: 104 ⇒ 98"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Stand Aside",
+          "tag": "li",
+          "text": "Cooldown: 18 / 17 / 16 / 15 / 14s ⇒ 16 / 15 / 14 / 13 / 12s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Whirling Death",
+          "tag": "li",
+          "text": "Damage Reduction on Enemy Hit: -8% multiplicatively, down to 40% (at 11 hits) ⇒ -5%, down to a minimum of 50% (at 14 hits)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Void Seeker",
+          "tag": "li",
+          "text": "Cooldown: 22 / 20 / 18 / 16 / 14 ⇒ 20 / 18.5 / 17 / 15.5 / 14"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Killer Instinct",
+          "tag": "li",
+          "text": "Shield: 70 / 90 / 110 (+90 / 135 / 180% AD) (+120% AP) ⇒ 100 / 150 / 200 (+90 / 135 / 180% AD) (+120% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Footwork",
+          "tag": "li",
+          "text": "Shield: (80 / 120 / 160 / 200 / 240) (+15% bonus health) ⇒ (70 / 112.5 / 155 / 197.5 / 240) (+13.5% bonus health)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Mimic",
+          "tag": "li",
+          "text": "RQ1 / RE1 Damage: 70 / 140 / 210 ⇒ 70 / 150 / 230"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Mimic",
+          "tag": "li",
+          "text": "Mark / Root Damage: 140 / 280 / 420 ⇒ 140 / 300 / 460"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Mimic",
+          "tag": "li",
+          "text": "RW Damage: 150 / 300 / 450 ⇒ 150 / 315 / 480"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Undertow",
+          "tag": "li",
+          "text": "Monster Bonus Physical Damage: 20 / 35 / 50 / 65 / 80 ⇒ 20 / 45 / 70 / 95 / 120"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Hammer Shock",
+          "tag": "li",
+          "text": "Monster Damage Cap: 50 / 80 / 110 / 140 / 170 ⇒ 75 / 105 / 135 / 165 / 195"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Edge of Ixtal",
+          "tag": "li",
+          "text": "Monster Damage: 155% ⇒ 175%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Furious Bite / Tunnel",
+          "tag": "li",
+          "text": "Physical Damage: 80 / 108 / 136 / 164 / 192 (64% bonus AD) ⇒ 70 / 95 / 120 / 145 / 170 (60% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Furious Bite / Tunnel",
+          "tag": "li",
+          "text": "Bonus True Damage: 125% ⇒ 120%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Flamespitter",
+          "tag": "li",
+          "text": "Damage: 60 / 85 / 110 / 135 / 160 (100% AP) ⇒ 50 / 75 / 100 / 125 / 150 (105% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Absolution",
+          "tag": "li",
+          "text": "Soul Drop Chance (Senna Kill): 10% ⇒ 5%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Absolution",
+          "tag": "li",
+          "text": "Soul Drop Chance (Ally Kill): 28% ⇒ 32%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Absolution",
+          "tag": "li",
+          "text": "Crit Damage: -10% (180% / 27% with IE) ⇒ -15% (170% / 25.5% with IE)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Darkness",
+          "tag": "li",
+          "text": "Cooldown Refund: On Hit ⇒ On Attack"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Decimating Smash",
+          "tag": "li",
+          "text": "Min Damage: 40 / 60 / 80 / 100 / 120 ⇒ 30 / 45 / 60 / 75 / 90"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Furnace",
+          "tag": "li",
+          "text": "Mana: 65 / 70 / 75 / 80 / 85 ⇒ 75 / 80 / 85 / 90 / 95"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Looming Darkness",
+          "tag": "li",
+          "text": "Cooldown: 13s ⇒ 12s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Shadow Surge",
+          "tag": "li",
+          "text": "Reset Time Window: 6s ⇒ 8s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Dreaded Return",
+          "tag": "li",
+          "text": "Cooldown: 16 / 15 / 14 / 13 / 12 ⇒ 14 / 13.5 / 13 / 12.5 / 12"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Doran's Helm",
+          "tag": "li",
+          "text": "Armor and Magic Resistance: 10 ⇒ 8"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Doran's Helm",
+          "tag": "li",
+          "text": "Health: 140 ⇒ 150"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Imperial Mandate",
+          "tag": "li",
+          "text": "Build Path: Blasting Wand (850g) + Bandleglass Mirror (900g) + 650g ⇒ Amp Tome (400g) + Bandleglass Mirror (900g) + Amp Tome (400g) + 700g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Imperial Mandate",
+          "tag": "li",
+          "text": "Ability Power: 65 ⇒ 60"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Imperial Mandate",
+          "tag": "li",
+          "text": "Unique - Control: 15 AH For Immobilizing Abilities ⇒ 20 AH For Immobilizing Abilities"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Imperial Mandate",
+          "tag": "li",
+          "text": "Unique - Command: 6% Vulnerable ⇒ 7% Vulnerable"
+        },
+        {
+          "sourceHeading": "Last Hit Indicators",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "We're going to be enabling Last Hit Indicators for Normal Draft games. This feature has been live in Swiftplay & Co-op vs. AI for a while, and we've seen it result in new players being more successful at last-hitting than before. These players are now graduating into Normals and are interested in continuing to use them. We think it's better to focus on skill expression in other parts of the game—rather than understanding exactly when you can last-hit a minion—and are also pretty confident that these don't degrade skill expression in lane. You still need to be mindful of positioning, harassing your opponent, considering where both junglers are, understanding power spikes, and more. We've seen that experienced players are disabling it, as they find it more distracting than helpful, but we believe it should be available for those who want it. Let us know what you think! We've seen a lot of conversation around Last Hit Indicators coming to Ranked, and we've decided to enable them in non-Ranked SR queues only for continued testing. We want to get more data and feedback to decide if we should make them an option for Ranked before making that call. So we'll keep them enabled, but off by default, for Swiftplay, Co-op vs AI, and Normal Draft, to collect data and iterate. We'll keep you updated about performance and progress in Dev Updates before making any future calls."
+        },
+        {
+          "sourceHeading": "Reporting Direct Messages",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "Player DMs have long been a gap in our reporting coverage, which has allowed bad actors to use direct messages as a place for chat toxicity with impunity. We are closing that loophole in this patch by adding a report menu directly into your chat interface. You can report and/or block a player at the same time by selecting the report button on the chat header, right-clicking the chat dialogue to summon the context menu, or from the block menu. Blocking a player means that DMs can no longer be exchanged. However, message history will persist during the same session after blocking or being blocked, so that players can no longer abuse the block function as a way to avoid being reported. Once reported, we'll be able to view both sides of the conversation and take action where appropriate. All reported direct message data is handled securely and used strictly for moderation purposes. While we hope you don't have to use this feature often, this tool ensures accountability extends to all player communications in League."
+        },
+        {
+          "sourceHeading": "Ranked 5s",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "Ranked 5s are back! Time to call the squad (or find some friends if you're like us.) On June 26, Ranked 5s will be live at 8 pm! Tournament Draft, double the stakes, no restrictions on who can play with each other, and unique rewards. To learn more about Ranked 5s, check out the dev blog."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Baron Nashor's max stacks of Void Corruption was higher than intended."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Serpent's Fang's Shield Reaver damage applied Omnivamp."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Diana's R VFX may not play properly around different areas of the map."
+        }
+      ],
+      "sourceSha256": "f329e5e47e50ba390de43c0e89179a7a000fd20e0435ce8a478c813c2911989a"
+    },
+    {
+      "patch": "16.14",
+      "rows": [
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Arise!",
+          "tag": "li",
+          "text": "On-Hit? More Like On-Destroy: Scorch, Liandry's Torment, Blackfire Torch, and Hextech Alternator now deal 100% of their damage on-hit instead of 50%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Arise!",
+          "tag": "li",
+          "text": "Double-tap: Conqueror will now apply 2 stacks on-hit instead of 1"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Arise!",
+          "tag": "li",
+          "text": "Laser Focus: Press the Attack now applies to the primary target hit"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Emperor's Divide",
+          "tag": "li",
+          "text": "Be Gone, Peasant!: Now knocks back jungle monsters"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage Growth: 2 ⇒ 2.5"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Missile Barrage",
+          "tag": "li",
+          "text": "Remaining Recharge Time Reduction from Autos: 2 - 4 seconds (based on critical strike chance) ⇒ 2 - 6 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Demacian Justice",
+          "tag": "li",
+          "text": "True Damage: 150 / 250 / 350 (+ 25 / 30 / 35% of target's missing health) ⇒ 125 / 200 / 275 (+ 25 / 30 / 35% of target's missing health)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Hextech Capacitor",
+          "tag": "li",
+          "text": "Bonus Move Speed: 40 ⇒ 30"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Mercury Hammer",
+          "tag": "li",
+          "text": "Bonus Armor and Magic Resistance: 5 / 15 / 25 / 35 (+7.5% bonus Attack Damage) ⇒ 5 / 12 / 19 / 26 (+7.5% bonus Attack Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Nail Recast Hold Time: 5 seconds ⇒ 4 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Nail Damage: 50 / 60 / 70 / 80 / 90 ⇒ 50 / 58 / 66 / 74 / 82"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Mark Base Bonus Damage: 20 / 30 / 40 / 50 / 60 ⇒ 18 / 26 / 34 / 42 / 50"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Damage Taken Grey Health Cap: 40 / 80 / 120 / 160 / 200 ⇒ 40 / 70 / 100 / 130 / 160"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Death's Grasp",
+          "tag": "li",
+          "text": "Damage: 60 / 75 / 90 / 105 / 120 (+40% Ability Power) ⇒ 60 / 80 / 100 / 120 / 140 (+45% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Realm of Death",
+          "tag": "li",
+          "text": "Stat Steal: 10% ⇒ 13%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Tidecaller's Blessing",
+          "tag": "li",
+          "text": "Damage per Hit: 20 / 30 / 40 / 50 / 60 ⇒ 20 / 35 / 50 / 65 / 80"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Absolution",
+          "tag": "li",
+          "text": "Critical Strike Damage Modifier: 85% ⇒ 80%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Darkness",
+          "tag": "li",
+          "text": "Ability Power Slow Ratio: 10% per 100 Ability Power ⇒ 7% per 100 Ability Power"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Darkness",
+          "tag": "li",
+          "text": "Ability Power Healing Ratio: 50% Ability Power ⇒ 35% Ability Power"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - High Note",
+          "tag": "li",
+          "text": "Ability Power Ratio: 50% Ability Power ⇒ 40% Ability Power"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage Growth: 2.5 ⇒ 3"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Damage Increase While Above 50% Maximum Health: 5% ⇒ 4%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Healing, Shielding, and Regeneration Increase While Below 50% Maximum Health: 15% ⇒ 12%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Protoplasm Harness",
+          "tag": "li",
+          "text": "Cost: 2500 ⇒ 2600"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Protoplasm Harness",
+          "tag": "li",
+          "text": "Bonus Health: 200 - 300 ⇒ 100 - 300"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Protoplasm Harness",
+          "tag": "li",
+          "text": "Healing: 200 - 400 ⇒ 100 - 400"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Build Path: Hextech Alternator + Fiendish Codex + Amplifying Tome + 300 ⇒ Hextech Alternator + Kindlegem + Ruby Crystal + 350"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Active Cooldown: 40 seconds ⇒ 50 seconds"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Ability Power: 70 ⇒ 60"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Health: 300 ⇒ 350"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "Blue Buff",
+          "tag": "li",
+          "text": "Ability Haste: 10 ⇒ 10 / 15 / 20 (levels 1 / 6 / 11)"
+        },
+        {
+          "sourceHeading": "SR Ranked Season 2 End",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "Ranked Season 2 will end local server time at midnight 23:59 on July 28, which is the last day of patch 26.14. Several hours later, we'll roll over into patch 26.15, which marks the start of Season 3 at 12:00pm noon, July 29, local server time. Similar to previous mid-year season transitions, Ranked Solo and Flex queues will be disabled during the down time. Shard transfer services will also be disabled to make sure rewards are properly calculated. We don't expect any disruptions to your LP / Ranked progression, but the Victorious Ranked mission for 15 ranked games won will be refreshed when the new season starts."
+        },
+        {
+          "sourceHeading": "Parental Controls",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "Riot is rolling out optional Parent Permissions to give parents more visibility and control over their child's social interactions in game. Parents can access parental controls by connecting a parent's email address via account control page, where they can limit text and voice chat, block friend requests, and view the social panel friends list. These controls are meant to provide parents with the tools to protect their child's safety. Read more about parental permissions and account setup here."
+        },
+        {
+          "sourceHeading": "Summoner's Rift Clash - MSI Cup",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Registration Begins: July 13 @ 11:00AM (Local Time)"
+        },
+        {
+          "sourceHeading": "Summoner's Rift Clash - MSI Cup",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Tournament Dates: July 18 and 19 (~ 4 - 7 PM Local Time, varies by region)"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Trimmed redundant buffs that repeat information already clearly communicated elsewhere in the UI or gameplay state (e.g. role quest progress and other obvious state changes)."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Moved most item buffs with durations into the inventory on the item itself."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Reduced buff bar clutter from lower-impact system, map and item effects that don't meaningfully change player decision-making."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Removed display of very short-duration debuffs and effects (˜0.25s), including things like minor slows from Honeyfruit pickups."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Caitlyn's Headshot may fail to fire while in brush."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Guinsoo's Rageblade's first Phantom Hit would apply one attack earlier than expected."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Remake votes will now begin automatically when they are eligible rather than requiring a player to type /remake in chat. Chat context now explains which player triggered the remake vote and why."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Deafen and self-mute functionality can now only be toggled once every 60 seconds to prevent spam and disruptive one-way communication."
+        }
+      ],
+      "sourceSha256": "d1d6e9ff64b718211b109f2785e312e49acdde431c55c6310d3897f57465dcea"
+    },
+    {
+      "patch": "16.15",
+      "rows": [
+        {
+          "sourceHeading": "Aegis of Valor",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "We’re refocusing Aegis entirely around victory: it will no longer reduce LP losses in the case of defeat, and wins will award double LP without requiring a minimum mastery score."
+        },
+        {
+          "sourceHeading": "Apex Duo Restrictions",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Master players will now be able to duo, but only with players close to them in rank."
+        },
+        {
+          "sourceHeading": "Apex Duo Restrictions",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "GM, Challenger, and players with GM or Challenger MMR will not be allowed to duo."
+        },
+        {
+          "sourceHeading": "Apex Duo Restrictions",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "For more details on the exact restrictions, see here."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Move Speed: 330 ⇒ 335"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Speed: 0.85 ⇒ 0.67"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Speed Ratio: 0.85 ⇒ 0.67"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 60 ⇒ 55"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Basic Attack Damage Modifier: 75% ⇒ 100%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Cast Time: 0.25 ⇒ 0.22"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Total Attack Animation: Adjusted to feel better at lower Attack Speeds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor: 32 ⇒ 28"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor Growth: 4.7 ⇒ 5"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 610 ⇒ 580"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Growth: 105 ⇒ 110"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Model Size: 100% ⇒ 95%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Death In Lavender",
+          "tag": "li",
+          "text": "Attack Speed After Spell Cast: 20% minimum / 40% maximum for 2 attacks ⇒ 20% for 3 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Death In Lavender",
+          "tag": "li",
+          "text": "Attack Speed per Stack: 0.28% minimum / 1.1% maximum ⇒ 0.1% minimum / 2% maximum"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Speed: 800 / 850 / 900 / 950 / 1000 ⇒ 850"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Time Between Casts: 1 ⇒ 4 / 3.25 / 2.5 / 1.75 / 1"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Monster Damage Modifier: 55 / 65 / 75 / 85 / 95 ⇒ 70"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Minion Damage Modifier: 60 / 70 / 80 / 90 / 100% ⇒ Removed"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Damage: 0 / 5 / 10 / 15 / 20 (+100% Attack Damage) ⇒ 12 / 14 / 16 / 18 / 20 (+105% Attack Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Void Surge",
+          "tag": "li",
+          "text": "Attack Speed to Ability Haste Conversion: 0.25 ⇒ 0.2"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Above And Below",
+          "tag": "li",
+          "text": "Damage: 70 / 110 / 150 / 190 / 230 (+100% Bonus Attack Damage) (+125% Ability Power) ⇒ 80 / 140 / 200 / 260 / 320 (+150% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Above And Below",
+          "tag": "li",
+          "text": "Slow Duration: 1.25 / 1.5 / 1.75 / 2 / 2.25 seconds at 50% slow ⇒ 2 seconds at 30% slow"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Above And Below",
+          "tag": "li",
+          "text": "Knockup Duration: 0.75 seconds ⇒ 0.6 / 0.7 / 0.8 / 0.9 / 1 second"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Damage per Strike: 6 / 7 / 8 / 9 / 10 (+8% Attack Damage) (+8% On-Hit effects), increased up to 300% based on missing Health ⇒ 10 / 12 / 14 / 16 / 18 (+12% Attack Damage) (+12% On-Hit effects), increased up to 100% based on missing Health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Number of Strikes: 6 + 1 per 33% bonus Attack Speed ⇒ 6 + 1 per 40% bonus Attack Speed"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Damage Reduction: 35 / 40 / 45 / 50 / 55% ⇒ 20 / 30 / 40 / 50 / 60%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Lifesteal: 20% ⇒ 20 / 25 / 30 / 35 / 40%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Lifesteal Scaling: 100% ⇒ Removed"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Cooldown: 20 / 19 / 18 / 17 / 16 ⇒ 24 / 21 / 18 / 15 / 12"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Royal Maelstrom",
+          "tag": "li",
+          "text": "Monster Damage Modifier: 150% ⇒ 200%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Passive On-Hit Application: Every other attack ⇒ Every attack"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Passive True Damage: 6 / 10 / 14 (+12% Bonus Attack Damage) ⇒ 2 / 4 / 6 (+3% Bonus Attack Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Target Swapping: Passive removed when swapping targets ⇒ Passive no longer removed when swapping targets"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Maximum Epic Monster Stacks: 10 ⇒ 8"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Passive Application Requirement: E and Q required Bel’Veth to have attacked the target first ⇒ E and Q no longer require Bel’Veth to have attacked the target first"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Explosion Damage: 150 / 200 / 250 (+100% Ability Power) (+25% missing Health) ⇒ 150 / 200 / 250 (+150% Ability Power) (+20% missing Health)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Heal per Bonus Health: 100 / 150 / 200 (+120% Bonus Attack Damage) (+90% Ability Power) ⇒ 100 / 250 / 400 (+150% Bonus Attack Damage) (+150% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Basic Attack Range Bonus: 75 ⇒ 25 / 75 / 125"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Total Attack Speed: 10 / 15 / 20% ⇒ 5 / 15 / 25%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Size: 10% ⇒ 10 / 15 / 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Unempowered Buff Duration: 60 ⇒ 45 / 90 / infinite at 0 / 40 / 80 stacks"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Empowered Buff Duration: 180 ⇒ 45 / 90 / infinite at 0 / 40 / 80 stacks"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Post-Cast Lockout: 0.5 seconds ⇒ 0.25 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "Out of Combat Move Speed: Removed"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Second Skin",
+          "tag": "li",
+          "text": "Caustic Wounds: 4 - 24 (Champion Level) (+12% Ability Power), +1 - 6 (Champion Level) (+3% Ability Power) per prior stack ⇒ 4 - 30 (Champion Level) (+12% Ability Power), +1 - 8 (Champion Level) (+3% Ability Power) per prior stack"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 655 ⇒ 620"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Base Damage - Nail: 50 / 58 / 66 / 74 / 82 (+20% Ability Power) ⇒ 40 / 48 / 56 / 64 / 72 (+20% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Three Nails Damage: 150 / 174 / 198 / 222 / 246 (+60% Ability Power) ⇒ 120 / 144 / 168 / 192 / 216 (+60% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Move Speed: 40 / 45 / 50 / 55 / 60% (+2% per 100 Ability Power) ⇒ 40% (+2% per 100 Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Grey Health Base Value: 40 / 70 / 100 / 130 / 160 (+120% Ability Power) ⇒ 40 / 60 / 80 / 100 / 120 (+100% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Bramble Smash",
+          "tag": "li",
+          "text": "Monster Damage Modifier: 140 / 150 / 160 / 170 / 180 ⇒ 150 / 160 / 170 / 180 / 190"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Bramble Smash",
+          "tag": "li",
+          "text": "Ability Power Ratio: 40% ⇒ 50%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Death's Grasp",
+          "tag": "li",
+          "text": "Cooldown: 18 / 16 / 14 / 12 / 10 ⇒ 16 / 14 / 12 / 10 / 8"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Realm of Death",
+          "tag": "li",
+          "text": "Stolen Stats: 13% ⇒ 10%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Realm of Death",
+          "tag": "li",
+          "text": "Bugfix: Fixed a bug where ulting a target with health above their post-reduction max HP would lead to increased damage (up to double)."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - The Call of the Pack",
+          "tag": "li",
+          "text": "Damage: 150 / 225 / 300 (+120% Attack Damage) ⇒ 125 / 200 / 275 (+100% Bonus Attack Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - The Call of the Pack",
+          "tag": "li",
+          "text": "Damage per Packmate: 15 / 22.5 / 30 (+12% Attack Damage) ⇒ 12.5 / 20 / 27.5 (+10% Bonus Attack Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Blade of the Exile",
+          "tag": "li",
+          "text": "Bonus Attack Damage Ratio: 25% ⇒ 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Wind Slash",
+          "tag": "li",
+          "text": "Bonus Attack Damage Ratio: 60% minimum / 180% maximum ⇒ 55% minimum / 165% maximum"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Chain Lash",
+          "tag": "li",
+          "text": "First Lash Damage: 40 / 65 / 90 / 115 / 140 (+45% Ability Power) ⇒ 40 / 60 / 80 / 100 / 120 (+40% Ability Power)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Thundering Smash",
+          "tag": "li",
+          "text": "Cooldown: 14 / 13 / 12 / 11 / 10 ⇒ 12 / 11.5 / 11 / 10.5 / 10"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor Growth: 4.7 ⇒ 5.2"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Elastic Slingshot",
+          "tag": "li",
+          "text": "Cooldown: 22 / 19 / 16 / 13 / 10 ⇒ 21 / 18 / 15 / 12 / 9"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastionbreaker",
+          "tag": "li",
+          "text": "Cost: 3200g ⇒ 3000g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastionbreaker",
+          "tag": "li",
+          "text": "Shaped Charge Damage: (30 + 150% lethality) true damage ⇒ (50 + 150% lethality) true damage"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Terminus",
+          "tag": "li",
+          "text": "Unique - Shadow: 30 Magic Damage On-Hit ⇒ 30 (+10% bonus Attack Damage) (+10% Ability Power)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Yun Tal Wildarrows",
+          "tag": "li",
+          "text": "Cost: 850g ⇒ 750g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Yun Tal Wildarrows",
+          "tag": "li",
+          "text": "Attack Speed: 40% ⇒ 45%"
+        },
+        {
+          "sourceHeading": "Runes",
+          "sourceSubheading": "Jack of All Trades",
+          "tag": "li",
+          "text": "Adaptive Force at 5 / 10 stat breakpoints: 10 / 25 ⇒ 8 / 20"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug which prevented Neeko to disguise as Voidborn Rift Scuttler."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Pix was always visible as one from Base skin if Neeko disguised as Lulu."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug that prevented Neeko from being able to disguise herself as Nidalee's Cougar form and Elise's Spider form."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug that prevented Neeko to disguise herself as DJ Sona's Concussive and Ethereal Forms."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where if Neeko was disguised as DJ Sona's Kinetic form the hair was missing."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug that caused horns to be visible inside the head when Neeko was disguised by Smolder."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Diana’s E may fail to dash over terrain."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Cassiopeia’s R VFX didn't match the ability’s hitbox."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Mid lane Tier 3 role quest boots could not be refunded with the undo button."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Nilah’s attacks immediately after Q or E may not trigger Hail of Blades."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Deathfire Touch’s burn duration could be overwritten when landing a spell with a shorter duration."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where the Death Recap window may not appear when a player dies."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Locke’s R artifact could not be retrieved on an enemy that was invulnerable when hit by Locke’s R."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Zeke’s convergence active effect would not damage monsters."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Locke’s R was not recolored when the artifact was reflected by Mel W."
+        }
+      ],
+      "sourceSha256": "bc186f6c299d8de72330f460f26ca85881aae0f06a6f5c87b30fe190832508ce"
+    },
+    {
+      "patch": "16.16",
+      "rows": [
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Conquering Sands",
+          "tag": "li",
+          "text": "Damage: 60 / 80 / 100 / 120 / 140 (+35 / 40 / 45 / 50 / 55% AP) ⇒ 75 / 95 / 115 / 135 / 155 (+35 / 40 / 45 / 50 / 55% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Growth: 110 ⇒ 105"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "True Form Total Attack Speed: 5 / 15 / 25% ⇒ 6 / 13 / 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Endless Banquet",
+          "tag": "li",
+          "text": "NEW True Form Remora Indicator: Resource bar now turns purple when True Form can spawn Remora"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Mana: 339 ⇒ 375"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Adaptive Defenses",
+          "tag": "li",
+          "text": "Shield: 20% Maximum Health ⇒ 10 / 15 / 20 / 25% Maximum Health (levels 1 / 7 / 13 / 19)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Adaptive Defenses",
+          "tag": "li",
+          "text": "Cooldown: 18 / 14 / 10 / 6s (levels 1 / 7 / 13 / 19) ⇒ 14 / 11 / 8s (levels 1 / 7 / 13)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Tactical Sweep",
+          "tag": "li",
+          "text": "Cooldown: 15 / 14 / 13 / 12 / 11s ⇒ 12 / 11.5 / 11 / 10.5 / 10s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Tactical Sweep",
+          "tag": "li",
+          "text": "Outer Cone Bonus Damage: 6 / 6.5 / 7 / 7.5 / 8% (+2.5% per 100 bonus Attack Damage) Target Maximum Health ⇒ 7 / 7.5 / 8 / 8.5 / 9% (+2.5% per 100 bonus Attack Damage) Target Maximum Health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - A Thousand Cuts",
+          "tag": "li",
+          "text": "Healing On Champions: 50% post-mitigation, capped to 10-25 (based on level) (+6.5% AP) ⇒ 67% post-mitigation, capped to 12-40 (based on level) (+7% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Slicing Maelstrom",
+          "tag": "li",
+          "text": "Bonus Resistances: 20 / 40 / 60 ⇒ 25 / 50 / 75"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Slicing Maelstrom",
+          "tag": "li",
+          "text": "Damage: 40 / 75 / 110 (+22.5% AP) ⇒ 40 / 80 / 120 (+25% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Slicing Maelstrom",
+          "tag": "li",
+          "text": "Maximum Damage: 300 / 562.5 / 825 (+168.75% AP) ⇒ 300 / 600 / 900 (+187.5% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Siphoning Strike",
+          "tag": "li",
+          "text": "Stacks: 3, increased to 12 on champions / large minions / monsters ⇒ 4, increased to 10 on champions / large minions / monsters"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 60 ⇒ 56"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Regeneration: 8 ⇒ 9"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Mana: 280 + 40/level ⇒ 300 + 45/level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Hammer Shock",
+          "tag": "li",
+          "text": "Damage: 30 / 55 / 80 / 105 / 130 (+100% bonus Attack Damage) (+9% Target Maximum Health), twice ⇒ 30 / 55 / 80 / 105 / 130 (+75% bonus Attack Damage) (+7 / 7.5 / 8 / 8.5 / 9% Target Maximum Health), twice"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Hammer Shock",
+          "tag": "li",
+          "text": "Target Maximum Health Monster Cap: 75 / 105 / 135 / 165 / 195 ⇒ 85 / 120 / 155 / 190 / 225"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Hammer Shock",
+          "tag": "li",
+          "text": "Slow Amount: 20 / 25 / 30 / 35 / 40% ⇒ 20 / 23 / 26 / 29 / 32% (+8% per 1000 bonus Health)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Steadfast Presence",
+          "tag": "li",
+          "text": "Total Armor and Magic Resistance: 12%, doubled below 40% Maximum Health ⇒ 16%, doubled below 40% Maximum Health"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Berserker's Greaves",
+          "tag": "li",
+          "text": "Attack Speed: 25% ⇒ 30%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Berserker's Greaves",
+          "tag": "li",
+          "text": "T3 Attack Speed: 40% ⇒ 45%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Black Cleaver",
+          "tag": "li",
+          "text": "Attack Damage: 40 ⇒ 45"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Black Cleaver",
+          "tag": "li",
+          "text": "Fervor Move Speed: 20 for 2s ⇒ [20 Melee || 10 Ranged] for 2s"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Eclipse",
+          "tag": "li",
+          "text": "Damage: [6% Melee || 4% Ranged] Target Maximum Health ⇒ [8% Melee || 5% Ranged] Target Maximum Health"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Eclipse",
+          "tag": "li",
+          "text": "Shield: [160 + 40% bonus Attack Damage Melee || 80 + 20% bonus Attack Damage Ranged] ⇒ [150 + 40% bonus Attack Damage Melee || 75 + 20% bonus Attack Damage Ranged]"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Runaan's Hurricane",
+          "tag": "li",
+          "text": "Move Speed: 4% ⇒ 5%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Runaan's Hurricane",
+          "tag": "li",
+          "text": "Wind's Fury Bolt Damage: 55% Attack Damage ⇒ 65% Attack Damage"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sterak's Gage",
+          "tag": "li",
+          "text": "Bonus Attack Damage: 45% of Base Attack Damage ⇒ 50% of Base Attack Damage"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sundered Sky",
+          "tag": "li",
+          "text": "Recipe: Tunneler (1150g) + Caulfield's (1050g) + Ruby Crystal (400g) + 500g ⇒ Tunneler (1150g) + Caulfield's (1050g) + 900g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sundered Sky",
+          "tag": "li",
+          "text": "Healing: [100% Melee || 50% Ranged] Base Attack Damage + 6% Missing Health ⇒ [90% Melee || 45% Ranged] Base Attack Damage + 4% Missing Health"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sundered Sky",
+          "tag": "li",
+          "text": "Health: 400 ⇒ 450"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sunfire Cape",
+          "tag": "li",
+          "text": "Damage: 20 (+1% bonus Health) ⇒ 20 (+1.5% bonus Health)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sunfire Cape",
+          "tag": "li",
+          "text": "Minion / Monster Modifier: 160% Minion, 200% Monster ⇒ 150% Minion, 180% Monster"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sunfire Cape",
+          "tag": "li",
+          "text": "Recipe: 600g ⇒ 700g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Chainlaced Crushers",
+          "tag": "li",
+          "text": "Magic Resistance: 30 ⇒ 25"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Spellslinger's Shoes",
+          "tag": "li",
+          "text": "Magic Penetration: 18 + 8% ⇒ 20 + 8%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Tiamat",
+          "tag": "li",
+          "text": "Attack Damage: 20 ⇒ 25"
+        },
+        {
+          "sourceHeading": "Runes",
+          "sourceSubheading": "Fleet Footwork",
+          "tag": "li",
+          "text": "Healing: 10-130 ( +[10% bonus AD Melee || 6% bonus AD Ranged]) ( +[5% AP Melee || 3% AP Ranged]) ⇒ 15-160 ( +[10% bonus AD Melee || 6% bonus AD Ranged]) ( +[5% AP Melee || 3% AP Ranged])"
+        },
+        {
+          "sourceHeading": "Runes",
+          "sourceSubheading": "Hail of Blades",
+          "tag": "li",
+          "text": "Attack Speed: 120% Melee || 60% Ranged ⇒ 90% Melee || 60% Ranged"
+        },
+        {
+          "sourceHeading": "Runes",
+          "sourceSubheading": "Hail of Blades",
+          "tag": "li",
+          "text": "Bonus True Damage: 4-20 (+8% bonus AD) (+6% AP) ⇒ 2-20 (+12% bonus AD) (+10% AP)"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "ADC MAGIC RESISTANCE",
+          "tag": "li",
+          "text": "Affected Champions: Akshan, Aphelios, Ashe, Caitlyn, Corki, Draven, Ezreal, Graves, Jhin, Jinx, Kai'Sa, Kalista, Kindred, Kog'Maw, Lucian, Miss Fortune, Quinn, Samira, Senna, Sivir, Smolder, Twitch, Varus, Vayne, Xayah, Yunara, Zeri"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "ADC MAGIC RESISTANCE",
+          "tag": "li",
+          "text": "Magic Resistance: 30 + 1.3/level ⇒ 33 + 1.1/level"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "ADC MAGIC RESISTANCE",
+          "tag": "li",
+          "text": "Tristana Magic Resistance: 28 + 1.3/level ⇒ 33 + 1.1/level"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "JUNGLE PETS",
+          "tag": "li",
+          "text": "Damage Per Attack: 20 - 150 (based on level) (+10% bonus Attack Damage) (+12% Ability Power) (+20% bonus Armor) (+20% bonus Magic Resistance) (+3% bonus Health) ⇒ 20 - 150 (based on level) (+10% bonus Attack Damage) (+16% Ability Power) (+25% bonus Armor) (+25% bonus Magic Resistance) (+4% bonus Health)"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "SUPPORT ROLE QUEST",
+          "tag": "li",
+          "text": "Stack Consumption On Champion / Turret Damage: 22 Melee || 20 Ranged and 24 Melee || 22 Ranged ⇒ 18 and 21"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "SUPPORT ROLE QUEST",
+          "tag": "li",
+          "text": "Stack Consumption On Creep Score: 15 and 20 ⇒ 18 and 21"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "SUPPORT ROLE QUEST",
+          "tag": "li",
+          "text": "Minion Creep Score Experience / Gold Penalty: -25% outside of bot lane until level 3 ⇒ -33% outside of bot lane until level 5"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "QoL CHANGES",
+          "tag": "li",
+          "text": "Reduced the volume of base Locke (Q) missile cast sound effects to better sit in the overall game mix."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Viego with the Bot lane Role Quest would be able to steal his possessed target's boots."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where upgrading from Hexdrinker to Maw of Malmortius did not reset the cooldown of the item."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where killing a ward would display debug text for spectators."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Locke picking up his (R) artifact would refund based on its current cooldown instead of the total cooldown."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where in certain circumstances Taunt and Berserk effects could be ignored using WASD controls."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Support players' Control wards would be consumed when trying to place them while dead."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Ambessa's omnivamp would apply on turrets when driving Rift Herald into them."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Mordekaiser (R) improperly gains Ability Haste."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Bel'Veth's resource bar would incorrectly update if she hit 80 stacks while already in True Form."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Locke (R) execution would be considered a spell cast."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "BUGFIXES",
+          "tag": "li",
+          "text": "Fixed a bug where Viktor (R) lightning VFX would stretch across the screen in certain situations."
+        }
+      ],
+      "sourceSha256": "57718e6cb908ed451568f5336c8c91275deab1f53810370e47acab6ad1bd1387"
+    },
+    {
+      "patch": "16.17",
+      "rows": [
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Breath of Light",
+          "tag": "li",
+          "text": "Mana Cost Per Second: 35 / 40 / 45 / 50 / 55 ⇒ 30 / 35 / 40 / 45 / 50"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Astral Flight",
+          "tag": "li",
+          "text": "Cooldown: 22 / 20.5 / 19 / 17.5 / 16s ⇒ 22 / 20 / 18 / 16 / 14s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Vorpal Spikes",
+          "tag": "li",
+          "text": "Base Damage (x3 attacks): 20 / 40 / 60 / 80 / 100 (+30% AP) (+2.5% - 3.9% (+.5% Per Feast) Target Max HP) ⇒ 30 / 50 / 70 / 90 / 110 (+30% AP) (+2.5% - 3.9% (+.5% Per Feast) Target Max HP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - End of the Line",
+          "tag": "li",
+          "text": "Initial Damage: 50 / 75 / 100 / 125 / 150 (+65% bonus AD) ⇒ 50 / 75 / 100 / 125 / 150 (+55% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - End of the Line",
+          "tag": "li",
+          "text": "Return Damage: 80 / 125 / 170 / 215 / 260 (+55 / 70 / 85 / 100 / 115% bonus AD) ⇒ 80 / 125 / 170 / 215 / 260 (+45 / 60 / 75 / 90 / 105% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Bladesurge",
+          "tag": "li",
+          "text": "Damage: 5 / 25 / 45 / 65 / 85 (+70% AD) ⇒ 5 / 25 / 45 / 65 / 85 (+80% AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Defiant Dance",
+          "tag": "li",
+          "text": "Damage Reduction Ability Power Ratio: 7% per 100 AP (Halved for Magic Damage) (reduced to 75% value for Magic Damage in Arena) ⇒ 8% per 100 AP (Halved for Magic Damage) (reduced to 75% value for Magic Damage in Arena)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Vanguard's Edge",
+          "tag": "li",
+          "text": "Ability Power Ratio: 70% ⇒ 100% (It is already 100% in Arena, so this is standardizing the value)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Speed Ratio: 0.4 ⇒ 0.625"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Speed Growth: 2.35% ⇒ 1.5%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Distortion",
+          "tag": "li",
+          "text": "Damage: 75 / 115 / 155 / 195 / 235 (+80% AP) ⇒ 75 / 115 / 155 / 195 / 235 (+90% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "RW - Mimic: Distortion",
+          "tag": "li",
+          "text": "Damage: 150 / 315 / 480 (+80% AP) ⇒ 150 / 315 / 480 (+90% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Soul Eater",
+          "tag": "li",
+          "text": "Life Steal: 12 / 18 / 24% ⇒ 10 / 15 / 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor: 38 ⇒ 36"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 655 ⇒ 640"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Elemental Wrath",
+          "tag": "li",
+          "text": "Damage: 70 / 100 / 130 / 160 / 190 (+85% bonus AD) ⇒ 80 / 110 / 140 / 170 / 200 (+90% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Elemental Wrath",
+          "tag": "li",
+          "text": "Monster Damage Modifier: 175% against Monsters ⇒ 160% against Monsters"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Flay",
+          "tag": "li",
+          "text": "Active Damage: 75 / 120 / 165 / 210 / 255 (+70% AP) ⇒ 65 / 110 / 155 / 200 / 245 (+60% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Frozen Domain",
+          "tag": "li",
+          "text": "Attack Speed: 30 / 45 / 60 / 75 / 90% ⇒ 30 / 50 / 70 / 90 / 110%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 550 + 103/Level ⇒ 580 + 98/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Regeneration: 3.5 + .55/Level ⇒ 4 + .5/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Speed Ratio: .658 + 3.3%/Level ⇒ .67 + 2.8%/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Tumble",
+          "tag": "li",
+          "text": "Mana Cost: 30 ⇒ 46 / 42 / 38 / 34 / 30"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Silver Bolts",
+          "tag": "li",
+          "text": "True Damage: 6 / 7 / 8 / 9 / 10% Target Max HP ⇒ 4 / 5.5 / 7 / 8.5 / 10% Target Max HP"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Silver Bolts",
+          "tag": "li",
+          "text": "Minimum Damage: 50 / 65 / 80 / 95 / 110 ⇒ 40 / 55 / 70 / 85 / 100"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 596 ⇒ 575"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Arcanopulse",
+          "tag": "li",
+          "text": "Damage: 75 / 115 / 155 / 195 / 235 (+90% AP) ⇒ 70 / 110 / 150 / 190 / 230 (+90% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Way of the Wanderer",
+          "tag": "li",
+          "text": "Critical Strike Damage Reduction: -10% ⇒ -5%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Way of the Hunter",
+          "tag": "li",
+          "text": "Critical Strike Damage Reduction: -10% ⇒ -5%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Stormrazor",
+          "tag": "li",
+          "text": "Attack Speed: 20% ⇒ 25%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sundered Sky",
+          "tag": "li",
+          "text": "Health: 450 ⇒ 400"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Sundered Sky",
+          "tag": "li",
+          "text": "Attack Damage: 45 ⇒ 40"
+        },
+        {
+          "sourceHeading": "Updated System Requirements",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "The minimum and recommended specs for macOS have been updated. Please refer to the Minimum and Recommended System Requirements Player Support article for full details."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "NEW Added controller preset for spectator camera movement, giving users smoother control of camera views when ReplayAPI is enabled. Instructions for getting started with the ReplayAPI can be accessed here."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Jayce's EQ damage was not properly displayed as enhanced damage."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Diana's E dash speed was slower than intended in certain cases."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Akali's Shuriken (E) could travel across the map, allowing her to hit and dash to targets at unintended distances."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug with Swiftmarch’s tooltip where it stated it provided more Slow Resist than it did."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Vladimir P would not properly convert AP from runes."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug in Blind Pick (Custom Games) where junglers would be locked out of their starting items in very rare cases."
+        }
+      ],
+      "sourceSha256": "8c4da9ca357100660c1f71027569c8f490e32e85b8c9eaed7c01a34c1bd70df5"
+    },
+    {
+      "patch": "16.18",
+      "rows": [
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor: 34 + 5/Level ⇒ 32 + 4.7/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Serpentine Grace",
+          "tag": "li",
+          "text": "Move Speed Bonus: 6% - 40% (based on level) ⇒ 5% - 36% (based on level)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Noxious Blast",
+          "tag": "li",
+          "text": "Damage: 75 / 110 / 145 / 180 / 215 ⇒ 65 / 100 / 135 / 170 / 205"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Noxious Blast",
+          "tag": "li",
+          "text": "Ability Power Ratio: 65% ⇒ 75%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Twin Fang",
+          "tag": "li",
+          "text": "Mana Cost: 40 ⇒ 45"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Twin Fang",
+          "tag": "li",
+          "text": "Base Ability Power Ratio: 10% ⇒ 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Twin Fang",
+          "tag": "li",
+          "text": "Enhanced Ability Power Ratio: 55% ⇒ 45%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Twin Fang",
+          "tag": "li",
+          "text": "Total Ability Power Ratio: 65% ⇒ 65%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Twin Fang",
+          "tag": "li",
+          "text": "Damage: 52 - 120 ⇒ 50 - 120"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Petrifying Gaze",
+          "tag": "li",
+          "text": "Damage: 150 / 250 / 350 ⇒ 125 / 225 / 325"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Petrifying Gaze",
+          "tag": "li",
+          "text": "Ability Power Ratio: 50% ⇒ 75%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Timewinder",
+          "tag": "li",
+          "text": "Mana Cost: 50 / 60 / 70 / 80 / 90 ⇒ 40 / 50 / 60 / 70 / 80"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Timewinder",
+          "tag": "li",
+          "text": "Return Damage Ability Power Ratio: 60% ⇒ 70%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Null Sphere",
+          "tag": "li",
+          "text": "Ability Power Ratio: 70% AP ⇒ 80% AP"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Riftwalk",
+          "tag": "li",
+          "text": "Base Damage: 70 / 90 / 110 ⇒ 80 / 95 / 110"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor Growth: 33 + 4.5/Level ⇒ 33 + 5/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Highlander",
+          "tag": "li",
+          "text": "Move Speed: 35 / 45 / 55% ⇒ 40 / 50 / 60%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 61 + 3.3/Level ⇒ 58 + 3.3/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Dredge Line",
+          "tag": "li",
+          "text": "Damage: 85 / 130 / 175 / 220 / 265 (+90% AP) ⇒ 85 / 125 / 165 / 205 / 245 (+90% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Beat Drop",
+          "tag": "li",
+          "text": "Cooldown: 11 / 10.5 / 10 / 9.5 / 9s ⇒ 11s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Transcendent",
+          "tag": "li",
+          "text": "Splinter Mana: 20 - 255 ⇒ 20 - 199"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Force of Will",
+          "tag": "li",
+          "text": "Cooldown: 12 / 11 / 10 / 9 / 8s ⇒ 13 / 12 / 11 / 10 / 9s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage Growth: 3.5 ⇒ 4"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Sovereign's Domination",
+          "tag": "li",
+          "text": "Heal: 2% (+…. ) ⇒ 2% (+ 2.5% per 100 bonus AD) (+ 2% per 100 AP) (+ 5% per 100% bonus attack speed) (+ 2% per 500 bonus HP) of the target's maximum health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - The Darkin Glaive",
+          "tag": "li",
+          "text": "NEW Cooldown Behavior: If Q is active, it is now placed on Cooldown immediately upon being put in Resurrection"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - The Darkin Glaive",
+          "tag": "li",
+          "text": "Q2 Damage: 25 / 50 / 75 / 100 / 125 (+20 / 25 / 30 / 35 / 40% bonus AD) ⇒ 30 / 60 / 90 / 120 / 150 (+20 / 25 / 30 / 35 / 40% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Ultrashock Laser",
+          "tag": "li",
+          "text": "Damage: 30 / 70 / 110 / 150 / 190 (+120% tAD) ⇒ 30 / 70 / 110 / 150 / 190 (+100% tAD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Ultrashock Laser",
+          "tag": "li",
+          "text": "Wall Damage: 45 / 105 / 165 / 225 / 285 (+180% tAD) ⇒ 45 / 105 / 165 / 225 / 285 (+150% tAD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Ultrashock Laser",
+          "tag": "li",
+          "text": "Critical Strike: 150% (+15% IE)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Guinsoo's Rageblade",
+          "tag": "li",
+          "text": "Seething Strike Stack Duration: 3s ⇒ 4s"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Baron Nashor's max stacks of Void Corruption was higher than intended."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Serpent's Fang's Shield Reaver damage applied Omnivamp."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Diana's R VFX may not play properly around different areas of the map."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Viego possessing Kled could result in an infinite looping sound effect."
+        }
+      ],
+      "sourceSha256": "93cd77e5af4ba36783873f0bb25dfb4a4a0c3b4b2a4ba9710df58f2aec3c9e76"
+    },
+    {
+      "patch": "16.19",
+      "rows": [
+        {
+          "sourceHeading": "Team Voice",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "First up, we wanted to share an update on the rollout of Team Voice, which is our planned expansion to the existing pre-made party voice chat allowing you to chat with everyone on your team. While we originally announced this as coming to North America and Oceania in Patch 26.20, after extensive testing, we've made the call to postpone this a bit to make sure we're hitting the quality bar you deserve for the experience. We don't have a target patch just yet, but we're prioritizing ironing out the kinks as efficiently as we can, since we know this is a long awaited feature we need to get right."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Infernal Chains",
+          "tag": "li",
+          "text": "Cooldown: 20 / 18 / 16 / 14 / 12 seconds ⇒ 18 / 16.5 / 15 / 13.5 / 12 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Umbral Dash",
+          "tag": "li",
+          "text": "Health Heal Ratio: 1.1% per 100 bonus health ⇒ 1.3% per 100 bonus health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Calibrum",
+          "tag": "li",
+          "text": "Moonshot Damage: 70 - 160 (+42 - 60% bonus AD) (+100% AP) ⇒ 80 - 170 (+42 - 60% bonus AD) (+100% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Severum",
+          "tag": "li",
+          "text": "Healing: 2 - 7.1%, increased to 5 - 17.75% ⇒ 2 - 8%, increased to 5 - 20%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Gravitum",
+          "tag": "li",
+          "text": "Slow: 30% for 2.5 seconds, decaying to 10% after 0.7 seconds ⇒ 30% for 2.5 seconds, decaying to 15% after 0.7 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Infernum",
+          "tag": "li",
+          "text": "Duskwave Cooldown: 9 / 8.25 / 7.5 / 6.75 / 6 seconds ⇒ 8 / 7.25 / 6.5 / 5.75 / 5 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Crescendum",
+          "tag": "li",
+          "text": "Mini-Crescendum Damage: 15% AD, decreasing by 1.5% AD to a minimum of 5% AD for the 8th+ chakram ⇒ 16% AD, decreasing by 1.5% AD to a minimum of 5% AD for the 9th+ chakram"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - The Weirding",
+          "tag": "li",
+          "text": "Base Damage: 70 / 110 / 150 / 190 / 230 ⇒ 80 / 120 / 160 / 200 / 240"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Between Worlds",
+          "tag": "li",
+          "text": "Rift Duration: 1.75 / 2.5 / 3.25 seconds ⇒ 2.25 / 2.75 / 3.25 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 62 ⇒ 64"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Spider Queen",
+          "tag": "li",
+          "text": "Passive Magic Damage On-Hit: 12 / 22 / 32 / 42 ⇒ 14 / 24 / 34 / 44"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Skittering Frenzy",
+          "tag": "li",
+          "text": "Bonus Attack Speed: 60 / 75 / 90 / 105 / 120% ⇒ 70 / 85 / 100 / 115 / 130%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Growth: 99 ⇒ 105"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Grand Challenge",
+          "tag": "li",
+          "text": "Heal Range: 550 ⇒ 600"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Grand Challenge",
+          "tag": "li",
+          "text": "Heal Per Tick: 18.75 / 25 / 31.25 (+15% bonus AD) ⇒ 20 / 26.25 / 32.5 (+17.5% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Grand Challenge",
+          "tag": "li",
+          "text": "Maximum Heal: 375 / 500 / 625 (+300% bonus AD) ⇒ 400 / 525 / 650 (+350% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Unseen Threat",
+          "tag": "li",
+          "text": "Damage: 17 - 136 (+50% bonus AD) ⇒ 22 - 141 (+50% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Void Spike",
+          "tag": "li",
+          "text": "Evolved Slow Duration: 2 seconds ⇒ 2.25 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Leap",
+          "tag": "li",
+          "text": "Evolved Range Bonus: +200 ⇒ +300"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor: 22 ⇒ 24"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Lilting Lullaby",
+          "tag": "li",
+          "text": "Sleep Duration: 2 seconds ⇒ 2.5 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Vigilance",
+          "tag": "li",
+          "text": "Empowered On-Hit Damage: 15 (+20% AD) ⇒ 5 (+15% AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Light",
+          "tag": "li",
+          "text": "Base Damage: 80 / 115 / 150 / 185 / 220 (+100% bonus AD) ⇒ 90 / 130 / 170 / 210 / 250 (+100% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Alpha Strike",
+          "tag": "li",
+          "text": "Cooldown Refund on Hit: -1 second, scaling down with Ability Haste ⇒ 1 second"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Siphoning Strike",
+          "tag": "li",
+          "text": "Bonus Damage: 40 / 60 / 80 / 100 / 120 ⇒ 30 / 50 / 70 / 90 / 110"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Paranoia",
+          "tag": "li",
+          "text": "Cooldown: 140 / 115 / 90 seconds ⇒ 160 / 130 / 100 seconds"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Hammer Shock",
+          "tag": "li",
+          "text": "Minion/Monster Maximum Health Cap: 85 / 120 / 155 / 190 / 225 ⇒ 70 / 105 / 140 / 175 / 210"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Junkyard Titan",
+          "tag": "li",
+          "text": "Overheat Attack Speed: 50 - 130% ⇒ 30 - 100%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Junkyard Titan",
+          "tag": "li",
+          "text": "Monster Cap: 65 - 150 ⇒ 90 - 175"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Armor Growth: 4.2 ⇒ 4.7"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Overload",
+          "tag": "li",
+          "text": "Flux Bonus Damage: 25 / 50 / 75 / 100% increased damage ⇒ 15 / 40 / 65 / 90% increased damage"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Spell Flux",
+          "tag": "li",
+          "text": "Mana Cost: 35 / 45 / 55 / 65 / 75 ⇒ 40 / 50 / 60 / 70 / 80"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 63 + 3.5/Level ⇒ 61 + 3.9/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Blast Shield",
+          "tag": "li",
+          "text": "Shield: 12% Maximum Health ⇒ 10% Maximum Health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - The Relentless Storm",
+          "tag": "li",
+          "text": "Attack Speed per Stack: 5% (+3% per 100 AP) ⇒ 5% (+4% per 100 AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - The Relentless Storm",
+          "tag": "li",
+          "text": "Lightning On-Hit Damage: 11 - 60 (Levels 1-18) (+45% AP) ⇒ 11 - 60 (Levels 1-18) (+45% AP) (+20% bonus AD)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "World Atlas and Runic Compass",
+          "tag": "li",
+          "text": "Health: 30 / 100 / 200 ⇒ 0 / 60 / 200"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "World Atlas and Runic Compass",
+          "tag": "li",
+          "text": "Health Regeneration: 25% / 50% / 75% ⇒ 50% / 75% / 75%"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "Teleport Cooldown",
+          "tag": "li",
+          "text": "Top Role Quest's Free Teleport Cooldown: 420 seconds ⇒ 390 seconds"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "Teleport Cooldown",
+          "tag": "li",
+          "text": "Top Role Quest's Upgraded Unleashed Teleport Cooldown: 330 - 240 seconds ⇒ 300 - 210 seconds"
+        },
+        {
+          "sourceHeading": "Systems",
+          "sourceSubheading": "Teleport Cooldown",
+          "tag": "li",
+          "text": "Non-Top Unleashed Teleport Cooldown: 330 - 240 seconds ⇒ Unchanged"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Renata's R would not amp damage caused by Berserk targets."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Updated the Practice Tool Stack Item cheat to include: Dark Seal, Mejai's, Heartsteel, Gluttonous Greaves, and Force of Nature."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Taliyah's W terrain was smaller than the hitbox."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Yone's R warning VFX was not visible in very specific circumstances."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Yunara's auto resets would not extend Hail of Blades appropriately."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Renekton would not gain 20 fury from his ult when it was cast immediately after W."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Nunu & Willump could unlock his camera during W."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where clones would not receive Homeguards after running back to the fountain"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Target Champions Only could be toggled on unexpectedly"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Camille's W would count as two hits when triggering bone plating."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Camille's Passive would sometimes not proc Shield Bash."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Aatrox Q sweetspots use crit text instead of enhanced damage text."
+        }
+      ],
+      "sourceSha256": "9881205cc39d9158282e47e5a1aeb1d5b4ebc82e303ab998f113fa3d81fde1aa"
+    },
+    {
+      "patch": "16.20",
+      "rows": [
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Drakehound's Step",
+          "tag": "li",
+          "text": "Damage: 5 - 30 (+25% bonus AD) ⇒ 5 - 25 (+20% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage per Level: 3.5 ⇒ 3"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Health: 630 ⇒ 610"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Mana: 480 ⇒ 450"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Pale Cascade",
+          "tag": "li",
+          "text": "Shield Bonus Health Ratio: 11% ⇒ 14%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Lightning Rush",
+          "tag": "li",
+          "text": "Bonus Attack Speed: 40 / 50 / 60 / 70 / 80% ⇒ 50 / 60 / 70 / 80 / 90%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Wolf's Frenzy",
+          "tag": "li",
+          "text": "Monster Mod: 150% ⇒ 165%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Mounting Dread",
+          "tag": "li",
+          "text": "Slow Duration: 1s ⇒ 1.5s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Mounting Dread",
+          "tag": "li",
+          "text": "Small Monster Targeting: Enabled ⇒ Removed"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Path Maker",
+          "tag": "li",
+          "text": "Mana Cost: 40 / 45 / 50 / 55 / 60 ⇒ 45 / 50 / 55 / 60 / 65"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Path Maker",
+          "tag": "li",
+          "text": "W Base/All-Out Damage Reduction: 30 / 75% ⇒ 25 / 70%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Lilting Lullaby",
+          "tag": "li",
+          "text": "Duration: 2.5s ⇒ 2.5 / 2.75 / 3s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 60 + 2.5/Level ⇒ 60 + 2.9/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Obliterate",
+          "tag": "li",
+          "text": "Scaling Level 10-20: (+5/lvl) ⇒ (+7/lvl)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Realm of Death",
+          "tag": "li",
+          "text": "Cooldown: 140 / 120 / 100s ⇒ 120 / 110 / 100s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Tangle-Barbs",
+          "tag": "li",
+          "text": "Base Damage: 70 / 105 / 140 / 175 / 210 (+65% AP) ⇒ 80 / 115 / 150 / 185 / 220 (+65% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Tangle-Barbs",
+          "tag": "li",
+          "text": "Empowered Root Duration: 1.8 / 2.1 / 2.4 / 2.7 / 3s ⇒ 2 / 2.25 / 2.5 / 2.75 / 3s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Dragon Practice",
+          "tag": "li",
+          "text": "Super Scorcher Bonus Magic Damage: 25 - 55% (+0-9% with IE) of Dragon Practice Stacks, scaling with Crit Chance ⇒ 25 - 60% (+0-10.5% with IE) of Dragon Practice Stacks, scaling with Crit Chance"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Dragon Practice",
+          "tag": "li",
+          "text": "Flap Flap Flap Bonus Magic Damage: 8 - 12.8% (+0-1.44% with IE) of Dragon Practice Stacks, scaling with Crit Chance ⇒ 8 - 14% (+0-1.8% with IE) of Dragon Practice Stacks, scaling with Crit Chance"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Mmooommmm!",
+          "tag": "li",
+          "text": "Self Heal: 100 / 135 / 170 (+50% bonus AD) (+75% AP) ⇒ 100 / 175 / 250 (+75% bonus AD) (+75% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Magic Resistance: 31 ⇒ 34"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Base Armor: 25 ⇒ 23"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Vision of Empire",
+          "tag": "li",
+          "text": "Damage: 70 / 105 / 140 / 175 / 210 (+60%) ⇒ 70 / 115 / 160 / 205 / 250 (+60%)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Vision of Empire",
+          "tag": "li",
+          "text": "Cooldown: 22 / 21 / 20 / 19 / 18s ⇒ 20 / 19 / 18 / 17 / 16s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Tongue Lash",
+          "tag": "li",
+          "text": "Base Healing: 10 / 13.75 / 17.5 / 21.25 / 25 ⇒ 10 / 20 / 30 / 40 / 50"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health per 5: 4 + .5/Level ⇒ 5.5 +.4/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Tumble",
+          "tag": "li",
+          "text": "Mana Cost: 46 / 42 / 38 / 34 / 30 ⇒ 30"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Cultivation of Spirit",
+          "tag": "li",
+          "text": "Passive On Hit Damage: 5 / 10 / 15 / 20 / 25 (+20% AP) ⇒ 3 / 8 / 13 / 18 / 23 (+20% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Cultivation of Spirit",
+          "tag": "li",
+          "text": "Active On Hit Damage: 5 / 10 / 15 / 20 / 25 (+20% AP) ⇒ 3 / 8 / 13 / 18 / 23 (+20% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Arc of Judgement",
+          "tag": "li",
+          "text": "Slow Stacking: Stacks with other slows ⇒ No longer stacks with other slows"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Experimental Hexplate",
+          "tag": "li",
+          "text": "Ranged Mod: 70% of Value (35% Attack Speed, 14% Move Speed) ⇒ 50% of Value (25% Attack Speed, 10% Move Speed)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Ability Haste: 20 ⇒ 10"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hextech Rocketbelt",
+          "tag": "li",
+          "text": "Active Damage: 100 (+10% AP) ⇒ 135 (+15% AP)"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Runaan's Hurricane",
+          "tag": "li",
+          "text": "Attack Damage per Bolt: 65% ⇒ 60%"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "p",
+          "text": "Our recent systemic buff-bar clarity work moved a lot of numbers from buffs onto items. These numbers began terrorizing your scoreboards (thanks, Death's Dance). The scoreboard should show strategically relevant information, not noisy in-the-moment combat state, and we're hiding most item numbers on the scoreboard to reflect this principle. Strategically relevant item numbers, like Tear of the Goddess items and Mejai's Soulstealer, remain on the scoreboard icons."
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "p",
+          "text": "The following items' icon counters are now hidden on the scoreboard:"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Death's Dance"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Haunting Guise"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Liandry's Torment"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Riftmaker"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Kraken Slayer"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Terminus"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Guinsoo's Rageblade"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Fiendhunter Bolts"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Echoes of Helia"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Dead Man's Plate"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Spear of Shojin"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Overlord's Bloodmail"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Hullbreaker"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Jak'sho the Protean"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Scoreboard Cleanup",
+          "tag": "li",
+          "text": "Force of Nature"
+        },
+        {
+          "sourceHeading": "Ranked 5s",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "In case you missed it, we've extended the queue windows for Ranked 5s from the previous 4pm-2am to 4pm-4am server time. We noticed"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Orianna's (R) VFX and actual hitbox become misplaced if she casts (R) before the ball reaches a fast-moving ally like Nocturne."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where a Sylas-stolen Depth Charge (R) from Nautilus could fizzle after Sylas lost vision of the target."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Xin Zhao's Three Talon Strike (Q) went completely on cooldown if the first attack was dodged by spells like Shen's Shadow Dash (E) or Jax's Counterstrike (E)."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Shyvana's Dragon's Descent (R) ability fails to cancel enemy teleports."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Kayle's Reckoning (Q) applies the on-hit Spellblade effect from Sheen, Lich Bane, Trinity Force, and Iceborne Gauntlet."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where large melee champions could auto large enemy champions and not be in immolate radius."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Rune page tabs overflow and clip the editor when owning more than 20 pages."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Sivir's Spell Shield (E) does not block Leona's Zenith Blade (E)."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where the tab buttons in the champion overview window are misaligned and unusable."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Malphite's Flash summoner spell is disabled after using Unstoppable Force (R)."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where images from the Classic Mode Homepage loaded when logging into a non-Classic Mode tab."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where rapidly pressing Recall gains Guinsoo's Rageblade stacks."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Runaan's Hurricane Volley (P) triggers Minions' Call for Help."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Sivir's Spell Shield does not block damage from Miss Fortune's Q."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Sona's (E) ability description incorrectly states that its effect applies only to champions."
+        }
+      ],
+      "sourceSha256": "bd0d4e23e9733ee9a3f26e2ea2a88f3c617c2e20d869afe820260c63e00e4b1f"
+    },
+    {
+      "patch": "16.21",
+      "rows": [
+        {
+          "sourceHeading": "Mid-Patch Updates",
+          "sourceSubheading": "Varus",
+          "tag": "p",
+          "text": "This patch we did work to adjust Varus' top and bottom power skew, which involved shifting the balance between his Q and W for laning. While the resulting changes have seemed promising, we unfortunately added a major bug to his Q during this work, causing it to no longer deal reduced damage to subsequent targets. We are fixing that bug, and compensating with a buff."
+        },
+        {
+          "sourceHeading": "Mid-Patch Updates",
+          "sourceSubheading": "Varus",
+          "tag": "li",
+          "text": "Passive Bonus AD and AP on Kill/Takedown: (1.1 per 10% AS) as bonus AD and AP ⇒ 1.4 per 10% AS"
+        },
+        {
+          "sourceHeading": "Mid-Patch Updates",
+          "sourceSubheading": "Varus",
+          "tag": "li",
+          "text": "Q Minimum Damage: 50 - 230 ⇒ 50 - 250"
+        },
+        {
+          "sourceHeading": "Replay Download Limits",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "Starting during Patch 26.21, replay downloads will be limited to 10 per hour. You will still be able to download your own replays, as well as replays from your friends and other players. This change is necessary to prevent large-scale abuse of downloaded replays by bad actors using vibecoded apps to scrape thousands upon thousands of replays. We opted for a time-based limit to still allow creators to make content, while preventing mass exploitative downloads. We’ll continue to monitor how many replays are downloaded to ensure players have access to this important feature while preventing clear misuse."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Mana Growth: 40/Level ⇒ 50/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Headshot",
+          "tag": "li",
+          "text": "Damage: 60 - 100% AD (+1% AD per 1% per Crit Chance) (+1% AD per 1% Bonus Crit Damage) ⇒ 60 - 80% AD (+0.8% AD per 1% per Crit Chance) (+0.8% AD per 1% Bonus Crit Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piltover Peacemaker",
+          "tag": "li",
+          "text": "Base Damage: 50 / 90 / 130 / 170 / 210 ⇒ 50 / 95 / 140 / 185 / 230"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Decimate",
+          "tag": "li",
+          "text": "Cooldown: 9 / 8 / 7 / 6 / 5s ⇒ 9 / 8 / 7 / 6 / 4s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Attack Damage: 59 + 3.25/Level ⇒ 59 + 3/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 630 + 105/Level ⇒ 610 + 105/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Safeguard",
+          "tag": "li",
+          "text": "Cooldown: 7s ⇒ 8s"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Tempest",
+          "tag": "li",
+          "text": "Bugfix: No longer reveals invisible enemies if they stealth after being hit by Tempest."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Dragon's Rage",
+          "tag": "li",
+          "text": "Kick Damage: 175 / 400 / 625 (+200% bonus AD) ⇒ 150 / 350 / 550 (+200% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Dragon's Rage",
+          "tag": "li",
+          "text": "Collision Damage: 175 / 400 / 625 (+200% bonus AD) (+12 / 15 / 18% Kicked Champion's Health) ⇒ 150 / 350 / 550 (+200% bonus AD) (+12 / 15 / 18% Kicked Champion's Health)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Ritual Nails",
+          "tag": "li",
+          "text": "Unused Charge Refund: 20 - 35% mana and cooldown refund ⇒ 10 - 40% mana and cooldown refund"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Mana Growth: 70 ⇒ 60"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Mana Cost: 50 / 55 / 60 / 65 / 70 ⇒ 60 / 65 / 70 / 75 / 80"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Grey Health Store Based on Current Health: 40 - 200 (both level based) ⇒ 20 - 200"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Soul Ignition",
+          "tag": "li",
+          "text": "Current Health Store: 150 - 450 (both level based) ⇒ 100 - 500 (+60% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Ashen Pursuit",
+          "tag": "li",
+          "text": "Blink Damage: 40 / 50 / 60 / 70 / 80 (+40% AP) ⇒ 40 / 55 / 70 / 85 / 100 (+50% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Make It Rain",
+          "tag": "li",
+          "text": "Damage: 70 / 100 / 130 / 160 / 190 (+120% AP) ⇒ 90 / 120 / 150 / 180 / 210 (+120% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Bullet Time",
+          "tag": "li",
+          "text": "Critical Strike Damage: 130% (+0.3% per 1% Bonus Crit Damage) ⇒ 145% (+0.45% per 1% Bonus Crit Damage)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Pounce",
+          "tag": "li",
+          "text": "Damage: 55 / 88.75 / 122.5 / 156.25 / 190 (+50% bonus AD) (+30% AP) ⇒ 50 / 80 / 110 / 140 / 170 (+50% bonus AD) (+30% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Primal Surge",
+          "tag": "li",
+          "text": "Attack Speed: 30 / 40 / 50 / 60 / 70% ⇒ 20 / 30 / 40 / 50 / 60%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Absolute Zero",
+          "tag": "li",
+          "text": "Maximum Damage: 625 / 925 / 1275 (+300% AP) ⇒ 750 / 1100 / 1450 (+300% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Command: Attack",
+          "tag": "li",
+          "text": "Damage: 60 / 90 / 120 / 150 / 180 (+55% AP) ⇒ 60 / 90 / 120 / 150 / 180 (+60% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Command: Dissonance",
+          "tag": "li",
+          "text": "Damage: 70 / 110 / 150 / 190 / 230 (+80% AP) ⇒ 70 / 110 / 150 / 190 / 230 (+85% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Elemental Wrath / Edge of Ixtal",
+          "tag": "li",
+          "text": "Damage: 80 / 110 / 140 / 170 / 200 (+90% bonus AD) ⇒ 70 / 100 / 130 / 160 / 190 (+90% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Defensive Ball Curl",
+          "tag": "li",
+          "text": "Bonus Armor: 27 / 32 / 37 / 42 / 47 (+30 - 60% Armor) ⇒ 25 / 30 / 35 / 40 / 45 (+30 - 50% Armor)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Defensive Ball Curl",
+          "tag": "li",
+          "text": "Bonus Magic Resistance: 20 / 25 / 30 / 35 / 40 (+30 - 60% Magic Resistance) ⇒ 20 / 25 / 30 / 35 / 40 (+30 - 50% Magic Resistance)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Overload",
+          "tag": "li",
+          "text": "Flux Bonus Damage: 15% / 40% / 65% / 90% increased damage ⇒ 10% / 40% / 70% / 100% increased damage"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Overload",
+          "tag": "li",
+          "text": "Bonus Move Speed: 28% / 32% / 36% / 40% / 44% ⇒ 30% / 35% / 40% / 45% / 50%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Rune Prison",
+          "tag": "li",
+          "text": "Damage: 60 / 90 / 120 / 150 / 180 (+60% AP) (+3% bonus mana) ⇒ 60 / 90 / 120 / 150 / 180 (+70% AP) (+3% bonus mana)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health: 655 + 87/Level ⇒ 655 + 95/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Unstoppable Onslaught",
+          "tag": "li",
+          "text": "Damage Increase over the First 3s of Channeling: +0 - 166.67% Base Damage, 0 - 100% Ratio Damage ⇒ +0 - 200%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Unstoppable Onslaught",
+          "tag": "li",
+          "text": "Bugfix: Tooltip now displays the correct minimum and maximum bonus AD ratios (40-120%). It displayed an incorrect Bonus AD Scaling (60%-120%). It was never actually changed in patch 25.16 beyond the tooltip."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Unraveled Earth",
+          "tag": "li",
+          "text": "Damage: 60 / 105 / 150 / 195 / 240 (+60% AP) ⇒ 70 / 115 / 160 / 205 / 250 (+70% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Unraveled Earth",
+          "tag": "li",
+          "text": "Detonation Damage: 25 / 40 / 55 / 70 / 85 (+30% AP) ⇒ 30 / 45 / 60 / 75 / 90 (+30% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Unraveled Earth",
+          "tag": "li",
+          "text": "Monster Damage: Deals 225% damage to monsters."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Starlight’s Touch",
+          "tag": "li",
+          "text": "Cast Behavior: Q casts when allies are untargetable will now successfully fire."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Dazzle",
+          "tag": "li",
+          "text": "Cast Behavior: E casts when allies are untargetable will now successfully fire."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Dazzle",
+          "tag": "li",
+          "text": "Tooltip: Updated to include “Dazzle will not cast from Vanished allies”."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Cosmic Radiance",
+          "tag": "li",
+          "text": "Cast Behavior: R casts when allies are untargetable will now successfully fire."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Rapid Fire",
+          "tag": "li",
+          "text": "Attack Speed: 60 / 75 / 90 / 105 / 120% ⇒ 40 / 60 / 80 / 100 / 120%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "R - Destiny",
+          "tag": "li",
+          "text": "Reveal: Now reveals untargetable units."
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Arrow",
+          "tag": "li",
+          "text": "Damage Calculation: Max Damage scaling, 53.33 - 240 (+80% bonus AD) to 80 - 360 (+120% bonus AD) ⇒ Min Damage scaling, 50 - 230 (+80% bonus AD) to 85 - 391 (+136% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Piercing Arrow",
+          "tag": "li",
+          "text": "Damage Increase over Channel Time: Up to 50% ⇒ Up to 70%"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Blighted Quiver",
+          "tag": "li",
+          "text": "On-Hit Damage: 4 / 13 / 22 / 31 / 40 (+15% bonus AD) (+25% AP) ⇒ 4 / 10 / 16 / 22 / 28 (+20% bonus AD) (+30% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Blighted Quiver",
+          "tag": "li",
+          "text": "Per Stack Damage: 3 - 5% (+1.3% per 100 AP) Target Maximum Health ⇒ 2.5 - 4.5% (+1.4% per 100 AP) Target Maximum Health"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Blighted Quiver",
+          "tag": "li",
+          "text": "Active Missing Health Damage: 6 - 14%, increased by up to 50% based on Q Channel ⇒ 6 - 10%, increased by up to 70% based on Q Channel"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Blighted Quiver",
+          "tag": "li",
+          "text": "Basic Ability Cooldown Refund: 13% per stack, increased by up to 50% based on Q Channel ⇒ 11%, increased by up to 70% based on Q Channel"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Organic Deconstruction",
+          "tag": "li",
+          "text": "Damage: 35 - 180 (+60% AP) ⇒ 35 - 205 (+65% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Move Speed: 335 ⇒ 330"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Siphon Power",
+          "tag": "li",
+          "text": "Shield: 40 - 140 (based on level) (+25% AP) ⇒ 30 - 130 (+20% AP)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Base Stats",
+          "tag": "li",
+          "text": "Health Regeneration: 3.5 + 0.65/Level ⇒ 5.5 + 0.65/Level"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Passive - Stone Skin",
+          "tag": "li",
+          "text": "Armor per Stack: 6 - 10 (based on Champion Level) ⇒ 4.5 - 10 (based on Champion Level)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Three Talon Strike",
+          "tag": "li",
+          "text": "Damage per Strike: 15 / 30 / 45 / 60 / 75 (+40% bonus AD) ⇒ 15 / 30 / 45 / 60 / 75 (+45% bonus AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "E - Audacious Charge",
+          "tag": "li",
+          "text": "Attack Speed Scaling: 1% per 5% bonus Attack Speed from permanent sources ⇒ 1% per 4% bonus Attack Speed from permanent sources"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "Q - Mortal Steel",
+          "tag": "li",
+          "text": "Damage: 25 / 50 / 75 / 100 / 125 (+110% AD) ⇒ 25 / 50 / 75 / 100 / 125 (+105% AD)"
+        },
+        {
+          "sourceHeading": "Champions",
+          "sourceSubheading": "W - Rampant Growth",
+          "tag": "li",
+          "text": "Seed Ammo Cooldown: 18 / 16 / 14 / 12 / 10s ⇒ 16 / 14.5 / 13 / 11.5 / 10s"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastion Breaker",
+          "tag": "li",
+          "text": "Lethality: 22 ⇒ 18"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastion Breaker",
+          "tag": "li",
+          "text": "Shaped Charge Damage: 50 Melee + 1.5/Lethality / 25 Ranged + 0.75/Lethality ⇒ 40 Melee + 1.5/Lethality / 20 Ranged + 0.75/Lethality"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastion Breaker",
+          "tag": "li",
+          "text": "Sabotage Duration: 90s ⇒ Infinite"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Bastion Breaker",
+          "tag": "li",
+          "text": "Sabotage Duration Context: This is how long you have to use the bonus damage against objectives."
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Dawncore",
+          "tag": "li",
+          "text": "Ability Power per 100% Base Mana Regeneration: 10 ⇒ 15"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Gluttonous Greaves",
+          "tag": "li",
+          "text": "Total Cost: 1000g ⇒ 1100g"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hubris",
+          "tag": "li",
+          "text": "Base Bonus Attack Damage: 12 ⇒ 15 Melee / 10 Ranged"
+        },
+        {
+          "sourceHeading": "Items",
+          "sourceSubheading": "Hubris",
+          "tag": "li",
+          "text": "Bonus Attack Damage per Stack: 3 ⇒ 3 Melee / 2 Ranged"
+        },
+        {
+          "sourceHeading": "Minimum System Requirements",
+          "sourceSubheading": "",
+          "tag": "p",
+          "text": "We’ve shipped an improvement to how our patch launcher works. This improvement uses a software library that requires SSE 4.2, which results in us increasing our AMD minspec by one version. Please reference our article on minimum and recommended system requirements for more information: https://support.riotgames.com/en-us/league-of-legends/performance/minimum-and-recommended-system-requirements-league-of-legends"
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed an issue where Zaahen (Q) would fail to complete if he does into Revive mid attack."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Summoner Teleport’s channel VFX was visible for enemies when cast in brush."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Titanic Hydra’s cooldown timer would not be displayed after use."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Zoe can get a 1000 damage smite from a minion drop earlier than expected."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Hail of Blades does not trigger on auto resets if the first attack was cancelled."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Fixed a bug where Nidalee’s (Q) spear damage could go through spell shields at max range."
+        },
+        {
+          "sourceHeading": "Bugfixes & QoL Changes",
+          "sourceSubheading": "",
+          "tag": "li",
+          "text": "Updated SFX to use the base skin’s ult SFX for Briar, Kled, and Sion when playing against them to improve clarity."
+        }
+      ],
+      "sourceSha256": "317b2b4f07f6bcedb1b14a5c3540e7042b2de0451820b85419b867945dc8848d"
+    }
+  ]
+}

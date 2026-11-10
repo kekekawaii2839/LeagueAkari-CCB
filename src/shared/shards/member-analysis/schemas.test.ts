@@ -14,6 +14,41 @@ import {
 } from './schemas'
 import { summarizeMemberAnalysisPayload } from './summary'
 
+test('additive team observations preserve legacy absence, known zero, unknown bans and enforce source units', () => {
+  const legacy = anonymousLegacyPayload.games[0]
+  const teamMetrics = {
+    totalKills: 30,
+    firstDragonTime: null,
+    firstTowerTime: 630,
+    dragons: 0,
+    barons: 0,
+    dragonSouls: 0,
+    elderDragons: 0
+  }
+  const old = MemberAnalysisGameSchema.parse(legacy)
+  expect(old.teamMetrics).toBeUndefined()
+  expect(old.bans).toBeUndefined()
+  const current = MemberAnalysisGameSchema.parse({
+    ...legacy,
+    teamMetrics,
+    bans: { own: [], enemy: null }
+  })
+  expect(current.teamMetrics?.dragons).toBe(0)
+  expect(current.teamMetrics?.firstDragonTime).toBeNull()
+  expect(current.bans).toEqual({ own: [], enemy: null })
+  expect(
+    MemberAnalysisGameSchema.safeParse({ ...legacy, teamMetrics: { ...teamMetrics, dragons: -1 } })
+      .success
+  ).toBe(false)
+  expect(
+    MemberAnalysisGameSchema.safeParse({ ...legacy, bans: { own: [-1], enemy: [] } }).success
+  ).toBe(false)
+  expect(
+    MemberAnalysisGameSchema.safeParse({ ...legacy, bans: { own: Array(6).fill(1), enemy: [] } })
+      .success
+  ).toBe(false)
+})
+
 const anonymousLegacyPayload = {
   meta: {
     generatedAt: '2026-01-01T00:00:00.000Z',
@@ -248,6 +283,26 @@ describe('member analysis contract', () => {
     }
     expect(MemberAnalysisJobSchema.parse(job)).toEqual(job)
     expect(MemberAnalysisJobSchema.safeParse({ ...job, progress: 2 }).success).toBe(false)
+    expect(
+      MemberAnalysisJobSchema.safeParse({
+        ...job,
+        error: {
+          code: 'PIPELINE_FAILED',
+          message: 'Safe failure',
+          diagnostic: 'identity-worker-unavailable'
+        }
+      }).success
+    ).toBe(true)
+    expect(
+      MemberAnalysisJobSchema.safeParse({
+        ...job,
+        error: {
+          code: 'PIPELINE_FAILED',
+          message: 'Safe failure',
+          diagnostic: 'PRIVATE_PATH_OR_TOKEN'
+        }
+      }).success
+    ).toBe(false)
   })
 
   test('enforces the approved fixed-member refresh policy', () => {

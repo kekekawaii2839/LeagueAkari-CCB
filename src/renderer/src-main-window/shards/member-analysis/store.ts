@@ -8,9 +8,12 @@ import type {
   MemberAnalysisSettings,
   MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
+import type { NativeMetric } from '@shared/shards/member-analysis/native-metrics'
 import type { PerformanceMetric } from '@shared/shards/member-analysis/performance-metrics'
 import { defineStore } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
+
+import { defaultScatterFilters } from '@main-window/views/member-analysis/scatter-filters'
 
 import { resolveMemberProfileIcons } from './member-profile-icons'
 
@@ -138,10 +141,13 @@ export const useMemberAnalysisStore = defineStore('shard:member-analysis-rendere
   // Session-only controls; no player data or view choices are written to disk.
   const scatterViewState = reactive({
     matchMode: false,
+    patchMode: false,
     perMember: false,
     hiddenMembersByRole: {} as Record<string, string[]>,
-    xMetric: 'damageConversion' as PerformanceMetric,
-    yMetric: 'winRate' as PerformanceMetric,
+    xMetric: 'damageConversion' as PerformanceMetric | NativeMetric,
+    yMetric: 'winRate' as PerformanceMetric | NativeMetric,
+    minimumGames: 0,
+    filters: defaultScatterFilters(),
     roleFilter: 'MIDDLE'
   })
   const predictionViewState = reactive({

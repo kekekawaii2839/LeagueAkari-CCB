@@ -28,9 +28,16 @@ import {
   type MemberAnalysisSettingsUpdate,
   type MemberAnalysisStorageStatus
 } from '@shared/shards/member-analysis'
+import {
+  type PatchNotes,
+  type PatchNotesRequest,
+  PatchNotesRequestSchema
+} from '@shared/shards/member-analysis/patch-notes'
 import { createHash } from 'node:crypto'
 
+import { CachedMatchStatisticsLoader } from './cached-match-statistics-loader'
 import type { MemberAnalysisMainContext } from './context'
+import { PatchNotesLoader } from './patch-notes-loader'
 import { PublishedIdentitiesLoader } from './published-identities-loader'
 
 const METHODS: MemberAnalysisCapabilities['methods'] = [
@@ -42,6 +49,7 @@ const METHODS: MemberAnalysisCapabilities['methods'] = [
   'refreshCurrentRanks',
   'cancelCurrentRankRefresh',
   'getPublishedMemberIdentities',
+  'getPatchNotes',
   'getSettings',
   'updateSettings',
   'startRefresh',
@@ -53,8 +61,12 @@ const METHODS: MemberAnalysisCapabilities['methods'] = [
 ]
 
 export class MemberAnalysisController {
+  private readonly _patchNotes: PatchNotesLoader
   private readonly _publishedIdentities: PublishedIdentitiesLoader
+  private readonly _cachedStatistics: CachedMatchStatisticsLoader
   constructor(private readonly _context: MemberAnalysisMainContext) {
+    this._cachedStatistics = new CachedMatchStatisticsLoader(_context.repository)
+    this._patchNotes = new PatchNotesLoader(_context.repository.dataRoot)
     this._publishedIdentities = new PublishedIdentitiesLoader(
       _context.repository,
       () => {
@@ -68,9 +80,23 @@ export class MemberAnalysisController {
   }
 
   async dispose() {
+    this._cachedStatistics.dispose()
+    this._patchNotes.dispose()
     await this._context.currentRankRefresh?.dispose()
     this._context.currentProfileIcons?.dispose()
     await this._publishedIdentities.dispose()
+  }
+
+  async getPatchNotes(request: PatchNotesRequest): Promise<MemberAnalysisResult<PatchNotes>> {
+    // Public patch notes remain available independently of member-analysis settings.
+    const parsed = PatchNotesRequestSchema.safeParse(request)
+    if (!parsed.success) return this._failure('INVALID_ARGUMENT', 'Invalid patch selection', false)
+    try {
+      const value = await this._patchNotes.read(parsed.data.patch, parsed.data.refresh)
+      return this._success(value)
+    } catch {
+      return this._failure('INTERNAL_ERROR', 'Official patch notes could not be read', true)
+    }
   }
 
   getCapabilities(): MemberAnalysisResult<MemberAnalysisCapabilities> {
@@ -334,6 +360,23 @@ export class MemberAnalysisController {
       return this._failure('INVALID_ARGUMENT', 'Published analysis changed; reload analysis', true)
     if (snapshot.publicationToken && snapshot.games.length) {
       try {
+        snapshot.games = await this._cachedStatistics.enrich(
+          snapshot.games,
+          snapshot.publicationToken
+        )
+      } catch {
+        // Optional cache enrichment never hides otherwise readable statistics.
+        if (
+          this._requireEnabled() ||
+          this._context.repository.publicationToken() !== snapshot.publicationToken
+        )
+          return this._failure(
+            'INVALID_ARGUMENT',
+            'Published analysis changed; reload analysis',
+            true
+          )
+      }
+      try {
         snapshot.games = await this._publishedIdentities.enrichProfiles(
           snapshot.games,
           snapshot.publicationToken
@@ -384,6 +427,14 @@ export class MemberAnalysisController {
     }
     if (this._context.settings.members.length < 5) {
       return this._failure('INVALID_ARGUMENT', 'At least five members must be configured', false)
+    }
+    // Without the client every Riot ID lookup fails; refuse before marking members unresolved.
+    if (this._context.clientReady && !this._context.clientReady()) {
+      return this._failure(
+        'CLIENT_UNAVAILABLE',
+        'Start and sign in to the League client before refreshing',
+        true
+      )
     }
     try {
       // The complete analysis has priority over the lightweight current-rank action.

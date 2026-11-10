@@ -4,7 +4,7 @@
       <NIcon class="member-analysis-heading__icon" :component="AnalyticsRound" aria-hidden="true" />
       <div>
         <div id="member-analysis-title" class="member-analysis-heading__title">成员分析</div>
-        <div class="member-analysis-heading__subtitle">
+        <div v-if="showDataTimestamp" class="member-analysis-heading__subtitle">
           <time v-if="generatedAt" :datetime="generatedAt">更新于 {{ formattedGeneratedAt }}</time>
         </div>
       </div>
@@ -14,6 +14,7 @@
 
     <div class="member-analysis-header__actions">
       <NButton
+        v-if="showRefresh"
         aria-label="刷新"
         secondary
         :disabled="refreshDisabled"
@@ -24,7 +25,7 @@
         刷新
       </NButton>
       <NPopover
-        v-if="refreshReason"
+        v-if="showRefresh && refreshReason"
         v-model:show="reasonOpen"
         trigger="click"
         placement="bottom"
@@ -57,7 +58,11 @@
         设置
       </NButton>
     </div>
-    <p v-if="refreshReason?.kind === 'service'" class="refresh-unavailable" role="status">
+    <p
+      v-if="showRefresh && refreshReason?.kind === 'service'"
+      class="refresh-unavailable"
+      role="status"
+    >
       {{ refreshReason.text }}
     </p>
   </header>
@@ -69,12 +74,17 @@ import { NButton, NIcon, NPopover } from 'naive-ui'
 import { computed, nextTick, ref, watch } from 'vue'
 import { uiText } from './ui-text'
 
-const props = defineProps<{
-  generatedAt: string | null
-  loading: boolean
-  refreshDisabled: boolean
-  refreshReason?: { kind: 'closed' | 'members' | 'service'; text: string } | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    generatedAt: string | null
+    loading: boolean
+    refreshDisabled: boolean
+    showRefresh?: boolean
+    showDataTimestamp?: boolean
+    refreshReason?: { kind: 'closed' | 'members' | 'service'; text: string } | null
+  }>(),
+  { showRefresh: true, showDataTimestamp: true }
+)
 
 const formattedGeneratedAt = computed(() => {
   if (!props.generatedAt) return ''

@@ -66,7 +66,7 @@ const node = (type: string): HostNode => ({
   scrollIntoView: vi.fn()
 })
 
-function harness(compact = false) {
+function harness(compact = false, promotePatch = false) {
   const renderer = createRenderer<HostNode, HostNode>({
     createElement: node,
     createComment: node,
@@ -103,7 +103,8 @@ function harness(compact = false) {
   const disabled = ref(true),
     root = node('root')
   const app = renderer.createApp({
-    render: () => h(MemberAnalysisFilters, { disabled: disabled.value, embedded: true, compact })
+    render: () =>
+      h(MemberAnalysisFilters, { disabled: disabled.value, embedded: true, compact, promotePatch })
   })
   app.use(pinia)
   app.provide(ssrContextKey, { modules: new Set() })
@@ -251,6 +252,39 @@ test('advanced pointer focus clears on mouse exit without changing expansion or 
     expect(toggle().props['aria-expanded']).toBe(expanded)
     expect(toggle().props.focusable).not.toBe(false)
     expect(toggle().props.keyboard).not.toBe(false)
+  } finally {
+    f.dispose()
+  }
+})
+
+test('promoted patch is a single ordinary-row control, numerically descending and retains an absent selection', async () => {
+  const f = harness(false, true)
+  try {
+    f.store.filters.patch = '26.9'
+    f.store.overview = {
+      games: [
+        { patch: '26.2', players: [] },
+        { patch: '26.10', players: [] },
+        { patch: '26.1', players: [] }
+      ]
+    } as any
+    await nextTick()
+    const patches = () =>
+      f.all().filter((n) => n.props.kind === 'NSelect' && n.props['aria-label'] === '版本')
+    expect(patches()).toHaveLength(1)
+    expect(patches()[0].parent?.props.id).toBe('member-analysis-filter-controls')
+    expect(patches()[0].props.options.map((o: any) => o.value)).toEqual([
+      'all',
+      '26.10',
+      '26.9',
+      '26.2',
+      '26.1'
+    ])
+    expect(patches()[0].props.value).toBe('26.9')
+    patches()[0].props['onUpdate:value']('26.10')
+    await nextTick()
+    expect(f.store.filters.patch).toBe('26.10')
+    expect(patches()[0].props.size).toBe('medium')
   } finally {
     f.dispose()
   }

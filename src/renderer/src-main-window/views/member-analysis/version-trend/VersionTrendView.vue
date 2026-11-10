@@ -14,6 +14,7 @@
           :value="request.role"
           :options="roles"
           :render-label="renderRoleSelectLabel"
+          :render-tag="renderRoleSelectTag"
           @update:value="update({ role: $event })"
       /></label>
       <label class="metric-control"
@@ -348,10 +349,11 @@ import {
 } from 'naive-ui'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 import { formatMetric } from '../metric-defs'
-import { renderRoleSelectLabel } from '../role-select-label'
+import { renderRoleSelectLabel, renderRoleSelectTag } from '../role-select-label'
 import { trendMetrics, trendRequestKey, type TrendRequest, type TrendResult } from './domain'
 
 export type TrendCopyKey =
+  | 'patchNotesTitle'
   | 'gapLegend'
   | 'unitGames'
   | 'unitMinutes'
@@ -733,7 +735,7 @@ watch(
   width: 260px;
 }
 .controls .role-control {
-  width: 100px;
+  width: 148px;
 }
 .controls .axis-control,
 .controls .bucket-control {

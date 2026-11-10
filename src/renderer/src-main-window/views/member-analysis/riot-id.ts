@@ -4,7 +4,11 @@ export interface ParsedRiotId {
 }
 
 export function parseRiotId(value: string): ParsedRiotId | null {
-  const riotId = value.trim()
+  const riotId = value
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/＃/g, '#')
+    .trim()
+  if (/[\r\n]/.test(riotId)) return null
   const separatorIndex = riotId.lastIndexOf('#')
   if (separatorIndex <= 0 || separatorIndex === riotId.length - 1) return null
 

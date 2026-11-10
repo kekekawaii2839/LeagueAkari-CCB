@@ -1,6 +1,10 @@
 import { expect, test } from 'vitest'
 
-import { filterSummaryByMinimumGames, normalizeSummaryMinimumGames } from './scatter-summary-filter'
+import {
+  filterMatchByMinimumGames,
+  filterSummaryByMinimumGames,
+  normalizeSummaryMinimumGames
+} from './scatter-summary-filter'
 
 test('the default retains the complete aggregate population and original references', () => {
   const rows = [
@@ -45,4 +49,21 @@ test('unknown sample counts are not manufactured into a valid count', () => {
   expect(filterSummaryByMinimumGames([row], 0).visible).toEqual([row])
   expect(filterSummaryByMinimumGames([row], 1)).toEqual({ visible: [], hidden: 1 })
   expect(Number.isNaN(row.games)).toBe(true)
+})
+
+test('match minimum counts distinct selected games per member-role before metric missingness', () => {
+  const rows = [
+    { player: 'a', role: 'TOP', gameId: 1, x: null },
+    { player: 'a', role: 'TOP', gameId: 2, x: 0 },
+    { player: 'a', role: 'MIDDLE', gameId: 3, x: 10 },
+    { player: 'b', role: 'TOP', gameId: 1, x: 3 },
+    { player: 'b', role: 'TOP', gameId: 1, x: 3 }
+  ]
+  const filtered = filterMatchByMinimumGames(rows, 2)
+  expect(filtered.visible).toEqual(rows.slice(0, 2))
+  expect(filtered.visible[0]).toBe(rows[0])
+  expect(filtered.hidden).toBe(2)
+  expect(filtered.hiddenObservations).toBe(3)
+  expect(filterMatchByMinimumGames(rows, 0).visible).toBe(rows)
+  expect(filterMatchByMinimumGames(rows, 3).visible).toEqual([])
 })

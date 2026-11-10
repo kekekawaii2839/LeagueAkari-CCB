@@ -1,5 +1,6 @@
 interface PrimaryTabMotionOptions {
   root: () => HTMLElement | null
+  navigation?: () => HTMLElement | null
   active: () => string
   reduced: () => boolean
   rendered: () => Promise<void>
@@ -15,7 +16,7 @@ export function createPrimaryTabMotion(options: PrimaryTabMotionOptions) {
 
   function capture(event: MouseEvent) {
     const tab = event.target instanceof Element ? event.target.closest('[data-name]') : null
-    const nav = options.root()?.querySelector('.n-tabs-nav')
+    const nav = options.navigation?.() ?? options.root()?.querySelector('.n-tabs-nav')
     pointerSection =
       event.detail > 0 && tab && nav?.contains(tab) ? tab.getAttribute('data-name') : null
     pointerEvent = pointerSection ? event : null

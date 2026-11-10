@@ -29,6 +29,8 @@ const fixture = vi.hoisted(() => ({
   mounts: 0,
   unmounts: 0,
   alertMounts: 0,
+  success: vi.fn(),
+  error: vi.fn(),
   reload: vi.fn(),
   startRefresh: vi.fn(),
   routeSection: 'roles',
@@ -77,8 +79,11 @@ vi.mock('./MemberRoleView.vue', () => ({
     }
   }
 }))
+vi.mock('./BanStatisticsView.vue', () => ({ default: () => null }))
+vi.mock('./ChampionTierView.vue', () => ({ default: () => null }))
+vi.mock('./version-trend/PatchNotesPanel.vue', () => ({ default: () => h('patch-notes-probe') }))
 vi.mock('./ChampionView.vue', () => ({ default: () => null }))
-vi.mock('./ConversionView.vue', () => ({ default: () => null }))
+vi.mock('./TeamMetricsView.vue', () => ({ default: () => h('team-metrics-probe') }))
 vi.mock('./EarlyConversionView.vue', () => ({ default: () => null }))
 vi.mock('./JungleView.vue', () => ({ default: () => null }))
 vi.mock('./MatchesView.vue', () => ({ default: () => null }))
@@ -104,6 +109,7 @@ vi.mock('naive-ui', () => {
         slots.footer?.()
       ])
   return {
+    useMessage: () => ({ success: fixture.success, error: fixture.error }),
     ...Object.fromEntries(
       [
         'NAlert',
@@ -113,6 +119,7 @@ vi.mock('naive-ui', () => {
         'NProgress',
         'NResult',
         'NSpin',
+        'NTab',
         'NTabPane',
         'NTabs'
       ].map((kind) => [kind, stub(kind)])
@@ -233,6 +240,8 @@ function harness(
   }
   fixture.mounts = fixture.unmounts = fixture.alertMounts = 0
   if (options.noOverview) store.overview = null
+  fixture.success.mockReset()
+  fixture.error.mockReset()
   fixture.reload.mockReset()
   fixture.startRefresh.mockReset()
   const renderer = createRenderer<HostNode, HostNode>({
@@ -274,32 +283,49 @@ function harness(
 }
 
 const descendants = (n: HostNode): HostNode[] => [n, ...n.children.flatMap(descendants)]
-const notices = (host: ReturnType<typeof harness>) =>
-  host
-    .all()
-    .filter(
-      (n) =>
-        n.props.role === 'status' &&
-        !n.props.class?.includes('member-analysis-success') &&
-        descendants(n).some((child) => child.props['aria-label'] === '关闭提示')
-    )
-const closeNotice = (notice: HostNode) =>
-  descendants(notice).find((n) => n.props['aria-label'] === '关闭提示')!.props.onClick
 
 describe('published analysis background reload lifecycle', () => {
+  test('analysis groups preserve leaf routes and remember the previous group selection', async () => {
+    const host = harness()
+    try {
+      await nextTick()
+      const groups = () => host.all().find((n) => n.props.class === 'analysis-group-tabs')!
+      const leaves = () =>
+        host.all().find((n) => n.props.kind === 'NTabs' && n.props.class === 'analysis-pane-tabs')!
+      expect(
+        descendants(groups())
+          .filter((n) => n.props.kind === 'NTab')
+          .map((n) => n.props.name)
+      ).toEqual(['personal', 'combination', 'team', 'metrics', 'matches'])
+      leaves().props['onUpdate:value']('champions')
+      await nextTick()
+      groups().props['onUpdate:value']('metrics')
+      await nextTick()
+      expect(leaves().props.value).toBe('scatter')
+      groups().props['onUpdate:value']('personal')
+      await nextTick()
+      expect(leaves().props.value).toBe('champions')
+      expect(fixture.unmounts).toBe(0)
+      expect(
+        host.all().find((n) => n.props.kind === 'NTabPane' && n.props.name === 'prediction')
+      ).toBeUndefined()
+    } finally {
+      host.dispose()
+    }
+  })
   test('primary navigation exposes one tab stop and keyboard activation with focus restoration', async () => {
     const host = harness()
     try {
       await nextTick()
       const focus = vi.fn(),
         scrollIntoView = vi.fn()
-      const panels = host.all().find((n) => n.props.class === 'member-analysis-ready')!
+      const panels = host.all().find((n) => n.props.class === 'member-analysis-navigation')!
       Object.assign(panels, { querySelector: () => ({ focus, scrollIntoView }) })
-      const panes = () => host.all().filter((n) => n.props.kind === 'NTabPane')
-      const tab = (name: string) => {
-        const pane = panes().find((n) => n.props.name === name)!
-        return pane.props.tabProps ?? pane.props['tab-props']
-      }
+      const tab = (name: string) =>
+        host
+          .all()
+          .find((n) => n.props.kind === 'NTab' && n.props.name === name && n.props.role === 'tab')!
+          .props
       const press = async (name: string, key: string) => {
         const preventDefault = vi.fn()
         tab(name).onKeydown({ key, preventDefault })
@@ -314,14 +340,14 @@ describe('published analysis background reload lifecycle', () => {
       expect(focus).toHaveBeenCalledWith({ preventScroll: true })
       expect(scrollIntoView).not.toHaveBeenCalled()
       await press('champions', 'End')
-      expect(tab('matches').tabindex).toBe(0)
-      await press('matches', 'Home')
+      expect(tab('jungle').tabindex).toBe(0)
+      await press('jungle', 'Home')
       expect(tab('roles').tabindex).toBe(0)
       await press('roles', 'ArrowLeft')
-      expect(tab('matches').tabindex).toBe(0)
-      await press('matches', ' ')
-      await press('matches', 'Enter')
-      expect(tab('matches')['aria-selected']).toBe(true)
+      expect(tab('jungle').tabindex).toBe(0)
+      await press('jungle', ' ')
+      await press('jungle', 'Enter')
+      expect(tab('jungle')['aria-selected']).toBe(true)
     } finally {
       host.dispose()
     }
@@ -334,7 +360,7 @@ describe('published analysis background reload lifecycle', () => {
       const switchTab = (section: string) =>
         host
           .all()
-          .find((n) => n.props.kind === 'NTabs')!
+          .find((n) => n.props.kind === 'NTabs' && n.props.class === 'analysis-pane-tabs')!
           .props['onUpdate:value'](section)
       owner.scrollTop = 1240
       owner.props.onScroll()
@@ -386,7 +412,7 @@ describe('published analysis background reload lifecycle', () => {
       const switchTab = (section: string) =>
         host
           .all()
-          .find((n) => n.props.kind === 'NTabs')!
+          .find((n) => n.props.kind === 'NTabs' && n.props.class === 'analysis-pane-tabs')!
           .props['onUpdate:value'](section)
       owner.scrollTop = 1240
       owner.props.onScroll()
@@ -525,173 +551,76 @@ describe('published analysis background reload lifecycle', () => {
     }
   })
 
-  test('job retry uses collection refresh with the same availability guards, not an overview read', async () => {
+  test('uses native transient messages without changing retained data or reading state', async () => {
     const host = harness()
     try {
-      host.store.job = {
-        jobId: 'synthetic-retry',
-        status: 'failed',
-        error: { code: 'PIPELINE_FAILED', message: 'Synthetic' }
-      } as any
-      await nextTick()
-      const retry = () =>
-        descendants(notices(host)[0]).find(
-          (n) => n.props.kind === 'NButton' && !n.props['aria-label']
-        )!
-      expect(retry().props.disabled).toBe(true)
-      expect(retry().props.title).toBeTruthy()
-      host.store.settings = {
-        enabled: true,
-        members: Array.from({ length: 5 }, (_, i) => ({ riotId: `Synthetic${i}#TEST_ONLY` }))
-      } as any
-      host.store.capabilities = { workerAvailable: true } as any
-      await nextTick()
-      expect(retry().props.disabled).toBe(false)
-      retry().props.onClick()
-      expect(fixture.startRefresh).toHaveBeenCalledTimes(1)
-      expect(fixture.reload).not.toHaveBeenCalled()
-      host.store.loading = true
-      await nextTick()
-      expect(retry().props.disabled).toBe(true)
-    } finally {
-      host.dispose()
-    }
-  })
-  test('closes each retained-results failure notice independently without clearing domain failure or reading state', async () => {
-    const host = harness()
-    try {
-      const previous = host.store.overview
+      expect(fixture.success).not.toHaveBeenCalled()
+      expect(fixture.error).not.toHaveBeenCalled()
+      const overview = host.store.overview
       const probe = host.all().find((n) => n.props['data-probe'])!
       probe.props.onClick()
-      host.store.overview = { ...host.store.overview!, generatedAt: '2026-10-13T01:00:00Z' }
-      const published = host.store.overview
       host.store.job = {
         jobId: 'synthetic-job-1',
         status: 'failed',
-        error: { code: 'PIPELINE_FAILED', message: 'Synthetic failure' }
+        error: { code: 'PIPELINE_FAILED', message: 'private diagnostic' }
       } as any
-      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic failure', retryable: true }
-      const failure = host.store.error
+      host.store.error = { code: 'INTERNAL_ERROR', message: 'private error', retryable: true }
       await nextTick()
-      const alerts = notices(host)
-      expect(alerts).toHaveLength(2)
-      expect(host.all().some((n) => n.props.kind === 'NAlert')).toBe(false)
-      expect(host.all().filter((n) => n.props['aria-label'] === '关闭提示')).toHaveLength(2)
-      closeNotice(alerts[0])()
-      await nextTick()
-      expect(notices(host)).toHaveLength(1)
-      host
-        .all()
-        .find((n) => n.props['aria-label'] === '关闭提示')!
-        .props.onClick()
-      await nextTick()
-      await nextTick()
-      expect(notices(host)).toHaveLength(0)
-      expect(host.store.error === failure).toBe(true)
-      expect(host.store.job?.status).toBe('failed')
-      expect(host.store.overview === published).toBe(true)
-      expect(host.store.overview?.generatedAt).not.toBe(previous?.generatedAt)
-      expect(host.all().find((n) => n.props['data-probe']) === probe).toBe(true)
+      expect(fixture.error).toHaveBeenCalledTimes(1)
+      expect(fixture.error).toHaveBeenCalledWith(expect.stringContaining('刷新失败，本次未更新'), {
+        closable: true,
+        duration: 6000
+      })
+      expect(fixture.error.mock.calls[0][0]).not.toContain('private')
+      expect(host.store.overview).toBe(overview)
+      expect(host.store.error?.code).toBe('INTERNAL_ERROR')
       expect(probe.text).toBe('sorted-selected-expanded')
-      expect(
-        host
-          .all()
-          .map((n) => n.text)
-          .join(' ')
-      ).not.toContain('分析已更新')
+      expect(host.all().some((n) => n.props.role === 'status' && n.text.includes('刷新失败'))).toBe(
+        false
+      )
     } finally {
       host.dispose()
     }
   })
-  test('same-message new failures get new alert instances and an old close callback cannot hide the replacement', async () => {
+
+  test('new job identities and failed entries notify, duplicate events do not', async () => {
     const host = harness()
     try {
-      const error = {
-        code: 'INTERNAL_ERROR' as const,
-        message: 'Synthetic identical failure',
-        retryable: true
-      }
-      host.store.error = error
-      await nextTick()
-      const first = notices(host)[0]
-      const closeFirst = closeNotice(first)
-      closeFirst()
-      host.store.error = { ...error }
-      await nextTick()
-      const second = notices(host)[0]
-      expect(second === first).toBe(false)
-      closeFirst()
-      await nextTick()
-      expect(notices(host)[0] === second).toBe(true)
-      closeNotice(second)()
-      await nextTick()
-      expect(notices(host)).toHaveLength(0)
-      host.store.loading = true
-      host.store.error = null
-      host.store.error = error
-      host.store.loading = false
-      await nextTick()
-      expect(notices(host)).toHaveLength(1)
-    } finally {
-      host.dispose()
-    }
-  })
-  test('job identity and failed-entry epochs reopen fresh failures but not duplicate events', async () => {
-    const host = harness()
-    try {
-      const failed = {
-        jobId: 'synthetic-job-1',
-        status: 'failed',
-        error: { code: 'PIPELINE_FAILED', message: 'Synthetic same reason' }
-      }
+      const failed = { jobId: 'synthetic-1', status: 'failed', error: { code: 'PIPELINE_FAILED' } }
       host.store.job = failed as any
       await nextTick()
-      const closeOld = closeNotice(notices(host)[0])
-      closeOld()
+      expect(fixture.error).toHaveBeenCalledTimes(1)
+      host.store.job = { ...failed } as any
       await nextTick()
-      host.store.job = { ...failed, error: { ...failed.error } } as any
+      expect(fixture.error).toHaveBeenCalledTimes(1)
+      host.store.job = { ...failed, jobId: 'synthetic-2' } as any
       await nextTick()
-      expect(notices(host)).toHaveLength(0)
-      host.store.job = { ...failed, jobId: 'synthetic-job-2' } as any
+      expect(fixture.error).toHaveBeenCalledTimes(2)
+      host.store.job = { ...failed, status: 'starting' } as any
+      host.store.job = failed as any
       await nextTick()
-      closeOld()
-      await nextTick()
-      const second = notices(host)[0]
-      closeNotice(second)()
-      host.store.job = { ...failed, jobId: 'synthetic-job-2', status: 'starting' } as any
-      host.store.job = { ...failed, jobId: 'synthetic-job-2' } as any
-      await nextTick()
-      expect(notices(host)[0] === second).toBe(false)
-      expect(host.store.job?.status).toBe('failed')
+      expect(fixture.error).toHaveBeenCalledTimes(3)
     } finally {
       host.dispose()
     }
   })
-  test('retains the retry action and leaves first-load/no-overview errors non-dismissible', async () => {
+
+  test('new overview failures notify even when the safe error message is unchanged', async () => {
     const host = harness()
     try {
-      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic failure', retryable: true }
+      const error = { code: 'INTERNAL_ERROR' as const, message: 'Synthetic', retryable: true }
+      host.store.error = error
       await nextTick()
-      host
-        .all()
-        .find((n) => n.props.kind === 'NButton' && n.props.onClick)!
-        .props.onClick()
-      expect(fixture.reload).toHaveBeenCalledTimes(1)
-      host.store.overview = null
-      host.store.job = {
-        jobId: 'synthetic-first-job',
-        status: 'failed',
-        error: { code: 'PIPELINE_FAILED', message: 'Synthetic failure' }
-      } as any
+      host.store.error = { ...error }
       await nextTick()
-      const initial = host.all().filter((n) => n.props.kind === 'NAlert')
-      expect(initial).toHaveLength(2)
-      expect(initial.every((n) => !n.props.closable)).toBe(true)
-      expect(host.all().some((n) => n.props['aria-label'] === '关闭提示')).toBe(false)
+      expect(fixture.error).toHaveBeenCalledTimes(2)
+      expect(fixture.reload).not.toHaveBeenCalled()
+      expect(fixture.startRefresh).not.toHaveBeenCalled()
     } finally {
       host.dispose()
     }
   })
+
   test('same-tick multi-scope validation followed by single navigation keeps the final request', async () => {
     const host = harness()
     try {
@@ -702,7 +631,10 @@ describe('published analysis background reload lifecycle', () => {
       await nextTick()
       expect(host.store.matchListScope).toBeNull()
       expect(host.store.matchNavigation).toBe(request)
-      expect(host.all().find((n) => n.props.kind === 'NTabs')!.props.value).toBe('matches')
+      expect(
+        host.all().find((n) => n.props.kind === 'NTabs' && n.props.class === 'analysis-pane-tabs')!
+          .props.value
+      ).toBe('matches')
       host.store.overview = { ...host.store.overview! }
       expect(host.store.navigateToMatches([1], 'Old closure', generation)).toBe(false)
       expect(host.store.matchListScopeError).toBe('stale')
@@ -737,7 +669,7 @@ describe('published analysis background reload lifecycle', () => {
         expect(scroll.scrollTop).toBe(350)
         expect(fixture.mounts).toBe(1)
         expect(fixture.unmounts).toBe(0)
-        expect(notices(host).length > 0).toBe(outcome === 'failure')
+        expect(fixture.error.mock.calls.length > 0).toBe(outcome === 'failure')
       } finally {
         host.dispose()
       }
@@ -755,7 +687,7 @@ describe('published analysis background reload lifecycle', () => {
       await nextTick()
       expect(host.store.viewState).toBe('empty')
       expect(host.all().some((n) => n.props.kind === 'NEmpty')).toBe(true)
-      expect(notices(host)).toHaveLength(1)
+      expect(fixture.error).toHaveBeenCalledTimes(1)
     } finally {
       host.dispose()
     }
@@ -778,13 +710,11 @@ describe('published analysis background reload lifecycle', () => {
         error: { code: 'SUMMARY_STAT_UNAVAILABLE', message: 'private field diagnostic' }
       } as any
       await nextTick()
-      expect(
-        host.all().some((n) => n.props.title?.includes('原始对局缺少必需统计，本次未更新'))
-      ).toBe(true)
-      expect(
-        host.all().some((n) => n.props['aria-label']?.includes('原始对局缺少必需统计，本次未更新'))
-      ).toBe(true)
-      expect(text()).not.toContain('private field diagnostic')
+      expect(fixture.error).toHaveBeenCalledWith(
+        expect.stringContaining('原始对局缺少必需统计，本次未更新'),
+        expect.any(Object)
+      )
+      expect(fixture.error.mock.calls[0][0]).not.toContain('private field diagnostic')
       host.store.overview = null
       await nextTick()
       expect(text()).not.toContain('已保留上一版')
@@ -794,76 +724,38 @@ describe('published analysis background reload lifecycle', () => {
     }
   })
 
-  test('dismisses only the current success notice and revives it only for a new publication', async () => {
+  test('notifies only for changed publications and never for a failed refresh', async () => {
     const host = harness()
-    const success = () => host.all().find((n) => n.props.class?.includes('member-analysis-success'))
     try {
+      host.store.overview = { ...host.store.overview! }
+      await nextTick()
+      expect(fixture.success).not.toHaveBeenCalled()
       host.store.overview = { ...host.store.overview!, generatedAt: '2026-10-13T01:00:00Z' }
       await nextTick()
-      expect(success()).toBeTruthy()
-      const firstClose = closeNotice(success()!)
-      const overview = host.store.overview
-      firstClose()
-      await nextTick()
-      expect(success()).toBeUndefined()
-      expect(host.store.overview).toBe(overview)
-      expect(host.store.error).toBeNull()
-      expect(host.store.job).toBeNull()
-      // A settings reread of the same timestamp/counts/source is not new data.
+      expect(fixture.success).toHaveBeenCalledExactlyOnceWith('分析已更新', {
+        closable: true,
+        duration: 3000
+      })
       host.store.loading = true
       await nextTick()
       host.store.overview = { ...host.store.overview! }
       host.store.loading = false
       await nextTick()
-      expect(success()).toBeUndefined()
-      // Identical timestamp alone is not the identity: changed publication counts
-      // create a new notice, and an old close callback must not dismiss it.
-      host.store.overview = {
-        ...host.store.overview!,
-        playerCount: host.store.overview!.playerCount + 1
-      }
+      expect(fixture.success).toHaveBeenCalledTimes(1)
+      host.store.overview = { ...host.store.overview!, playerCount: 6 }
       await nextTick()
-      expect(success()).toBeTruthy()
-      firstClose()
+      expect(fixture.success).toHaveBeenCalledTimes(2)
+      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic', retryable: true }
+      host.store.overview = { ...host.store.overview!, playerCount: 7 }
       await nextTick()
-      expect(success()).toBeTruthy()
-      closeNotice(success()!)()
-      await nextTick()
-      expect(success()).toBeUndefined()
-      host.store.loading = true
-      await nextTick()
-      host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic failure', retryable: true }
-      host.store.loading = false
-      await nextTick()
-      expect(success()).toBeUndefined()
-      expect(notices(host)).toHaveLength(1)
-      expect(host.store.error?.code).toBe('INTERNAL_ERROR')
-      expect(fixture.reload).not.toHaveBeenCalled()
-      expect(fixture.startRefresh).not.toHaveBeenCalled()
-    } finally {
-      host.dispose()
-    }
-  })
-
-  test('does not imply a new publication when re-reading the same overview generation', async () => {
-    const host = harness()
-    try {
-      host.store.overview = { ...host.store.overview! }
-      await nextTick()
+      expect(fixture.success).toHaveBeenCalledTimes(2)
+      expect(fixture.error).toHaveBeenCalledTimes(1)
       expect(
         host
           .all()
           .map((n) => n.text)
           .join(' ')
       ).not.toContain('分析已更新')
-      host.store.overview = { ...host.store.overview!, generatedAt: '2026-10-13T01:00:00Z' }
-      await nextTick()
-      expect(
-        host
-          .all()
-          .map((n) => n.text)
-          .join(' ')
-      ).toContain('分析已更新')
     } finally {
       host.dispose()
     }
@@ -1013,7 +905,7 @@ test('roles receives explicit false active state after leaving its lazy pane', a
     expect(host.all().find((n) => n.props['data-probe'])?.props['data-role-active']).toBe(true)
     host
       .all()
-      .find((n) => n.props.kind === 'NTabs')!
+      .find((n) => n.props.kind === 'NTabs' && n.props.class === 'analysis-pane-tabs')!
       .props['onUpdate:value']('matches')
     await nextTick()
     expect(host.all().find((n) => n.props['data-probe'])?.props['data-role-active']).toBe(false)
@@ -1022,3 +914,80 @@ test('roles receives explicit false active state after leaving its lazy pane', a
     host.dispose()
   }
 })
+
+test('renders only the active group leaves, direct combination destinations, and no redundant singleton row', async () => {
+  const host = harness()
+  try {
+    await nextTick()
+    const groups = () => host.all().find((n) => n.props.class === 'analysis-group-tabs')!
+    const secondary = () => host.all().find((n) => n.props.class === 'analysis-section-tabs')
+    const destinations = () =>
+      secondary()
+        ? descendants(secondary()!)
+            .filter((n) => n.props.kind === 'NTab')
+            .map((n) => n.props.name)
+        : []
+    expect(destinations()).toEqual(['roles', 'champions', 'jungle'])
+    groups().props['onUpdate:value']('combination')
+    await nextTick()
+    expect(destinations()).toEqual(['pairs', 'synergy'])
+    secondary()!.props['onUpdate:value']('synergy')
+    await nextTick()
+    expect(secondary()!.props.value).toBe('synergy')
+    expect(host.all().find((n) => n.props.class === 'analysis-pane-tabs')!.props.value).toBe(
+      'pairs'
+    )
+    groups().props['onUpdate:value']('team')
+    await nextTick()
+    expect(secondary()!.props.value).toBe('team-metrics')
+    expect(destinations()[0]).toBe('team-metrics')
+    expect(host.all().some((n) => n.type === 'team-metrics-probe')).toBe(true)
+    expect(destinations()).toContain('champion-tier')
+    expect(destinations()).not.toContain('synergy')
+    groups().props['onUpdate:value']('combination')
+    await nextTick()
+    expect(secondary()!.props.value).toBe('synergy')
+    groups().props['onUpdate:value']('matches')
+    await nextTick()
+    expect(secondary()).toBeUndefined()
+    expect(host.all().find((n) => n.props.class === 'analysis-pane-tabs')!.props.value).toBe(
+      'matches'
+    )
+    const navigation = host.all().find((n) => n.props.class === 'member-analysis-navigation')!
+    expect(navigation.parent?.props.class).toBe('member-analysis-scroll')
+    expect(descendants(navigation).filter((n) => n.props.kind === 'NTabs')).toHaveLength(1)
+  } finally {
+    host.dispose()
+  }
+})
+
+test.each([
+  ['collection-failed', '对局采集阶段失败'],
+  ['worker-failed', '请重启开发版 Akari'],
+  ['identity-worker-unavailable', '身份校验线程不可用'],
+  ['identity-worker-failed', '身份校验线程执行失败'],
+  ['identity-verification-failed', '成员身份校验未通过'],
+  ['publication-failed', '分析结果保存阶段失败']
+])(
+  'job diagnostic %s shows a stable recovery stage without raw messages',
+  async (diagnostic, message) => {
+    const host = harness()
+    try {
+      host.store.job = {
+        jobId: 'synthetic-diagnostic',
+        status: 'failed',
+        error: { code: 'PIPELINE_FAILED', diagnostic, message: 'SYNTHETIC_PRIVATE_DETAILS' }
+      } as any
+      await nextTick()
+      const labels = fixture.error.mock.calls.map(([content]) => content).join(' ')
+      expect(labels).toContain(message)
+      expect(labels).not.toContain('SYNTHETIC_PRIVATE_DETAILS')
+      if (diagnostic === 'identity-worker-unavailable') {
+        expect(labels).toContain('同版主进程与线程')
+        expect(labels).toContain('无需清理本地数据')
+      }
+    } finally {
+      host.dispose()
+    }
+  }
+)

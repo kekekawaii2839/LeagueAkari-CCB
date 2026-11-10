@@ -288,7 +288,7 @@ test('member chart retains identity and metrics without an expansion control', a
         { value: 'kp', label: roleMetricMeta.kp.label }
       ])
     )
-    expect(selector.props.options).toHaveLength(23)
+    expect(selector.props.options).toHaveLength(24)
     selector.props['onUpdate:value']('kp')
     await nextTick()
     expect(f.store.matchNavigation).toBeNull()
@@ -1062,9 +1062,62 @@ test('member summary keeps identity and win evidence without fixed secondary met
     expect(f.all().some((n) => n.text.includes('Synthetic A'))).toBe(true)
     expect(children[2].props).toMatchObject({ wins: 1, games: 1 })
     const options = f.all().find((n) => n.type === 'select')!.props.options
-    expect(options).toHaveLength(23)
+    expect(options).toHaveLength(24)
     expect(options.some((option: { value: string }) => option.value === 'kp')).toBe(true)
     expect(options.some((option: { value: string }) => option.value === 'kda')).toBe(false)
+  } finally {
+    f.app.unmount()
+  }
+})
+
+test('damage per death is an individual comparison option with positive-death valid samples', async () => {
+  const sample = [game(960001, 0, 0.5), game(960002, 0, 0.5), game(960003, 0, 0.5)]
+  Object.assign(sample[0].players[0], { damageTaken: 3000, deaths: 3 })
+  Object.assign(sample[1].players[0], { damageTaken: 9000, deaths: 0 })
+  Object.assign(sample[2].players[0], { damageTaken: null, deaths: 2 })
+  const f = harness(sample)
+  try {
+    const select = f.all().find((n) => n.type === 'select')!
+    expect(select.props.options).toContainEqual({ value: 'damageTakenPerDeath', label: '每死承伤' })
+    expect(
+      select.props.options.some((o: any) =>
+        ['bloodiness', 'gameDuration', 'teamDragonsPG'].includes(o.value)
+      )
+    ).toBe(false)
+    select.props['onUpdate:value']('damageTakenPerDeath')
+    await nextTick()
+    const total = f
+      .all()
+      .find((n) => n.props.role === 'img' && n.props['aria-label'].includes('合计'))!
+    expect(total.props['aria-label']).toContain('1000')
+    expect(total.props['aria-label']).toContain('1 场')
+    expect(f.all().find((n) => n.type === 'metric-help')!.props.definition).toContain('伤害/死亡')
+  } finally {
+    f.app.unmount()
+  }
+})
+
+test('role table damage per death shows values without valid-match copy including side breakdown', async () => {
+  const sample = [game(960011, 0, 0.5), game(960012, 0, 0.5)]
+  Object.assign(sample[0].players[0], { damageTaken: 3000, deaths: 3 })
+  Object.assign(sample[1].players[0], { damageTaken: 9000, deaths: 0 })
+  const f = harness(sample, false, true)
+  try {
+    f.all()
+      .find((n) => n.type === 'member-segments')!
+      .props['onUpdate:modelValue']('utility')
+    await nextTick()
+    const tableText = () => {
+      const walk = (n: Node): string => [n.text, ...n.children.map(walk)].join(' ')
+      return walk(f.all().find((n) => n.type === 'table')!)
+    }
+    expect(tableText()).toContain('1000')
+    expect(tableText()).not.toContain('有效')
+    f.store.sideBreakdown = true
+    await nextTick()
+    expect(tableText()).toContain('蓝 1000')
+    expect(tableText()).toContain('红 —')
+    expect(tableText()).not.toContain('有效')
   } finally {
     f.app.unmount()
   }

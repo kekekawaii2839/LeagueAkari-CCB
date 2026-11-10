@@ -26,6 +26,11 @@ import {
   MemberAnalysisUpdateSettingsRequestSchema
 } from '@shared/shards/member-analysis'
 import {
+  type PatchNotes,
+  type PatchNotesRequest,
+  PatchNotesRequestSchema
+} from '@shared/shards/member-analysis/patch-notes'
+import {
   type PredictionOpportunityReply,
   type PredictionOpportunityRequest,
   PredictionOpportunityRequestSchema,
@@ -124,6 +129,10 @@ export class MemberAnalysisRenderer implements IAkariShardInitDispose {
     this._reloadGeneration += 1
     this._stopJobEvents?.()
     this._stopJobEvents = null
+  }
+
+  getPatchNotes(request: PatchNotesRequest) {
+    return this._call<PatchNotes>('getPatchNotes', PatchNotesRequestSchema.parse(request))
   }
 
   async startRefresh() {

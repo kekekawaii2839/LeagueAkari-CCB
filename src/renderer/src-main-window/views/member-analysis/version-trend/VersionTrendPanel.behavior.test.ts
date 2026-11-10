@@ -996,3 +996,59 @@ test.each(['hidden', 'role'])(
     }
   }
 )
+
+test('champion candidates follow selected member lane and silently clear a now-invalid champion', async () => {
+  const games = [
+    {
+      gameId: 991,
+      duration: 1800,
+      metricSemantics: 'current-v5',
+      timestamp: 1000,
+      date: '2026-01-01',
+      patch: '15.1',
+      side: 'Blue',
+      win: true,
+      players: [{ player: 'Synthetic', role: 'TOP', champion: 'SyntheticTop' }]
+    },
+    {
+      gameId: 992,
+      duration: 1800,
+      metricSemantics: 'current-v5',
+      timestamp: 2000,
+      date: '2026-01-01',
+      patch: '15.1',
+      side: 'Blue',
+      win: true,
+      players: [{ player: 'Synthetic', role: 'MIDDLE', champion: 'SyntheticMid' }]
+    }
+  ]
+  const reply = page()
+  reply.value.games = games.map((game) => ({
+    gameId: game.gameId,
+    status: 'available',
+    members: [{ memberId: 'member-slot-1', player: 'Synthetic' }]
+  })) as any
+  const f = harness({ games, reader: async () => reply })
+  try {
+    await vi.waitFor(() =>
+      expect(f.all().find((entry) => entry.type === 'trend')?.props.champions).toEqual([
+        { value: 'SyntheticTop', label: 'SyntheticTop' }
+      ])
+    )
+    let view = f.all().find((entry) => entry.type === 'trend')!
+    expect(view.props.roles.map((role: any) => role.value)).toContain('all')
+    view.props['onUpdate:request']({ ...view.props.request, champion: 'SyntheticTop' })
+    await nextTick()
+    view = f.all().find((entry) => entry.type === 'trend')!
+    view.props['onUpdate:request']({ ...view.props.request, role: 'MIDDLE' })
+    await vi.waitFor(() =>
+      expect(f.all().find((entry) => entry.type === 'trend')?.props.request.champion).toBeNull()
+    )
+    expect(f.all().find((entry) => entry.type === 'trend')?.props.champions).toEqual([
+      { value: 'SyntheticMid', label: 'SyntheticMid' }
+    ])
+    expect(f.all().filter((entry) => entry.props.role === 'status')).toEqual([])
+  } finally {
+    f.dispose()
+  }
+})

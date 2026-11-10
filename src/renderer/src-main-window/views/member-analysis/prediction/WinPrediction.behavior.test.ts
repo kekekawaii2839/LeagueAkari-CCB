@@ -314,7 +314,7 @@ test.each(['experimentalPredictionEnabled', 'enabled'] as const)(
   }
 )
 
-test('unavailable data explains support, while worker and startup errors allow retry', async () => {
+test('unavailable data retains recovery without the removed support link; failures allow retry', async () => {
   const f = harness()
   try {
     f.start()
@@ -332,18 +332,17 @@ test('unavailable data explains support, while worker and startup errors allow r
         .map((n) => n.text)
         .join(' ')
     expect(text()).toContain(uiText('predictionReasonHistory'))
+    expect(text()).not.toContain(uiText('predictionViewSupport'))
     const action = f
       .all()
       .find(
         (n) =>
           n.type === 'button' &&
-          n.children.some((c) => c.text.includes(uiText('predictionViewSupport')))
+          n.children.some((c) => c.text.includes(uiText('openCollectionSettings')))
       )!
-    await action.props.onClick()
-    await nextTick()
-    expect(
-      f.all().find((n) => n.props['aria-controls'] === 'prediction-method')!.props['aria-expanded']
-    ).toBe(true)
+    action.props.onClick()
+    expect(f.store.settingsDrawerVisible).toBe(true)
+    expect(f.store.settingsFocus).toBe('collection')
     f.start()
     workers.instances[1].onerror()
     await nextTick()
@@ -569,6 +568,8 @@ test('entertainment value retains honest labels and exposes support rather than 
     expect(contribution.render(table.rows[0])).toBe('0.00')
     expect(contribution.render(table.rows[1])).toBe('—')
     expect(text()).toContain('2 / 5')
+    expect(text()).not.toContain(uiText('predictionSupportMethodTitle'))
+    expect(text()).not.toContain(uiText('predictionEntertainmentMethod'))
   } finally {
     f.app.unmount()
   }

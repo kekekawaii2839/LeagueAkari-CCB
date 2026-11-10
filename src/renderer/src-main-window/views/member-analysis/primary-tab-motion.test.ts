@@ -4,7 +4,7 @@ import { createPrimaryTabMotion } from './primary-tab-motion'
 
 afterEach(() => vi.unstubAllGlobals())
 
-function fixture() {
+function fixture(separateNavigation = false) {
   class Tab {
     constructor(readonly name: string) {}
     closest() {
@@ -35,11 +35,14 @@ function fixture() {
   let rendered = async () => {}
   let event: MouseEvent | null = null
   const root = {
-    querySelector: () => ({ contains: () => true }),
+    querySelector: () => (separateNavigation ? null : { contains: () => true }),
     querySelectorAll: () => panes
   }
   const motion = createPrimaryTabMotion({
     root: () => (present ? (root as unknown as HTMLElement) : null),
+    navigation: separateNavigation
+      ? () => ({ contains: () => true }) as unknown as HTMLElement
+      : undefined,
     active: () => active,
     reduced: () => reduced,
     rendered: () => rendered()
@@ -172,4 +175,10 @@ test('route redirection wins over a pending pointer entry', async () => {
   render()
   await pending
   expect(f.animate).not.toHaveBeenCalled()
+})
+
+test('supports a common frozen navigation outside the retained pane container', async () => {
+  const f = fixture(true)
+  await f.select('champions')
+  expect(f.animate).toHaveBeenCalledOnce()
 })

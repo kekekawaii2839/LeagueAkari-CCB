@@ -24,6 +24,10 @@ const renderer = vi.hoisted(() => ({
 
 // Decorative icon barrels are outside this shell-layout test boundary.
 vi.mock('@vicons/carbon', () => ({ Close: () => null, ErrorFilled: () => null }))
+vi.mock('@vicons/fluent', () => ({
+  ChevronDown20Regular: () => null,
+  ChevronRight20Regular: () => null
+}))
 vi.mock('./MetricHelp.vue', () => ({ default: () => null }))
 // Match the LP view's focused harness: decorative icon barrels are outside
 // shell SSR assertions; real panes, Chart components and original checks stay live.
@@ -40,7 +44,25 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('./MemberAnalysisHeader.vue', () => ({
-  default: (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.filters?.()
+  default: defineComponent({
+    props: {
+      showRefresh: { type: Boolean, default: true },
+      showDataTimestamp: { type: Boolean, default: true },
+      refreshDisabled: Boolean
+    },
+    setup:
+      (props, { slots }) =>
+      () =>
+        h(
+          'header',
+          {
+            'data-refresh-visible': String(props.showRefresh),
+            'data-refresh-disabled': String(props.refreshDisabled),
+            'data-timestamp-visible': String(props.showDataTimestamp)
+          },
+          slots.filters?.()
+        )
+  })
 }))
 vi.mock('./MemberAnalysisFilters.vue', () => ({
   default: defineComponent({
@@ -52,6 +74,9 @@ vi.mock('./MemberAnalysisFilters.vue', () => ({
 vi.mock('./MemberAnalysisSettingsDrawer.vue', () => ({
   default: { setup: () => () => null }
 }))
+vi.mock('./BanStatisticsView.vue', () => ({ default: () => null }))
+vi.mock('./ChampionTierView.vue', () => ({ default: () => null }))
+vi.mock('./version-trend/PatchNotesPanel.vue', () => ({ default: () => null }))
 vi.mock('./ChampionView.vue', () => ({ default: { setup: () => () => null } }))
 // The upstream match-card graph is outside this page-shell test's boundary.
 vi.mock('@renderer-shared/components/match-card/MatchCard.vue', () => ({ default: () => null }))
@@ -72,7 +97,7 @@ vi.mock('naive-ui', () => {
     NCheckbox: Stub,
     NPagination: Stub,
     useThemeVars: () => ref({ fontFamily: 'system-ui', primaryColor: '#587c66' }),
-    useMessage: () => ({ error: vi.fn() }),
+    useMessage: () => ({ error: vi.fn(), success: vi.fn() }),
     NDataTable: Stub,
     NEmpty: Stub,
     NProgress: Stub,
@@ -85,8 +110,8 @@ vi.mock('naive-ui', () => {
     NSpin: Stub,
     NStatistic: Stub,
     NSwitch: Stub,
-    NTabPane: Stub,
     NTab: Stub,
+    NTabPane: Stub,
     NTabs: (props: Record<string, unknown>, context: { slots: Record<string, Function> }) => {
       if (props.type === 'line') renderer.activeTab = String(props.value)
       return Stub(props, context)
@@ -166,9 +191,40 @@ async function renderState(
 }
 
 describe('member analysis native page', () => {
+  test('removed event results cannot mount and team navigation keeps the metric table', async () => {
+    renderer.route.params.section = 'conversion'
+    expect(await renderState('ready')).toContain('data-active-section="roles"')
+    renderer.route.params.section = 'team-metrics'
+    const html = await renderState('ready')
+    expect(html).toContain('团队指标')
+    expect(html).not.toContain('事件结果')
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     renderer.route.params.section = 'roles'
+  })
+
+  test('independent analysis pages preserve the disabled header', async () => {
+    renderer.route.params.section = 'lp-trend'
+    const html = await renderState('ready')
+    const header = html.match(/<header\b[^>]*>.*?<\/header>/s)?.[0]
+    expect(header).toBeDefined()
+    expect(header).toContain('复盘筛选测试入口')
+    expect(header).toContain('disabled')
+    expect(header).toContain('data-refresh-visible="true"')
+    expect(header).toContain('data-timestamp-visible="true"')
+    for (const section of ['lp-trend', 'version-trend']) {
+      renderer.route.params.section = section
+      const siblingHtml = await renderState('ready')
+      expect(siblingHtml.match(/<header\b[^>]*>.*?<\/header>/s)?.[0]).toBe(header)
+    }
+    renderer.route.params.section = 'roles'
+    const roleHtml = await renderState('ready')
+    const roleFilter = roleHtml.match(/<input[^>]*aria-label="复盘筛选测试入口"[^>]*>/)?.[0]
+    expect(roleFilter).toBeDefined()
+    expect(/\bdisabled(?:=|\s|>)/.test(roleFilter!)).toBe(false)
+    expect(roleHtml).toContain('data-refresh-visible="true"')
+    expect(roleHtml).toContain('data-timestamp-visible="true"')
   })
 
   test.each([

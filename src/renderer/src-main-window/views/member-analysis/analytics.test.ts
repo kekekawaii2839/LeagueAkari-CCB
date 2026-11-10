@@ -137,6 +137,18 @@ const game = (gameId: number, win: boolean, side: 'Blue' | 'Red'): MemberAnalysi
 
 const games = [game(1, true, 'Blue'), game(2, false, 'Red')]
 
+test('member-role damage per death aggregates only known positive-death observations', () => {
+  const input = [game(1, true, 'Blue'), game(2, false, 'Red'), game(3, true, 'Blue')]
+  Object.assign(input[0].players[0], { damageTaken: 6000, deaths: 2 })
+  Object.assign(input[1].players[0], { damageTaken: 9000, deaths: 0 })
+  Object.assign(input[2].players[0], { damageTaken: null, deaths: 3 })
+  const top = aggregateRoles(input, 'TOP', 'Alice')[0]
+  expect(top.games).toBe(3)
+  expect(top.damageTakenPerDeath).toBe(3000)
+  expect(top.damageTakenPerDeathGames).toBe(1)
+  expect(aggregateRoles([input[1]], 'TOP', 'Alice')[0].damageTakenPerDeath).toBeNull()
+})
+
 test('query-time opponent ranks never enter historical prediction observations or metrics', () => {
   const original = game(1, true, 'Blue')
   const withSnapshot: MemberAnalysisGame = {

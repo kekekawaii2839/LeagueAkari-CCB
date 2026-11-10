@@ -67,7 +67,12 @@ const normalizedIcon = (value: unknown): number | null =>
 function contained(root: string, path: string) {
   return path.startsWith(`${root}${sep}`)
 }
-async function safeRead(root: string, indexedPath: string, serverId: string, gameId: number) {
+export async function readCachedPublishedSummary(
+  root: string,
+  indexedPath: string,
+  serverId: string,
+  gameId: number
+) {
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(serverId) || !Number.isSafeInteger(gameId) || gameId <= 0)
     throw new Error('invalid-context')
   const expected = resolve(root, 'raw', serverId, String(gameId), 'summary.json.gz')
@@ -170,7 +175,12 @@ export async function projectPublishedIdentity(
         rows[0].checksum !== task.checksum
       )
         throw new Error('invalid-context')
-      const read = await safeRead(batch.dataRoot, rows[0].summary_path, task.serverId, task.gameId)
+      const read = await readCachedPublishedSummary(
+        batch.dataRoot,
+        rows[0].summary_path,
+        task.serverId,
+        task.gameId
+      )
       const summary = read.value
       if (stored && read.digest !== stored.summaryDigest) throw new Error('invalid-context')
       if (summary?.json?.gameId !== task.gameId || !Array.isArray(summary?.json?.teams))

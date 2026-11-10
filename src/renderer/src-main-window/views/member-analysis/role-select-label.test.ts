@@ -55,12 +55,26 @@ describe('native role select labels', () => {
     }
   )
 
-  test.each(['ALL', 'all', 'MIXED', 'NONE', 'toString'])(
-    'does not invent an icon for %s',
+  test.each(['ALL', 'all'])(
+    'renders the aggregate icon and original label for %s in menu and selection',
     async (value) => {
-      expect(await render({ value, label: '全部分路（探索）' })).toBe('<div>全部分路（探索）</div>')
+      const option = { value, label: '全部分路（探索）' }
+      const before = { ...option }
+      const menu = await render(option)
+      const selected = await renderToString(h('div', {}, [renderRoleSelectTag({ option })]))
+      for (const html of [menu, selected]) {
+        expect(html.match(/data-position=/g)).toHaveLength(1)
+        expect(html).toContain('data-position="ALL"')
+        expect(html).toContain('全部分路（探索）')
+        expect(html).toContain('aria-hidden="true"')
+      }
+      expect(option).toEqual(before)
     }
   )
+
+  test.each(['MIXED', 'NONE', 'toString'])('does not invent an icon for %s', async (value) => {
+    expect(await render({ value, label: '全部分路（探索）' })).toBe('<div>全部分路（探索）</div>')
+  })
 
   test('keeps the member identity in a canonical role/member selection', async () => {
     const option = {

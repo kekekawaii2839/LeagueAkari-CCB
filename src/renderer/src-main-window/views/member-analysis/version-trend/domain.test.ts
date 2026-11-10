@@ -7,6 +7,7 @@ import {
   type TrendRequest,
   buildVersionTrend,
   comparePatch,
+  filterVersionTrendGames,
   parsePatch,
   trendMetrics,
   trendRequestKey,
@@ -511,4 +512,39 @@ test('synthetic stage timings preserve a 5000-game result across identical reque
       }
     }) + '\n'
   )
+})
+
+describe('all-role trend and dependent champion population', () => {
+  test('pools one member across lanes with common exposure rather than taking first lane', () => {
+    const a = game(101),
+      b = game(102)
+    a.players[0] = { ...player(), role: 'TOP', champion: 'SyntheticTop', damage: 1000, minutes: 10 }
+    b.players[0] = {
+      ...player(),
+      role: 'MIDDLE',
+      champion: 'SyntheticMid',
+      damage: 9000,
+      minutes: 30
+    }
+    const result = buildVersionTrend(input([a, b]), request({ role: 'all', metric: 'player:dpm' }))
+    expect(result.points[0].value).toBe(250)
+    expect(result.points[0].validGames).toBe(2)
+    expect(result.points[0].numerator).toBe(10000)
+    expect(result.points[0].denominator).toBe(40)
+  })
+  test('candidate population uses exact member identities and other filters, not global champions', () => {
+    const a = game(101),
+      b = game(102),
+      c = game(103)
+    a.players[0] = { ...player(), role: 'TOP', champion: 'SyntheticTop' }
+    b.players[0] = { ...player(), role: 'MIDDLE', champion: 'SyntheticMid' }
+    c.players[0] = { ...player(), role: 'TOP', champion: 'SyntheticRed' }
+    c.side = 'Red'
+    const selected = filterVersionTrendGames(
+      input([a, b, c]),
+      request({ role: 'TOP', champion: null, side: 'Blue', metric: 'player:winRate' })
+    )
+    expect(selected.games.map((entry) => entry.players[0].champion)).toEqual(['SyntheticTop'])
+    expect(selected.games[0].players[0].player).toBe('a')
+  })
 })

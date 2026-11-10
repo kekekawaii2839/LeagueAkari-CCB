@@ -1,0 +1,44 @@
+/* Native Akari Tier families: blue, teal, gold, gray, brown.
+ * Feature-scoped semantic tokens; tones account for light/dark surfaces and row hover.
+ * The numeric tier remains visible: color never replaces its label or sample context.
+ */
+.champion-tier {
+  --ma-tier-op: #ff8b33;
+  --ma-tier-1: #35a8ff;
+  --ma-tier-2: #00bba3;
+  --ma-tier-3: #ffb900;
+  --ma-tier-4: #9aa4af;
+  --ma-tier-5: #c19e78;
+}
+
+[data-theme='light'] .champion-tier {
+  --ma-tier-op: #a14600;
+  --ma-tier-1: #0068b5;
+  --ma-tier-2: #007564;
+  --ma-tier-3: #8a5b00;
+  --ma-tier-4: #5b6571;
+  --ma-tier-5: #79542e;
+}
+
+.champion-tier .tier-value[data-tier='1'] {
+  color: var(--ma-tier-1);
+}
+.champion-tier .tier-value[data-tier='2'] {
+  color: var(--ma-tier-2);
+}
+.champion-tier .tier-value[data-tier='3'] {
+  color: var(--ma-tier-3);
+}
+.champion-tier .tier-value[data-tier='4'] {
+  color: var(--ma-tier-4);
+}
+.champion-tier .tier-value[data-tier='5'] {
+  color: var(--ma-tier-5);
+}
+.champion-tier .tier-unrated {
+  color: var(--ma-muted);
+}
+
+.champion-tier .tier-value[data-tier='0'] {
+  color: var(--ma-tier-op);
+}

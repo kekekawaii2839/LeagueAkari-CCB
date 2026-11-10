@@ -1,4 +1,11 @@
 import type { MemberAnalysisGame, MemberAnalysisPlayerGame } from '@shared/shards/member-analysis'
+import {
+  type NativeMetric,
+  aggregateNativeMetric,
+  nativeGameMetrics,
+  nativeMetricDefinitions,
+  nativeMetricKeys
+} from '@shared/shards/member-analysis/native-metrics'
 
 import { aggregateConversion, aggregateJungle, aggregateRoles } from '../analytics'
 import { eventSections } from '../event-results'
@@ -18,15 +25,24 @@ type Jungle = NonNullable<MemberAnalysisGame['jungle']>
 type Event = NonNullable<MemberAnalysisGame['eventDecision']>
 export type TrendMetric = {
   key: string
-  scope: 'player' | 'jungle' | 'team'
+  scope: 'player' | 'jungle' | 'team' | 'native'
   teamContext: boolean
   label: string
   unit: string
   format: MetricFormat
 }
 export const trendMetrics: TrendMetric[] = [
-  ...[...new Set(Object.values(roleMetricGroups).flatMap((group) => [...group.columns]))].map(
-    (key) => ({
+  ...nativeMetricKeys.map((key) => ({
+    key: `native:${key}`,
+    scope: 'native' as const,
+    teamContext: key !== 'damageTakenPerDeath',
+    label: nativeMetricDefinitions[key].label,
+    unit: nativeMetricDefinitions[key].unit,
+    format: nativeMetricDefinitions[key].fmt
+  })),
+  ...[...new Set(Object.values(roleMetricGroups).flatMap((group) => [...group.columns]))]
+    .filter((key) => !nativeMetricKeys.includes(key as NativeMetric))
+    .map((key) => ({
       key: `player:${key}`,
       scope: 'player' as const,
       teamContext: ['dragon15', 'grub15', 'objectiveFight15'].includes(key),
@@ -43,8 +59,7 @@ export const trendMetrics: TrendMetric[] = [
                 ? 'count/game'
                 : 'count'),
       format: roleMetricMeta[key].fmt
-    })
-  ),
+    })),
   ...[...new Set(Object.values(jungleGroups).flatMap((group) => [...group.columns]))]
     .filter((key) => key !== 'startDistribution')
     .map((key) => ({
@@ -79,7 +94,7 @@ export type TrendRequest = {
   axis: 'patch' | 'time'
   timeBucket: 'day' | 'week' | 'month'
   memberId: string
-  role: Role
+  role: Role | 'all'
   metric: string
   champion: string | null
   side: 'all' | 'Blue' | 'Red'
@@ -232,10 +247,21 @@ const camps: Record<string, string> = {
 
 function metricKnown(game: MemberAnalysisGame, request: TrendRequest, player: string) {
   const [scope, key] = request.metric.split(':')
+  if (scope === 'native') {
+    const row = game.players.find((entry) => entry.player === player)
+    return !!row && nativeGameMetrics(game, row)[key as NativeMetric] !== null
+  }
   if (scope === 'team') return game.eventDecision !== null
   if (scope === 'jungle') {
     const jungle = game.jungle
-    if (request.role !== 'JUNGLE' || !jungle || jungle.player !== player) return false
+    const row = game.players.find((row) => row.player === player)
+    if (
+      (request.role !== 'all' && request.role !== 'JUNGLE') ||
+      row?.role !== 'JUNGLE' ||
+      !jungle ||
+      jungle.player !== player
+    )
+      return false
     if (key in camps) return jungle.startCamp !== null
     if (key === 'ownStartRate' || key === 'invadeStartRate')
       return jungle.startCamp !== null && jungle.startCampOwn !== null
@@ -246,11 +272,17 @@ function metricKnown(game: MemberAnalysisGame, request: TrendRequest, player: st
     }
   }
   if (key.startsWith('laneGank'))
-    return request.role !== 'JUNGLE' && game.laneGankDeaths?.status === 'available'
+    return (
+      game.players.find((row) => row.player === player)?.role !== 'JUNGLE' &&
+      game.laneGankDeaths?.status === 'available'
+    )
   return (
     memberRoleEvidenceGames([game], {
       player,
-      role: request.role,
+      role:
+        request.role === 'all'
+          ? game.players.find((row) => row.player === player)!.role
+          : request.role,
       metric: key as Parameters<typeof memberRoleEvidenceGames>[1]['metric']
     }).length > 0
   )
@@ -268,14 +300,41 @@ function aggregatePoint(
   const player = request.memberId
   const valid = games.filter((game) => metricKnown(game, request, player))
   const rows = valid.map((game) =>
-    game.players.find((row) => row.player === player && row.role === request.role)!
+    game.players.find(
+      (row) => row.player === player && (request.role === 'all' || row.role === request.role)
+    )!
   )
+  const native =
+    scope === 'native'
+      ? aggregateNativeMetric(games, key as NativeMetric, player, request.role)
+      : null
   const aggregate =
-    scope === 'team'
-      ? aggregateConversion(games)[0]
-      : scope === 'jungle'
-        ? aggregateJungle(games, 'all', player)[0]
-        : aggregateRoles(games, request.role, player)[0]
+    scope === 'native'
+      ? { [key]: native!.value }
+      : scope === 'team'
+        ? aggregateConversion(games)[0]
+        : scope === 'jungle'
+          ? aggregateJungle(games, 'all', player)[0]
+          : aggregateRoles(
+              request.role === 'all'
+                ? (key.startsWith('laneGank') ? valid : games).map((game) => ({
+                    ...game,
+                    players: game.players.map((row) => ({ ...row, role: 'TOP' as const })),
+                    laneGankDeaths:
+                      game.laneGankDeaths?.status === 'available'
+                        ? {
+                            ...game.laneGankDeaths,
+                            events: game.laneGankDeaths.events.map((event) => ({
+                              ...event,
+                              victimRole: 'TOP' as const
+                            }))
+                          }
+                        : game.laneGankDeaths
+                  }))
+                : games,
+              request.role === 'all' ? 'TOP' : request.role,
+              player
+            )[0]
   const raw = aggregate ? (aggregate as unknown as Record<string, unknown>)[key] : null
   const value = number(raw) && valid.length > 0 ? raw : null
   let denominator: number | null = valid.length || null
@@ -308,6 +367,11 @@ function aggregatePoint(
     denominator = valid.length ? total(valid.map((game) => game.jungle!.totalZoneWeight!)) : null
     denominatorUnit = 'weight'
     numerator = value === null || denominator === null ? null : value * denominator
+  } else if (scope === 'native') {
+    numerator = native!.numerator
+    denominator = native!.denominator
+    denominatorUnit =
+      key === 'bloodiness' ? 'minutes' : key === 'damageTakenPerDeath' ? 'count' : 'games'
   } else if (scope === 'team') {
     const definition = eventSections
       .flatMap((section) => [...section.metrics, ...section.extra])
@@ -373,7 +437,7 @@ function aggregatePoint(
   }
 }
 
-export function buildVersionTrend(input: TrendInput, request: TrendRequest): TrendResult {
+export function filterVersionTrendGames(input: TrendInput, request: TrendRequest) {
   const metric = trendMetrics.find((entry) => entry.key === request.metric)
   const configured = new Set(input.configuredMemberIds)
   const included = new Set([request.memberId, ...request.includeMemberIds])
@@ -381,7 +445,7 @@ export function buildVersionTrend(input: TrendInput, request: TrendRequest): Tre
   if (
     !metric ||
     !configured.has(request.memberId) ||
-    !['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'].includes(request.role) ||
+    !['all', 'TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'].includes(request.role) ||
     [...included, ...excluded].some((id) => !configured.has(id)) ||
     [...included].some((id) => excluded.has(id))
   )
@@ -427,7 +491,7 @@ export function buildVersionTrend(input: TrendInput, request: TrendRequest): Tre
   const gameCounts = new Map<number, number>()
   for (const game of input.games)
     gameCounts.set(game.gameId, (gameCounts.get(game.gameId) ?? 0) + 1)
-  const buckets = new Map<string, MemberAnalysisGame[]>()
+  const selected: MemberAnalysisGame[] = []
   let unknownPatchGames = 0,
     unknownTimestampGames = 0,
     unresolvedIdentityGames = 0,
@@ -467,7 +531,7 @@ export function buildVersionTrend(input: TrendInput, request: TrendRequest): Tre
     }
     const row = matches[0]
     if (
-      row.role !== request.role ||
+      (request.role !== 'all' && row.role !== request.role) ||
       (request.champion !== null && row.champion !== request.champion) ||
       (request.side !== 'all' && game.side !== request.side) ||
       (request.outcome !== 'all' && game.win !== (request.outcome === 'win')) ||
@@ -521,10 +585,31 @@ export function buildVersionTrend(input: TrendInput, request: TrendRequest): Tre
       if (request.axis === 'time') continue
     }
     selectedGames++
-    const bucketKey = request.axis === 'time' ? time!.key : key
+    selected.push(normalized)
+  }
+  return {
+    games: selected,
+    unknownPatchGames,
+    unknownTimestampGames,
+    unresolvedIdentityGames,
+    legacyGames,
+    selectedGames
+  }
+}
+
+export function buildVersionTrend(input: TrendInput, request: TrendRequest): TrendResult {
+  const metric = trendMetrics.find((entry) => entry.key === request.metric)!
+  const selection = filterVersionTrendGames(input, request)
+  const buckets = new Map<string, MemberAnalysisGame[]>()
+  for (const game of selection.games) {
+    const patch = parsePatch(game.patch)!
+    const bucketKey =
+      request.axis === 'time'
+        ? utcTimeBucket(game.timestamp, request.timeBucket)!.key
+        : `${patch[0]}.${patch[1]}`
     const existing = buckets.get(bucketKey)
-    if (existing) existing.push(normalized)
-    else buckets.set(bucketKey, [normalized])
+    if (existing) existing.push(game)
+    else buckets.set(bucketKey, [game])
   }
   const points = [...buckets]
     .sort(([a], [b]) => (request.axis === 'patch' ? comparePatch(a, b) : a.localeCompare(b)))
@@ -547,10 +632,10 @@ export function buildVersionTrend(input: TrendInput, request: TrendRequest): Tre
     axis: request.axis,
     timeBucket: request.timeBucket,
     points,
-    unknownPatchGames,
-    unknownTimestampGames,
-    unresolvedIdentityGames,
-    legacyGames,
-    selectedGames
+    unknownPatchGames: selection.unknownPatchGames,
+    unknownTimestampGames: selection.unknownTimestampGames,
+    unresolvedIdentityGames: selection.unresolvedIdentityGames,
+    legacyGames: selection.legacyGames,
+    selectedGames: selection.selectedGames
   }
 }

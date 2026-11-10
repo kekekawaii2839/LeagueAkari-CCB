@@ -5,6 +5,7 @@ import { CurrentRankRefresh } from './current-rank-refresh'
 import { MemberAnalysisIpcHandlers } from './ipc-handlers'
 import { initializeMemberAnalysisSafely } from './lifecycle'
 import { MemberAnalysisController } from './member-analysis-controller'
+import { PatchNotesLoader } from './patch-notes-loader'
 import { MemberAnalysisRuntimeState, MemberAnalysisSettingsState } from './state'
 
 function createHarness() {
@@ -407,6 +408,37 @@ describe('member analysis IPC boundary', () => {
     })
   })
 
+  test('refuses a refresh while the League client is unavailable without starting a job', async () => {
+    const { handlers, event, context } = createHarness()
+    context.settings.enabled = true
+    context.settings.members = Array.from({ length: 5 }, (_, index) => ({
+      serverId: 'TEST',
+      gameName: `Synthetic ${index + 1}`,
+      tagLine: 'TEST_ONLY'
+    }))
+    Object.defineProperty(context.pipeline, 'workerAvailable', { value: true })
+    let ready = false
+    context.clientReady = () => ready
+    expect(await handlers.get('startRefresh')!(event, undefined)).toMatchObject({
+      ok: false,
+      error: { code: 'CLIENT_UNAVAILABLE', retryable: true }
+    })
+    expect(context.pipeline.start).not.toHaveBeenCalled()
+    ready = true
+    vi.mocked(context.pipeline.start).mockReturnValue({
+      jobId: 'synthetic-job',
+      status: 'starting',
+      progress: 0,
+      message: '',
+      startedAt: null,
+      finishedAt: null,
+      checkpointAt: null,
+      error: null
+    } as any)
+    expect(await handlers.get('startRefresh')!(event, undefined)).toMatchObject({ ok: true })
+    expect(context.pipeline.start).toHaveBeenCalledTimes(1)
+  })
+
   test('does not misreport a stored payload validation failure as an invalid filter', async () => {
     const { handlers, event, context } = createHarness()
     await handlers.get('updateSettings')!(event, { enabled: true })
@@ -609,4 +641,34 @@ test('version trend setting defaults off, validates boolean and uses protected p
     await handlers.get('updateSettings')!(event, { experimentalVersionTrendEnabled: true })
   ).toMatchObject({ ok: true, value: { experimentalVersionTrendEnabled: true } })
   expect(context.settingService.set).toHaveBeenCalledWith('experimentalVersionTrendEnabled', true)
+})
+
+test('official patch notes IPC rejects foreign callers and URL/path injection, and remains available while member analysis is disabled', async () => {
+  const { handlers, event, context } = createHarness()
+  const invoke = handlers.get('getPatchNotes')!
+  expect(await invoke({ sender: {} }, { patch: '16.1' })).toMatchObject({ ok: false })
+  context.settings.enabled = true
+  for (const request of [
+    { patch: '../secret' },
+    { patch: '16.1', url: 'https://bad.invalid' },
+    { patch: '17.1' },
+    { patch: '16.25' }
+  ])
+    expect(await invoke(event, request)).toMatchObject({
+      ok: false,
+      error: { code: 'INVALID_ARGUMENT' }
+    })
+  context.settings.enabled = false
+  const read = vi
+    .spyOn(PatchNotesLoader.prototype, 'read')
+    .mockResolvedValue({ patch: '16.1' } as any)
+  try {
+    expect(await invoke(event, { patch: '16.1' })).toMatchObject({
+      ok: true,
+      value: { patch: '16.1' }
+    })
+    expect(read).toHaveBeenCalledWith('16.1', undefined)
+  } finally {
+    read.mockRestore()
+  }
 })

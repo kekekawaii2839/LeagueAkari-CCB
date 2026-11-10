@@ -171,6 +171,26 @@ export const MemberAnalysisGameSchema = z
     side: MemberAnalysisSideSchema,
     win: z.boolean(),
     duration: z.number().finite().nonnegative(),
+    // Additive v5 enrichment; absent in older publications means not collected.
+    teamMetrics: z
+      .object({
+        totalKills: z.number().int().nonnegative().nullable(),
+        firstDragonTime: z.number().finite().nonnegative().nullable(),
+        firstTowerTime: z.number().finite().nonnegative().nullable(),
+        dragons: z.number().int().nonnegative().nullable(),
+        barons: z.number().int().nonnegative().nullable(),
+        dragonSouls: z.number().int().nonnegative().nullable(),
+        elderDragons: z.number().int().nonnegative().nullable()
+      })
+      .strict()
+      .optional(),
+    bans: z
+      .object({
+        own: z.array(z.number().int().positive()).max(5).nullable(),
+        enemy: z.array(z.number().int().positive()).max(5).nullable()
+      })
+      .strict()
+      .optional(),
     roster: z.string().max(512),
     metricSemantics: z.enum(['current-v5', 'legacy-unknown']).optional(),
     // Additive, main-owned current snapshots; absent in legacy worker datasets.
@@ -322,7 +342,17 @@ export const MemberAnalysisJobSchema = z
     error: z
       .object({
         code: z.string().trim().min(1).max(64),
-        message: z.string().max(512)
+        message: z.string().max(512),
+        diagnostic: z
+          .enum([
+            'collection-failed',
+            'worker-failed',
+            'identity-worker-unavailable',
+            'identity-worker-failed',
+            'identity-verification-failed',
+            'publication-failed'
+          ])
+          .optional()
       })
       .strict()
       .nullable()
@@ -334,6 +364,7 @@ export const MemberAnalysisErrorCodeSchema = z.enum([
   'NOT_INITIALIZED',
   'INVALID_ARGUMENT',
   'WORKER_UNAVAILABLE',
+  'CLIENT_UNAVAILABLE',
   'JOB_ALREADY_RUNNING',
   'JOB_NOT_FOUND',
   'CANCELLED',
@@ -426,6 +457,7 @@ export const MemberAnalysisCapabilitiesSchema = z
         'refreshCurrentRanks',
         'cancelCurrentRankRefresh',
         'getPublishedMemberIdentities',
+        'getPatchNotes',
         'getSettings',
         'updateSettings',
         'startRefresh',

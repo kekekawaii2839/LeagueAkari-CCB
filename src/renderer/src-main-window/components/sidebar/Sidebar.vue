@@ -58,6 +58,7 @@ import { ToolFilled as ToolFilledIcon } from '@vicons/antd'
 import {
   AnimalRabbit28Filled as AnimalRabbit28FilledIcon,
   Flash20Filled as Flash20FilledIcon,
+  DocumentBulletList24Regular as PatchNotesIcon,
   Games24Filled as Games24FilledIcon
 } from '@vicons/fluent'
 import { AnalyticsRound as AnalyticsRoundIcon } from '@vicons/material'
@@ -189,6 +190,7 @@ const menu = computed(() => {
       inProgress: shouldShowOngoingGameBadge.value,
       isDisabled: !lcs.isConnected
     },
+    { key: 'patch-notes', icon: renderIcon(PatchNotesIcon), name: '版本改动' },
     {
       key: 'automation',
       icon: renderIcon(Flash20FilledIcon),
