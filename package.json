@@ -22,7 +22,7 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:repository-scripts": "node --test scripts/checks/*.node-test.mjs scripts/member-analysis/*.node-test.mjs",
+    "test:repository-scripts": "node --test scripts/checks/*.node-test.mjs scripts/member-analysis/*.node-test.mjs scripts/member-analysis/*.node-test.cjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev --watch -- --inspect",
     "dev:no-watch": "electron-vite dev -- --inspect",
