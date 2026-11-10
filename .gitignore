@@ -1,4 +1,6 @@
 node_modules
+# Local Riot API credential file and editor backup suffixes; never commit.
+/.env.riot.local*
 dist
 out
 storybook-static
@@ -86,3 +88,11 @@ CLAUDE.md
 *.[mM][dD]
 *.[mM][dD][xX]
 *.[mM][aA][rR][kK][dD][oO][wW][nN]
+
+# Workspace-local archives and pre-fork artifacts; never product sources.
+/.local/
+/scratch/
+/.cache/
+/akari-public-sanitize/
+/akari-sync-review/
+/akari-pre-public-backup.bundle

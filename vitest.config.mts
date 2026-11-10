@@ -24,7 +24,15 @@ export default defineConfig({
     }
   },
   test: {
-    exclude: [...configDefaults.exclude, 'packages/prediction-lab/runner/*.test.mjs'],
+    exclude: [
+      ...configDefaults.exclude,
+      '**/.cache/**',
+      '**/.local/**',
+      'akari-public-sanitize/**',
+      'akari-sync-review/**',
+      'scratch/**',
+      'packages/prediction-lab/runner/*.test.mjs'
+    ],
     globals: true,
     environment: 'node'
   }

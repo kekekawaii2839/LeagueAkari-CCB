@@ -8,6 +8,7 @@ artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: .phase7-package
 files:
+  - '!{.env,.env.*}'
   - '!logs{,/**}'
   - '!resources/member-analysis{,/**}'
   - '!packaging{,/**}'
