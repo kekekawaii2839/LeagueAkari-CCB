@@ -125,6 +125,7 @@ function createMainContext() {
                 avgKda: 2.34,
                 avgSoloKills: 0.8,
                 avgVisionScore: 26.4,
+                avgVisionScorePerMinute: 0.846,
                 avgChampionDamagePercentageOfTeam: 0.3,
                 avgDamageTakenPercentageOfTeam: 0.27,
                 avgGoldPercentageOfTeam: 0.24,
@@ -152,6 +153,7 @@ function createMainContext() {
                     avgKda: 4.321,
                     avgSoloKills: 1.2,
                     avgVisionScore: 24.7,
+                    avgVisionScorePerMinute: 0.725,
                     avgChampionDamagePercentageOfTeam: 0.34,
                     avgDamageTakenPercentageOfTeam: 0.21,
                     avgGoldPercentageOfTeam: 0.28,
@@ -179,6 +181,7 @@ function createMainContext() {
                     avgKda: 2.4,
                     avgSoloKills: 0.6,
                     avgVisionScore: 18.3,
+                    avgVisionScorePerMinute: 0.58,
                     avgChampionDamagePercentageOfTeam: 0.22,
                     avgDamageTakenPercentageOfTeam: 0.31,
                     avgGoldPercentageOfTeam: 0.2,
@@ -206,6 +209,7 @@ function createMainContext() {
                     avgKda: 2.1,
                     avgSoloKills: 0.3,
                     avgVisionScore: 31.2,
+                    avgVisionScorePerMinute: 1.12,
                     avgChampionDamagePercentageOfTeam: 0.17,
                     avgDamageTakenPercentageOfTeam: 0.35,
                     avgGoldPercentageOfTeam: 0.18,
@@ -233,6 +237,7 @@ function createMainContext() {
                     avgKda: 1.8,
                     avgSoloKills: 0.1,
                     avgVisionScore: 16.1,
+                    avgVisionScorePerMinute: 0.49,
                     avgChampionDamagePercentageOfTeam: 0.26,
                     avgDamageTakenPercentageOfTeam: 0.19,
                     avgGoldPercentageOfTeam: 0.23,
@@ -517,7 +522,7 @@ describe('in-game-send presets', () => {
     expect(lines).toEqual(['无极剑圣（RIP董事长#81406）：50场对局，胜率59% KDA2.34'])
   })
 
-  it('shows optional rating metrics after average vision score when enabled', () => {
+  it('shows optional rating metrics after average vision score per minute when enabled', () => {
     const lines = buildRatingPresetLines(createContext(), {
       ...createRatingOptions(),
       selectedPuuids: ['p1'],
@@ -533,8 +538,54 @@ describe('in-game-send presets', () => {
     } as InGameSendRatingPresetLineOptions)
 
     expect(lines).toEqual([
-      '无极剑圣：50场对局，胜率59% KDA2.34 场均单杀0.8 场均视野得分26.4 伤害30% 承伤27% 经济24% 补兵7.1/分 参团率62% 伤转比118%'
+      '无极剑圣：50场对局，胜率59% KDA2.34 场均单杀0.8 场均分均视野0.85 伤害30% 承伤27% 经济24% 补兵7.1/分 参团率62% 伤转比118%'
     ])
+  })
+
+  it.each([
+    { showCurrentChampion: false, value: 0, expected: '场均分均视野0.00' },
+    { showCurrentChampion: false, value: null, expected: '场均分均视野-' },
+    { showCurrentChampion: true, value: 0.725, expected: '场均分均视野0.72' },
+    { showCurrentChampion: true, value: null, expected: '场均分均视野-' }
+  ])(
+    'formats per-minute vision without falling back to totals: %j',
+    ({ showCurrentChampion, value, expected }) => {
+      const mainContext = createMainContext()
+      const player = mainContext.ongoingGame.state.analysis.players.p1
+      const summary = showCurrentChampion ? player.champions[103].summary : player.summary
+      summary.avgVisionScorePerMinute = value
+
+      const lines = buildRatingPresetLines(
+        { target: 'friendly', mainContext },
+        {
+          ...createRatingOptions(),
+          selectedPuuids: ['p1'],
+          showCurrentChampion,
+          avgVisionScore: true,
+          mainChampions: false,
+          mainPositions: false
+        }
+      )
+
+      expect(lines).toHaveLength(1)
+      expect(lines[0]).toContain(expected)
+      expect(lines[0]).not.toContain(`${expected}/分`)
+      expect(lines[0]).not.toContain('场均视野得分')
+    }
+  )
+
+  it('sends per-minute vision without a value suffix in English', async () => {
+    await i18next.changeLanguage('en')
+    const lines = buildRatingPresetLines(createContext(), {
+      ...createRatingOptions(),
+      selectedPuuids: ['p1'],
+      avgVisionScore: true,
+      mainChampions: false,
+      mainPositions: false
+    })
+
+    expect(lines[0]).toContain('Avg Vision per Minute 0.85')
+    expect(lines[0]).not.toContain('0.85/min')
   })
 
   it('uses current champion rating stats when enabled', () => {

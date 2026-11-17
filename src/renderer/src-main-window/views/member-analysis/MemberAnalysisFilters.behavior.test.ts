@@ -289,3 +289,9 @@ test('promoted patch is a single ordinary-row control, numerically descending an
     f.dispose()
   }
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: { name: () => '', searchKeywords: () => [] }
+  })
+}))

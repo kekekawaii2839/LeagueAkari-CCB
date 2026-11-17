@@ -3,7 +3,8 @@
     transform-origin="center"
     size="small"
     preset="card"
-    v-model:show="show"
+    :show="show"
+    @update:show="requestShow"
     :class="styles['settings-modal']"
     @after-enter="handleAfterEnter"
   >
@@ -17,6 +18,7 @@
       :animated="tabsAnimated"
       size="medium"
       v-model:value="tabName"
+      :on-before-leave="beforeTabLeave"
       :theme-overrides="{ tabGapMediumLine: '18px' }"
     >
       <NTabPane name="basic">
@@ -36,6 +38,19 @@
           </div>
         </template>
         <MatchHistorySettings />
+      </NTabPane>
+      <NTabPane name="member-analysis">
+        <template #tab
+          ><div class="tab-icon-title">
+            <NIcon class="icon"><GroupsRound /></NIcon
+            ><span>{{ t('settings.memberAnalysis.title') }}</span>
+          </div></template
+        >
+        <MemberAnalysisSettings
+          ref="analysisSettings"
+          :active="show && tabName === 'member-analysis'"
+          @discard="resumeAfterDiscard"
+        />
       </NTabPane>
       <NTabPane name="ongoing-game">
         <template #tab>
@@ -106,11 +121,12 @@ import {
   Storage24Filled as Storage24FilledIcon,
   WindowMultiple20Regular as WindowMultiple20RegularIcon
 } from '@vicons/fluent'
-import { InfoSharp as InfoSharpIcon } from '@vicons/material'
+import { GroupsRound, InfoSharp as InfoSharpIcon } from '@vicons/material'
 import { useTranslation } from 'i18next-vue'
 import { NIcon, NModal, NTabPane, NTabs } from 'naive-ui'
 import { nextTick, onBeforeUnmount, ref, useCssModule, useTemplateRef, watch } from 'vue'
 
+import MemberAnalysisSettings from './MemberAnalysisSettings.vue'
 import AboutPane from './AboutPane.vue'
 import AppSettings from './AppSettings.vue'
 import DebugSettings from './DebugSettings.vue'
@@ -131,6 +147,34 @@ const tabName = defineModel<SettingsTabName>('tabName', { default: 'basic' })
 const storageTabName = defineModel<StorageSettingsTabName>('storageTabName', {
   default: 'tagged-players'
 })
+const analysisSettings =
+  useTemplateRef<InstanceType<typeof MemberAnalysisSettings>>('analysisSettings')
+let pendingLeave: (() => void) | null = null
+function canLeaveAnalysis(resume?: () => void) {
+  const allowed =
+    tabName.value !== 'member-analysis' || (analysisSettings.value?.canLeave() ?? true)
+  pendingLeave = allowed ? null : (resume ?? null)
+  return allowed
+}
+function resumeAfterDiscard() {
+  const resume = pendingLeave
+  pendingLeave = null
+  resume?.()
+}
+function requestShow(visible: boolean) {
+  if (
+    visible ||
+    canLeaveAnalysis(() => {
+      show.value = false
+    })
+  )
+    show.value = visible
+}
+function beforeTabLeave(next: string | number) {
+  return canLeaveAnalysis(() => {
+    tabName.value = next as SettingsTabName
+  })
+}
 const tabsEl = useTemplateRef('tabs')
 const tabsAnimated = ref(true)
 const modalEntered = ref(false)
@@ -167,6 +211,12 @@ useAkariNavigationStep<SettingsTabName>({
       return undefined
     }
 
+    if (
+      !canLeaveAnalysis(() => {
+        tabName.value = payload
+      })
+    )
+      return { status: 'unavailable', reason: 'unsaved-settings' }
     const sequence = ++navigationActivationSequence
     tabsAnimated.value = false
     tabName.value = payload
@@ -182,7 +232,7 @@ useAkariNavigationStep<SettingsTabName>({
   }
 })
 
-defineExpose({ waitUntilEntered })
+defineExpose({ waitUntilEntered, canLeaveAnalysis })
 
 const as = useAppCommonStore()
 
@@ -304,5 +354,15 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Naive scrollbars overlay their content; keep the settings surfaces clear of the rail. */
+.settings-modal :global(.n-tab-pane > .n-scrollbar > .n-scrollbar-container > .n-scrollbar-content),
+.settings-modal
+  :global(
+    .analysis-settings-pane .settings-scroll > .n-scrollbar-container > .n-scrollbar-content
+  ) {
+  box-sizing: border-box;
+  padding-right: 12px;
 }
 </style>

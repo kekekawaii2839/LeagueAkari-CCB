@@ -56,10 +56,11 @@ import { useSgpStore } from '@renderer-shared/shards/sgp/store'
 import { greeting } from '@renderer-shared/utils/greeting'
 import { useElementSize } from '@vueuse/core'
 import { useTranslation } from 'i18next-vue'
-import { nextTick, ref, useTemplateRef } from 'vue'
+import { nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import Sidebar from '@main-window/components/sidebar/Sidebar.vue'
+import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { PlayerTabsRenderer } from '@main-window/shards/player-tabs'
 
 import { SearchPane, type SearchPanePage } from './components/search-pane'
@@ -100,6 +101,27 @@ const settingModelTab = ref<SettingsTabName>('basic')
 const storageSettingsTab = ref<StorageSettingsTabName>('tagged-players')
 const settingsModal = useTemplateRef<InstanceType<typeof SettingsModal>>('settingsModal')
 
+// Existing feature entry points now open the global settings tab.
+const memberAnalysisStore = useMemberAnalysisStore()
+watch(
+  () => memberAnalysisStore.settingsDrawerVisible,
+  (requested) => {
+    if (!requested) return
+    if (
+      !settingsModal.value?.canLeaveAnalysis(() => {
+        settingModelTab.value = 'member-analysis'
+        isShowingSettingModal.value = true
+      })
+    ) {
+      memberAnalysisStore.settingsDrawerVisible = false
+      return
+    }
+    settingModelTab.value = 'member-analysis'
+    isShowingSettingModal.value = true
+    memberAnalysisStore.settingsDrawerVisible = false
+  }
+)
+
 useAkariNavigationStep<MainWindowNavigationPayload>({
   key: MAIN_WINDOW_NAVIGATION_STEP_KEY,
   activate: async (payload, { signal }) => {
@@ -112,6 +134,17 @@ useAkariNavigationStep<MainWindowNavigationPayload>({
       return undefined
     }
 
+    if (
+      isShowingSettingModal.value &&
+      !settingsModal.value?.canLeaveAnalysis(() => {
+        isShowingSettingModal.value = false
+        void router.replace({
+          name: payload.route.name,
+          params: { section: payload.route.section }
+        })
+      })
+    )
+      return { status: 'unavailable', reason: 'unsaved-settings' }
     isShowingSettingModal.value = false
     await router.replace({
       name: payload.route.name,
@@ -164,11 +197,25 @@ provideMainWindowAppContext({
 })
 
 app.onApplicationMenuAboutClick(() => {
+  if (
+    isShowingSettingModal.value &&
+    !settingsModal.value?.canLeaveAnalysis(() => {
+      settingModelTab.value = 'about'
+    })
+  )
+    return
   isShowingSettingModal.value = true
   settingModelTab.value = 'about'
 })
 
 app.onApplicationMenuSettingsClick(() => {
+  if (
+    isShowingSettingModal.value &&
+    !settingsModal.value?.canLeaveAnalysis(() => {
+      settingModelTab.value = 'basic'
+    })
+  )
+    return
   isShowingSettingModal.value = true
   settingModelTab.value = 'basic'
 })

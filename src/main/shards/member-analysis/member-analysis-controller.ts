@@ -92,7 +92,12 @@ export class MemberAnalysisController {
     const parsed = PatchNotesRequestSchema.safeParse(request)
     if (!parsed.success) return this._failure('INVALID_ARGUMENT', 'Invalid patch selection', false)
     try {
-      const value = await this._patchNotes.read(parsed.data.patch, parsed.data.refresh)
+      const value = await this._patchNotes.read(
+        parsed.data.patch,
+        parsed.data.refresh,
+        parsed.data.latest,
+        parsed.data.cacheOnly
+      )
       return this._success(value)
     } catch {
       return this._failure('INTERNAL_ERROR', 'Official patch notes could not be read', true)

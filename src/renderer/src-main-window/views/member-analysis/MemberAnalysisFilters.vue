@@ -2,7 +2,7 @@
   <section
     class="member-analysis-filters"
     :class="{ 'member-analysis-filters--embedded': embedded }"
-    aria-label="成员分析筛选"
+    aria-label="五排分析筛选"
   >
     <div v-if="compact" class="compact-filter-summary">
       <NButton
@@ -190,6 +190,8 @@
 </template>
 
 <script setup lang="ts">
+import { useMemberAnalysisChampionMatch } from './useMemberAnalysisChampionMatch'
+
 import { NButton, NInput, NInputNumber, NSelect, type SelectOption } from 'naive-ui'
 import { computed, nextTick, onBeforeUnmount, onDeactivated, reactive, ref, watch } from 'vue'
 import type { HTMLAttributes } from 'vue'
@@ -203,6 +205,7 @@ import { useLeagueClientStore } from '@renderer-shared/shards/league-client/stor
 
 const store = useMemberAnalysisStore()
 const league = useLeagueClientStore()
+const { matchChampion } = useMemberAnalysisChampionMatch()
 const props = defineProps<{
   disabled?: boolean
   compact?: boolean
@@ -405,13 +408,8 @@ const championLabels = computed(() => {
   }
   return labels
 })
-const filterChampion = (pattern: string, option: SelectOption) => {
-  const query = championSearchText(pattern)
-  return [
-    typeof option.label === 'string' ? option.label : '',
-    typeof option.value === 'string' ? option.value : ''
-  ].some((value) => championSearchText(value).includes(query))
-}
+const filterChampion = (pattern: string, option: SelectOption) =>
+  matchChampion(pattern, String(option.value ?? ''), String(option.label ?? ''))
 const championOptions = computed(() => [
   { label: '全部英雄', value: 'all' },
   ...Array.from(

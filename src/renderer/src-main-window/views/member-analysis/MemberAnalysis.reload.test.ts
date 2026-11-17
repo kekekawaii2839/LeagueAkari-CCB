@@ -481,7 +481,7 @@ describe('published analysis background reload lifecycle', () => {
       host.store.loading = false
       host.store.error = { code: 'INTERNAL_ERROR', message: 'Synthetic', retryable: true }
       await nextTick()
-      expect(host.all().some((n) => n.props.title === '成员分析暂时不可用')).toBe(true)
+      expect(host.all().some((n) => n.props.title === '五排分析暂时不可用')).toBe(true)
       expect(fixture.mounts).toBe(0)
     } finally {
       host.dispose()
@@ -506,7 +506,7 @@ describe('published analysis background reload lifecycle', () => {
             .some((n) =>
               options.initialized === false
                 ? n.props.kind === 'NSpin'
-                : n.props.title === '成员分析已关闭'
+                : n.props.title === '五排分析已关闭'
             )
         ).toBe(true)
         expect(fixture.routerReplace).not.toHaveBeenCalled()
@@ -991,3 +991,12 @@ test.each([
     }
   }
 )
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: () => '',
+      searchKeywords: (id: number) => (id === 1 || id === 266 ? ['合成别名', '测试昵称'] : [])
+    }
+  })
+}))

@@ -31,6 +31,15 @@ export class ChampionDataRenderer implements IAkariShardInitDispose {
     this._loader = new ChampionDataRendererLoader(this._context)
   }
 
+  loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options?: ChampionDataRendererRequestOptions
+  ) {
+    return this._loader.loadLaneKillRate(query, championId, targetChampionId, options)
+  }
+
   loadPatches(query: ChampionDataQuery, options?: ChampionDataRendererRequestOptions) {
     return this._loader.loadPatches(query, options)
   }

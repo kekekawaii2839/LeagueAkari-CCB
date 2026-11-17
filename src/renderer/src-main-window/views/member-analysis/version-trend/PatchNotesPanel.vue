@@ -4,7 +4,8 @@
       <div class="patch-control">
         <span>{{ uiText('patchNotesVersion') }}</span>
         <NSelect
-          v-model:value="patch"
+          :value="patch"
+          @update:value="selectPatch"
           :options="options"
           filterable
           :aria-label="uiText('patchNotesVersion')"
@@ -18,15 +19,6 @@
           :options="categories"
           :aria-label="uiText('patchNotesCategory')"
           :input-props="{ 'aria-label': uiText('patchNotesCategory') }"
-        />
-      </div>
-      <div class="patch-control patch-search">
-        <NInput
-          v-model:value="query"
-          clearable
-          :aria-label="uiText('patchNotesSearch')"
-          :input-props="{ 'aria-label': uiText('patchNotesSearch') }"
-          :placeholder="uiText('patchNotesSearchPlaceholder')"
         />
       </div>
       <NButton secondary :loading="loading" :disabled="!active || loading" @click="load(true)">{{
@@ -48,7 +40,7 @@
     <template v-if="notes && notes.patch === patch">
       <div class="patch-source ma-data-context">
         <span
-          >{{ uiText('patchNotesSource', { patch: notes.publicPatch })
+          >{{ uiText('patchNotesSource')
           }}<span v-if="notes.publishedAt"> · {{ notes.publishedAt.slice(0, 10) }}</span></span
         >
         <span v-if="notes.stale" role="status">{{ uiText('patchNotesStale') }}</span>
@@ -62,7 +54,7 @@
       <template v-else>
         <div v-if="!filtered.length" class="patch-feedback" role="status">
           <span>{{ uiText(notes.sections.length ? 'patchNotesNoMatch' : 'patchNotesEmpty') }}</span>
-          <NButton v-if="category !== 'all' || query.trim()" secondary @click="clearFilters">{{
+          <NButton v-if="category !== 'all'" secondary @click="clearFilters">{{
             uiText('patchNotesClearFilters')
           }}</NButton>
         </div>
@@ -201,7 +193,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { NButton, NInput, NSelect } from 'naive-ui'
+import { NButton, NSelect } from 'naive-ui'
 import { useInstance } from '@renderer-shared/shards'
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
@@ -288,9 +280,19 @@ const options = computed(() =>
     value
   }))
 )
-const patch = ref('16.21')
+const patch = ref<string | null>(null)
+const initialized = ref(false)
+const followLatest = ref(true)
+function selectPatch(value: string) {
+  followLatest.value = false
+  generation++
+  loading.value = false
+  patch.value = value
+  notes.value = null
+  expanded.value = new Set()
+  if (props.active) void load()
+}
 const category = ref('all')
-const query = ref('')
 const categories = [
   { label: uiText('patchNotesAll'), value: 'all' },
   { label: uiText('patchNotesChampion'), value: 'champion' },
@@ -302,23 +304,11 @@ const notes = ref<PatchNotes | null>(null),
   error = ref<string | null>(null)
 
 let generation = 0
-const filtered = computed(() => {
-  const search = query.value.trim().toLocaleLowerCase()
-  return (
-    sections.value.filter(
-      (section) =>
-        (category.value === 'all' || section.category === category.value) &&
-        (!search ||
-          [
-            section.title,
-            section.entityKey ?? '',
-            section.identity?.name ?? '',
-            section.section,
-            ...section.entries.map((entry) => entry.text)
-          ].some((text) => text.toLocaleLowerCase().includes(search)))
-    ) ?? []
+const filtered = computed(() =>
+  sections.value.filter(
+    (section) => category.value === 'all' || section.category === category.value
   )
-})
+)
 // Keep original section keys: the same champion can have independent base and hotfix entries.
 const hasHotfix = computed(() => sections.value.some((section) => section.hotfix))
 const changeGroups = computed(() =>
@@ -335,15 +325,17 @@ const changeGroups = computed(() =>
     }
   ].filter((group) => group.sections.length)
 )
-async function load(refresh = false) {
+async function load(refresh = false, cacheOnly = false) {
   if (!props.active || loading.value) return
   const id = ++generation,
-    selected = patch.value
+    selected = patch.value ?? releasedPatchNotes[0]
   loading.value = true
   error.value = null
   try {
     const reply = await api.getPatchNotes({
       patch: selected,
+      ...(followLatest.value ? { latest: true } : {}),
+      ...(cacheOnly ? { cacheOnly: true } : {}),
       ...(refresh ? { refresh: true } : {})
     })
     if (id !== generation || !props.active) return
@@ -357,6 +349,7 @@ async function load(refresh = false) {
           ...(reply.value.status === 'available' ? [reply.value.patch] : [])
         ])
       ].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+      patch.value = reply.value.patch
     } else error.value = uiText('patchNotesFailed')
   } catch {
     if (id === generation) error.value = uiText('patchNotesFailed')
@@ -366,26 +359,35 @@ async function load(refresh = false) {
 }
 function clearFilters() {
   category.value = 'all'
-  query.value = ''
 }
 watch(
   () => props.selectedPatch,
   (value) => {
-    if (value && options.value.some((option) => option.value === value)) patch.value = value
+    if (value && options.value.some((option) => option.value === value)) {
+      if (initialized.value) selectPatch(value)
+      else {
+        followLatest.value = false
+        patch.value = value
+      }
+    }
   },
   { immediate: true }
 )
 watch(
-  [patch, () => props.active],
-  ([selected, active], previous) => {
+  () => props.active,
+  (active) => {
     generation++
     loading.value = false
-    error.value = null
-    if (!previous || selected !== previous[0]) {
-      notes.value = null
-      expanded.value = new Set()
-    }
-    if (active && (!notes.value || notes.value.patch !== selected)) void load()
+    if (!active) return
+    if (!initialized.value) {
+      const activation = generation
+      void (async () => {
+        await load(false, true)
+        if (!props.active || generation !== activation + 1) return
+        initialized.value = true
+        await load(true)
+      })()
+    } else void load(true)
   },
   { immediate: true }
 )
@@ -410,7 +412,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 300px;
+  width: 200px;
   max-width: 100%;
   min-width: 0;
 }
@@ -424,8 +426,11 @@ onBeforeUnmount(() => {
 .patch-category {
   width: 180px;
 }
-.patch-controls .patch-search {
-  flex: 1 1 220px;
+.patch-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
 }
 .patch-source {
   display: flex;

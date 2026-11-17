@@ -374,7 +374,10 @@ const overviewMetrics = computed<Metric[]>(() => {
     },
     {
       label: t('championAnalysis.visionScore'),
-      value: formatNumber(summary.avgVisionScore)
+      value:
+        summary.avgVisionScorePerMinute !== null && Number.isFinite(summary.avgVisionScorePerMinute)
+          ? summary.avgVisionScorePerMinute.toFixed(2)
+          : '—'
     },
     {
       label: t('championAnalysis.visionShare'),

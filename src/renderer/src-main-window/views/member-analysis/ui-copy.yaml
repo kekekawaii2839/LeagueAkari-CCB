@@ -126,7 +126,7 @@ zh-CN:
   patchNotesRead: '读取官方公告'
   patchNotesMapping: '客户端 15.xx / 16.xx 对应官方 25.xx / 26.xx。以下为英文公告摘录，不代表版本改动导致指标变化。'
   patchNotesLoading: '正在读取官方版本公告…'
-  patchNotesSource: '来源：Riot Games · en-US · 官方 {{patch}}'
+  patchNotesSource: '来源：Riot Games · en-US'
   patchNotesStale: '（旧缓存，更新失败）'
   patchNotesOriginal: '查看官方原文'
   patchNotesUnavailable: '该版本公告尚未发布、暂时无法获取或结构暂不支持；不能解释为“没有改动”。'
@@ -756,9 +756,9 @@ zh-CN:
   confirmCleanupTitle: 确认清理本地数据
   firstRunHelp: 配置成员后，刷新以获取分析数据。
   retry: 重试
-  errorDisabled: 成员分析已关闭，请在设置中启用。
+  errorDisabled: 五排分析已关闭，请在设置中启用。
   errorInitializing: 分析服务尚未就绪，请稍后重试。
-  errorSettings: 设置不完整或无效，请检查成员分析设置。
+  errorSettings: 设置不完整或无效，请检查五排分析设置。
   errorAnalysisUnavailable: 分析功能暂不可用，请重启应用后重试。
   errorClientUnavailable: 未连接英雄联盟客户端，请启动并登录客户端后再刷新；现有数据没有变化。
   errorJobRunning: 刷新正在进行，请等待完成或先取消刷新。
@@ -889,9 +889,10 @@ zh-CN:
   predictionReferenceResult: '历史胜率参考结果'
   predictionEstimateResult: '胜率预测结果'
   refreshDisabledHelp: '刷新不可用原因'
-  refreshDisabledClosed: '成员分析已关闭，启用后可刷新。'
+  refreshDisabledClosed: '五排分析已关闭，启用后可刷新。'
   refreshDisabledMembers: '当前已配置 {{count}} 名成员，至少需要 5 名。'
   refreshDisabledService: '分析功能暂不可用，请重启应用后重试。'
+  settingsSaved: '五排分析设置已保存'
   openSettings: '打开设置'
   configureMembers: '配置成员'
   settingsMemberCount: '至少添加 5 名成员，当前 {{count}} 名。'
@@ -1042,7 +1043,7 @@ en:
   patchNotesRead: 'Read official notes'
   patchNotesMapping: 'Client 15.xx / 16.xx maps to official 25.xx / 26.xx. These English excerpts do not establish that patch changes caused metric changes.'
   patchNotesLoading: 'Reading official patch notes…'
-  patchNotesSource: 'Source: Riot Games · en-US · official {{patch}}'
+  patchNotesSource: 'Source: Riot Games · en-US'
   patchNotesStale: '(stale cache; refresh failed)'
   patchNotesOriginal: 'View official article'
   patchNotesUnavailable: 'The notes are unpublished, unavailable, or use an unsupported structure; this does not mean there were no changes.'
@@ -1811,6 +1812,7 @@ en:
   refreshDisabledClosed: 'Member analysis is off. Enable it to refresh.'
   refreshDisabledMembers: '{{count}} members configured; at least 5 are required.'
   refreshDisabledService: 'Analysis is unavailable. Restart the app and try again.'
+  settingsSaved: 'Premade analysis settings saved'
   openSettings: 'Open settings'
   configureMembers: 'Configure members'
   settingsMemberCount: 'Add at least 5 members; {{count}} currently added.'

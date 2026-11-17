@@ -45,6 +45,65 @@ export class ChampionDataMainSourceLoader implements ChampionDataSourceLoader {
     private readonly _qq101Api: Qq101HttpApiAxiosHelper
   ) {}
 
+  // Bounded, short-lived public-statistics cache; never persisted with player data.
+  private readonly _laneKillRates = new Map<string, { rate: number | null; expires: number }>()
+
+  async loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options: ChampionDataLoadOptions = {}
+  ): Promise<number | null> {
+    if (query.source !== 'opgg' || query.mode !== 'ranked') return null
+    const position = UNIFIED_TO_OPGG_POSITION[query.position ?? 'none']
+    if (!['top', 'mid', 'adc', 'support'].includes(position)) return null
+    if (![championId, targetChampionId].every((id) => Number.isSafeInteger(id) && id > 0))
+      throw new Error('Invalid matchup champion')
+    options.signal?.throwIfAborted()
+    const key = JSON.stringify([
+      query.region,
+      query.patch,
+      query.tier,
+      position,
+      championId,
+      targetChampionId
+    ])
+    const cached = this._laneKillRates.get(key)
+    if (cached && cached.expires > Date.now()) return cached.rate
+    const response = await this._opggApi.getCounterStats(
+      (query.region ?? 'global') as RegionType,
+      championId,
+      position,
+      targetChampionId,
+      {
+        tier: query.tier as TierType | undefined,
+        version: query.patch,
+        signal: options.signal
+      }
+    )
+    options.signal?.throwIfAborted()
+    // Keep the same patch population as the displayed build and win rate.
+    if (query.patch && response.data.meta.version !== query.patch) return null
+    const own = response.data.data.find((item) => item.champion_id === championId)
+    const kills = own?.lane_kill
+    const opposing = response.data.data.find((item) => item.champion_id === targetChampionId)
+    const opposingKills = opposing?.lane_kill
+    const valid =
+      typeof kills === 'number' &&
+      typeof opposingKills === 'number' &&
+      Number.isFinite(kills) &&
+      Number.isFinite(opposingKills) &&
+      kills >= 0 &&
+      opposingKills >= 0 &&
+      kills + opposingKills > 0
+    // OP.GG compares both champions' lane kills, not own lane deaths (samples can differ).
+    const rate = valid ? kills / (kills + opposingKills) : null
+    if (this._laneKillRates.size >= 256)
+      this._laneKillRates.delete(this._laneKillRates.keys().next().value!)
+    this._laneKillRates.set(key, { rate, expires: Date.now() + 5 * 60_000 })
+    return rate
+  }
+
   private async _resolveOpggVersion(query: ChampionDataQuery, options: ChampionDataLoadOptions) {
     if (query.patch) return query.patch
     const response = await this._opggApi.getVersions(
@@ -155,11 +214,33 @@ export class ChampionDataMainSourceLoader implements ChampionDataSourceLoader {
       targetChampionId,
       signal: options.signal
     })
-    return adaptOpggChampionDetails(response.data, {
-      mode: query.mode,
-      position: query.position,
-      targetChampionId
-    })
+    options.signal?.throwIfAborted()
+    if (query.mode !== 'ranked' || !['top', 'mid', 'adc', 'support'].includes(position)) {
+      return adaptOpggChampionDetails(response.data, {
+        mode: query.mode,
+        position: query.position,
+        targetChampionId
+      })
+    }
+
+    // Some builds omit a summary counter from the full block. Preserve the original
+    // unfavorable IDs while filling the union, without changing either block's counts.
+    const unfavorableCounters =
+      response.data.data.summary.positions?.find((item) => item.name === position.toUpperCase())
+        ?.counters ?? []
+    const counters = new Map(
+      (response.data.data.counters ?? []).map((counter) => [counter.champion_id, counter])
+    )
+    for (const counter of unfavorableCounters) {
+      if (!counters.has(counter.champion_id)) counters.set(counter.champion_id, counter)
+    }
+    const details = adaptOpggChampionDetails(
+      { ...response.data, data: { ...response.data.data, counters: [...counters.values()] } },
+      { mode: query.mode, position: query.position, targetChampionId }
+    )
+    // Lane-kill comparisons use separate per-opponent requests. The renderer loads
+    // them only when that metric is requested, never on the detail critical path.
+    return details
   }
 
   private async _loadQq101Overview(

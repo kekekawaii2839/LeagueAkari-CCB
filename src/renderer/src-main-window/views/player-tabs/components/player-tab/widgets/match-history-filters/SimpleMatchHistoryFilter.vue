@@ -103,7 +103,7 @@ import { NRadio, NRadioGroup, NSelect, NTag, SelectOption } from 'naive-ui'
 import { SelectBaseOption } from 'naive-ui/es/select/src/interface'
 import { computed, ref, watch } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 
 import { usePlayerTab } from '../../context'
 import { useMatchHistory } from '../../data/match-history'

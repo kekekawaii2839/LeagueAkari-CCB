@@ -1,4 +1,6 @@
 settings:
+  memberAnalysis:
+    title: Premade Analysis
   modal:
     title: Settings
   commandPalette:
@@ -274,7 +276,7 @@ settings:
         showAverageEnemyMissingPingsTag:
           label: Average Enemy Missing Pings
         showAverageVisionScoreTag:
-          label: Average Vision Score
+          label: Average Vision Score Per Minute
         showAkariScoreTag:
           label: Akari Score
         showAverageKillDamageEfficiencyTag:

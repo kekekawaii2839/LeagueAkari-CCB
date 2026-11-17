@@ -91,6 +91,11 @@ opgg:
     status: Champion select assistant
     active: Active
     waitingForChampion: Waiting for champion
+  enemyChampions:
+    title: Enemy picks
+    open: View details for {{champion}}
+    noData: No champion details under these filters. Try another patch or source.
+    changedPosition: 'Statistical lane changed to {{position}} where data is available (not the enemy’s confirmed role)'
   matchup:
     title: Matchup filter (Experimental)
     prompt: Select your lane opponent
@@ -156,6 +161,19 @@ opgg:
     plays: Total Games
     banRate: Ban Rate
     counter: Counter
+    onlyPool: Only my champion pool
+    poolLoading: Loading champion pool…
+    poolUnavailable: Could not load champion pool
+    poolMatchupMissing: No matchup data
+    poolNoMatches: No pool champions in the current matchup scope
+    counterScope: Show all matchups
+    counterMetric: Show lane kill rate instead of win rate
+    noLaneKillDisadvantages: No available matchups have a lane kill rate below 50%.
+    laneKillLoading: Loading lane kill rates…
+    laneKillPartial: Some lane kill rates could not be loaded
+    laneKillUnavailable: Lane kill rate data unavailable
+    laneKillRate: Lane kill
+    laneKillRateDescription: 'OP.GG lane kill rate for the selected champion: own laning kills / both champions’ laning kills, including assists, not solo kills. Not available for jungle. — means unavailable.'
     allCounters: All
     counterC: Counter
     allC: All

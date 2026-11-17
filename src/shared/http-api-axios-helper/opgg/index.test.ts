@@ -4,6 +4,20 @@ import { describe, expect, it, vi } from 'vitest'
 import { OpggHttpApiAxiosHelper } from './index'
 
 describe('OpggHttpApiAxiosHelper', () => {
+  it('requests lane matchup stats with the same region, role, tier, patch and cancellation signal', async () => {
+    const get = vi.fn().mockResolvedValue({ data: {} })
+    const helper = new OpggHttpApiAxiosHelper({ defaults: {}, get } as unknown as AxiosInstance)
+    const signal = new AbortController().signal
+    await helper.getCounterStats('kr', 266, 'top', 24, {
+      tier: 'diamond_plus',
+      version: '16.22',
+      signal
+    })
+    expect(get).toHaveBeenCalledWith('/api/kr/champions/ranked/266/top/counters/24', {
+      params: { tier: 'diamond_plus', version: '16.22' },
+      signal
+    })
+  })
   it('passes the selected matchup champion to ranked detail requests', async () => {
     const get = vi.fn().mockResolvedValue({ data: { data: {} } })
     const httpClient = {

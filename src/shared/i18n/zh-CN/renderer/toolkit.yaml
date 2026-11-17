@@ -383,8 +383,8 @@ toolkit:
             label: 场均单杀
             description: 场均单杀次数，需使用 SGP 数据源
           avgVisionScore:
-            label: 场均视野得分
-            description: 近期对局的场均视野得分
+            label: 场均分均视野
+            description: 逐局计算每分钟视野得分，再对有效对局取平均
           avgChampionDamage:
             label: 场均伤害
             description: 展示平均队伍伤害占比

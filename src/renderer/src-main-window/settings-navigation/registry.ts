@@ -30,6 +30,7 @@ import { createSettingsNavigationTargetStepKey } from './useSettingsNavigationTa
 export const SETTINGS_TAB_LABEL_KEYS = {
   basic: 'settings.app.title',
   'player-tabs': 'settings.matchHistory.title',
+  'member-analysis': 'settings.memberAnalysis.title',
   'ongoing-game': 'settings.ongoingGame.title',
   'multi-window': 'settings.multiWindow.title',
   storage: 'settings.storage.title',

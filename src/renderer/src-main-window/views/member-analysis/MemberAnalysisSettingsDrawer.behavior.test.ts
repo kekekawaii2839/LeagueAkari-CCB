@@ -15,25 +15,36 @@ vi.mock('@renderer-shared/composables/useSgpTagOptions', () => ({
   useSgpTagOptions: () => ({ value: [] })
 }))
 vi.mock('@vicons/fluent', () => ({ ReOrderDotsVertical20Regular: () => null }))
+vi.mock('@renderer-shared/components/SettingsRow.vue', () => ({
+  default: (_props: unknown, { slots }: Vue.SetupContext) =>
+    h('div', [slots.label?.(), slots.labelDescription?.(), slots.default?.()])
+}))
+vi.mock('@renderer-shared/components/SettingsSection.vue', () => ({
+  default: (_props: unknown, { slots }: Vue.SetupContext) =>
+    h('section', [slots.header?.(), slots.default?.()])
+}))
 vi.mock('naive-ui', () => {
   const stub =
     (kind: string) =>
     (props: any, { slots }: any) =>
       h('control', { ...props, kind }, [slots.default?.(), slots.footer?.()])
-  return Object.fromEntries(
-    [
-      'NAlert',
-      'NButton',
-      'NDrawer',
-      'NDrawerContent',
-      'NFormItem',
-      'NInput',
-      'NIcon',
-      'NInputNumber',
-      'NSelect',
-      'NSwitch'
-    ].map((kind) => [kind, stub(kind)])
-  )
+  return {
+    useThemeVars: () => Vue.ref({ errorColor: 'red' }),
+    ...Object.fromEntries(
+      [
+        'NAlert',
+        'NButton',
+        'NDrawer',
+        'NDrawerContent',
+        'NScrollbar',
+        'NInput',
+        'NIcon',
+        'NInputNumber',
+        'NSelect',
+        'NSwitch'
+      ].map((kind) => [kind, stub(kind)])
+    )
+  }
 })
 
 type Node = {
@@ -99,7 +110,7 @@ MemberAnalysisSettingsDrawer.render = new Function(
     }
   })
 })
-function harness() {
+function harness(embedded = false) {
   const renderer = createRenderer<Node, Node>({
     createElement: node,
     createText: (text) => ({ ...node('text'), text }),
@@ -129,6 +140,7 @@ function harness() {
   })
   const props = reactive({
     show: true,
+    embedded,
     settings: fixture(),
     saving: false,
     storageStatus: null,
@@ -139,9 +151,15 @@ function harness() {
   const save = vi.fn()
   const close = vi.fn()
   const root = node('root')
+  const exposed = Vue.ref<InstanceType<typeof MemberAnalysisSettingsDrawer> | null>(null)
   const app = renderer.createApp({
     render: () =>
-      h(MemberAnalysisSettingsDrawer, { ...props, onSave: save, 'onUpdate:show': close })
+      h(MemberAnalysisSettingsDrawer, {
+        ...props,
+        ref: exposed,
+        onSave: save,
+        'onUpdate:show': close
+      })
   })
   app.provide(ssrContextKey, { modules: new Set() })
   app.mount(root)
@@ -158,7 +176,7 @@ function harness() {
     await nextTick()
   }
   const submit = () => button().props.onClick()
-  return { props, root, app, all, control, name, button, editName, submit, save, close }
+  return { props, root, app, all, control, name, button, editName, submit, save, close, exposed }
 }
 
 describe('settings draft and contract behavior', () => {
@@ -424,7 +442,7 @@ describe('settings draft and contract behavior', () => {
     const f = harness()
     try {
       expect(
-        f.control('NSwitch', (n) => n.props['aria-label'] === '启用成员分析').props.value
+        f.control('NSwitch', (n) => n.props['aria-label'] === '启用五排分析').props.value
       ).toBe(true)
       expect(
         f.control('NSwitch', (n) => n.props['aria-label'] === 'OP.GG 公共参考数据')
@@ -744,6 +762,25 @@ test('imports one explicitly dropped JSON file but ignores a read completed afte
     await pending
     expect(f.name().props.value).toBe('Dropped0')
     expect(f.props.settings.members).toEqual(original)
+  } finally {
+    f.app.unmount()
+  }
+})
+
+test('global settings keeps the form open after saving and protects unsaved edits', async () => {
+  const f = harness(true)
+  try {
+    expect(f.all().some((n) => n.props.kind === 'NDrawer')).toBe(false)
+    await f.editName('Changed')
+    expect(f.exposed.value?.requestClose(false)).toBe(false)
+    f.submit()
+    const [submitted, complete] = f.save.mock.calls[0]
+    complete(submitted)
+    await nextTick()
+    expect(f.close).not.toHaveBeenCalled()
+    expect(f.exposed.value?.requestClose(false)).toBe(true)
+    await f.editName('Unsaved')
+    expect(f.exposed.value?.requestClose(false)).toBe(false)
   } finally {
     f.app.unmount()
   }

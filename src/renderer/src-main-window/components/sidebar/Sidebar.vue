@@ -61,7 +61,11 @@ import {
   DocumentBulletList24Regular as PatchNotesIcon,
   Games24Filled as Games24FilledIcon
 } from '@vicons/fluent'
-import { AnalyticsRound as AnalyticsRoundIcon } from '@vicons/material'
+import {
+  AnalyticsRound as AnalyticsRoundIcon,
+  GroupsRound,
+  ViewModuleRound
+} from '@vicons/material'
 import { useTranslation } from 'i18next-vue'
 import { NIcon } from 'naive-ui'
 import {
@@ -180,7 +184,7 @@ const menu = computed(() => {
     },
     {
       key: MEMBER_ANALYSIS_NAVIGATION.key,
-      icon: renderIcon(AnalyticsRoundIcon),
+      icon: renderIcon(GroupsRound),
       name: MEMBER_ANALYSIS_NAVIGATION.label
     },
     {
@@ -190,6 +194,7 @@ const menu = computed(() => {
       inProgress: shouldShowOngoingGameBadge.value,
       isDisabled: !lcs.isConnected
     },
+    { key: 'champion-pool', icon: renderIcon(ViewModuleRound), name: t('championPool.title') },
     { key: 'patch-notes', icon: renderIcon(PatchNotesIcon), name: '版本改动' },
     {
       key: 'automation',

@@ -1,6 +1,8 @@
+import { useExtraAssetsStore } from '@renderer-shared/shards/extra-assets/store'
+import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
 import type { MemberAnalysisGame, MemberAnalysisOverview } from '@shared/shards/member-analysis'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { isProxy } from 'vue'
 
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
@@ -95,6 +97,32 @@ describe('shared published analysis data', () => {
     store.overview = published()
     expect(data.roles.value).toEqual(previous)
   })
+  test('global query matches resource aliases and pinyin without changing canonical dataset names', () => {
+    const store = useMemberAnalysisStore()
+    const league = useLeagueClientStore()
+    league.gameData.champions = {
+      1: { id: 1, alias: 'Ahri', name: '九尾妖狐', roles: [], squarePortraitPath: '' }
+    }
+    store.overview = published()
+    const data = useMemberAnalysisData()
+    for (const query of ['jw', '测试昵称', 'Ahri', '九尾']) {
+      store.filters.query = query
+      expect(data.games.value).toHaveLength(50)
+      expect(data.games.value[0].players[0].champion).toBe('Ahri')
+    }
+    store.filters.query = 'never-matches'
+    expect(data.games.value).toEqual([])
+  })
+  test('hero keywords remain searchable through cached extra assets with no client heroes', () => {
+    const store = useMemberAnalysisStore()
+    useLeagueClientStore().gameData.champions = {}
+    useExtraAssetsStore().gtimg.heroList = {
+      hero: [{ heroId: '1', alias: 'Ahri', name: '九尾妖狐', title: '阿狸' }]
+    } as any
+    store.overview = published()
+    store.filters.query = '测试昵称'
+    expect(useMemberAnalysisData().games.value).toHaveLength(50)
+  })
   test('changed filters, side, sample and grouped role conditions update the supported population', () => {
     const store = useMemberAnalysisStore()
     store.overview = published()
@@ -116,3 +144,12 @@ describe('shared published analysis data', () => {
     expect(data.champions.value).toEqual([])
   })
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: (id: number) => (id === 1 ? '九尾妖狐' : ''),
+      searchKeywords: (id: number) => (id === 1 || id === 266 ? ['合成别名', '测试昵称'] : [])
+    }
+  })
+}))

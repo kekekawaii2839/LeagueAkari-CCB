@@ -117,11 +117,21 @@ const reply = (patch = '16.21'): { ok: true; value: PatchNotes } => ({
     ]
   }
 })
-function harness(initialActive = true, initialReply = reply()) {
-  io.read.mockReset().mockImplementation(async ({ patch }) => ({
-    ...initialReply,
-    value: { ...initialReply.value, patch }
-  }))
+function harness(
+  initialActive = true,
+  initialReply = reply(),
+  read?: (request: any) => Promise<any>
+) {
+  io.read.mockReset().mockImplementation(
+    read ??
+      (async ({ patch, latest }) => ({
+        ...initialReply,
+        value: {
+          ...initialReply.value,
+          patch: latest ? (initialReply.value.availablePatches?.[0] ?? patch) : patch
+        }
+      }))
+  )
   const renderer = createRenderer<Node, Node>({
     createElement: node,
     createComment: node,
@@ -197,13 +207,7 @@ test('base and mid-patch changes for the same champion stay in separate labelled
     f.expandAll()
     await nextTick()
     expect(f.all().filter((n) => n.type === 'ul')).toHaveLength(2)
-    const search = f.all().find((n) => n.props.kind === 'NInput')!
-    search.props['onUpdate:value']('Varus')
-    await nextTick()
-    expect(groups()).toHaveLength(2)
-    search.props['onUpdate:value']('no synthetic match')
-    await nextTick()
-    expect(groups()).toHaveLength(0)
+    expect(f.all().some((n) => n.props.kind === 'NInput')).toBe(false)
   } finally {
     f.dispose()
   }
@@ -215,7 +219,7 @@ test('independent page loads actual structured contents automatically and render
     await vi.waitFor(() => expect(f.text()).toContain('Synthetic Hero'))
     f.expandAll()
     await nextTick()
-    expect(io.read).toHaveBeenCalledWith({ patch: '16.21' })
+    expect(io.read).toHaveBeenCalledWith({ patch: '16.21', latest: true, cacheOnly: true })
     expect(
       f.all().some((n) => n.type === 'span' && n.children.some((child) => child.text === '10'))
     ).toBe(true)
@@ -233,7 +237,7 @@ test('independent page loads actual structured contents automatically and render
       .find((n) => n.props.kind === 'NButton' && typeof n.props.onClick === 'function')!
     refresh.props.onClick()
     await vi.waitFor(() =>
-      expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', refresh: true })
+      expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', latest: true, refresh: true })
     )
   } finally {
     f.dispose()
@@ -325,7 +329,7 @@ test('refresh failure retains structured notes and exposes a retry action', asyn
     io.read.mockResolvedValueOnce(reply())
     retry.props.onClick()
     await vi.waitFor(() => expect(f.text()).not.toContain('已保留上次公告内容'))
-    expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', refresh: true })
+    expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', latest: true, refresh: true })
   } finally {
     f.dispose()
   }
@@ -362,8 +366,8 @@ test('all targets share a continuous page, numeric item identity resolves, and p
     expect(
       f.all().some((n) => n.props['data-change'] === 'unknown' && n.parent?.type === 'p')
     ).toBe(true)
-    const search = f.all().find((n) => n.props.kind === 'NInput')!
-    search.props['onUpdate:value']('合成装备')
+    const category = f.all().filter((n) => n.props.kind === 'NSelect')[1]
+    category.props['onUpdate:value']('item')
     await nextTick()
     expect(f.text()).toContain('Synthetic Boots')
     expect(f.text()).not.toContain('Synthetic Hero')
@@ -393,50 +397,6 @@ test('official images fill unmapped identities and skill rows without guessing n
       .map((n) => n.props.src)
     expect(urls).toContain(section.imageUrl)
     expect(urls).toContain(section.entries[0].abilityImageUrl)
-  } finally {
-    f.dispose()
-  }
-})
-
-test('unparsed content is distinct from a filtered empty result and filters can be cleared', async () => {
-  const data = reply()
-  data.value.sections = []
-  const f = harness(true, data)
-  try {
-    await vi.waitFor(() => expect(f.text()).toContain('官方摘录中没有可识别'))
-    expect(f.text()).not.toContain('当前搜索或类别没有匹配')
-    const search = f.all().find((n) => n.props.kind === 'NInput')!
-    search.props['onUpdate:value']('no-match')
-    await nextTick()
-    const clear = f
-      .all()
-      .find(
-        (n) => n.props.kind === 'NButton' && n.children.some((child) => child.text === '清除条件')
-      )!
-    expect(clear).toBeDefined()
-    clear.props.onClick()
-    await nextTick()
-    expect(f.all().find((n) => n.props.kind === 'NInput')!.props.value).toBe('')
-  } finally {
-    f.dispose()
-  }
-})
-
-test('search narrows concrete changes rather than requiring navigation to official site', async () => {
-  const f = harness()
-  try {
-    await vi.waitFor(() => expect(f.text()).toContain('Synthetic Hero'))
-    f.expandAll()
-    await nextTick()
-    const search = f.all().find((n) => n.props.kind === 'NInput')!
-    search.props['onUpdate:value']('not-in-current-notes')
-    await nextTick()
-    expect(f.text()).not.toContain('Synthetic Hero')
-    expect(f.text()).toContain('当前搜索或类别没有匹配')
-    expect(f.text()).not.toContain('官方摘录中没有可识别')
-    search.props['onUpdate:value']('Damage')
-    await nextTick()
-    expect(f.text()).toContain('Synthetic Hero')
   } finally {
     f.dispose()
   }
@@ -501,10 +461,6 @@ test.each<[string, string | null, string]>([
       const readText = (n: Node): string => [n.text, ...n.children.map(readText)].join(' ')
       expect(readText(heading)).toContain(expectedName)
       expect(f.text()).toContain(title)
-      const search = f.all().find((n) => n.props.kind === 'NInput')!
-      search.props['onUpdate:value'](expectedName)
-      await nextTick()
-      expect(f.all().filter((n) => n.type === 'article')).toHaveLength(1)
     } finally {
       f.dispose()
       io.itemName = '合成装备'
@@ -523,10 +479,6 @@ test('localized greaves name remains available without a tooltip or icon', async
   try {
     await vi.waitFor(() => expect(f.text()).toContain('客户端合成鞋名'))
     expect(f.text()).toContain('Gluttonous Greaves')
-    const search = f.all().find((n) => n.props.kind === 'NInput')!
-    search.props['onUpdate:value']('客户端合成鞋名')
-    await nextTick()
-    expect(f.all().filter((n) => n.type === 'article')).toHaveLength(1)
   } finally {
     f.dispose()
     io.itemName = '合成装备'
@@ -548,7 +500,7 @@ test('compact notes retain source and changes without helper copy; version optio
     expect(select().props.options.some((o: any) => o.value === '16.22')).toBe(false)
     io.read.mockResolvedValueOnce({
       ...reply(),
-      value: { ...reply().value, availablePatches: ['16.22', '16.21'] }
+      value: { ...reply('16.22').value, availablePatches: ['16.22', '16.21'] }
     })
     f.all()
       .find(
@@ -558,7 +510,37 @@ test('compact notes retain source and changes without helper copy; version optio
     await vi.waitFor(() =>
       expect(select().props.options[0]).toEqual({ label: '26.22', value: '16.22' })
     )
+    await vi.waitFor(() =>
+      expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', latest: true, refresh: true })
+    )
+    expect(select().props.value).toBe('16.22')
     expect(select().props.options.some((o: any) => o.value === '16.23')).toBe(false)
+  } finally {
+    f.dispose()
+  }
+})
+
+test('initial published catalog selects latest; manual historical selection survives refresh', async () => {
+  const data = reply()
+  data.value.availablePatches = ['16.22', '16.21']
+  const f = harness(true, data)
+  try {
+    const select = () => f.all().find((n) => n.props.kind === 'NSelect')!
+    await vi.waitFor(() =>
+      expect(io.read).toHaveBeenLastCalledWith({ patch: '16.22', latest: true, refresh: true })
+    )
+    expect(select().props.value).toBe('16.22')
+    select().props['onUpdate:value']('16.20')
+    await vi.waitFor(() => expect(io.read).toHaveBeenLastCalledWith({ patch: '16.20' }))
+    f.all()
+      .find(
+        (n) => n.props.kind === 'NButton' && n.children.some((child) => child.text === '刷新公告')
+      )!
+      .props.onClick()
+    await vi.waitFor(() =>
+      expect(io.read).toHaveBeenLastCalledWith({ patch: '16.20', refresh: true })
+    )
+    expect(select().props.value).toBe('16.20')
   } finally {
     f.dispose()
   }
@@ -602,18 +584,8 @@ test.each([false, true])(
           .filter((n) => n.type === 'h3')
           .map((n) => readText(n).trim())
       ).toEqual(reviewed.map(([, , zh]) => zh))
-      for (const [title, , zh] of reviewed) {
+      for (const [title] of reviewed) {
         expect(f.text()).toContain(title)
-        const search = f.all().find((n) => n.props.kind === 'NInput')!
-        search.props['onUpdate:value'](zh)
-        await nextTick()
-        expect(f.all().filter((n) => n.type === 'article')).toHaveLength(1)
-        expect(readText(f.all().find((n) => n.type === 'h3')!).trim()).toBe(zh)
-        search.props['onUpdate:value'](title)
-        await nextTick()
-        expect(f.all().filter((n) => n.type === 'article')).toHaveLength(1)
-        search.props['onUpdate:value']('')
-        await nextTick()
       }
     } finally {
       f.dispose()
@@ -683,15 +655,6 @@ test.each([false, true])(
       ).toEqual(reviewed.map((section) => section.names.join(' / ')))
       for (const section of reviewed) {
         expect(f.text()).toContain(section.title)
-        const search = f.all().find((n) => n.props.kind === 'NInput')!
-        for (const term of [section.title, ...section.names]) {
-          search.props['onUpdate:value'](term)
-          await nextTick()
-          expect(f.all().filter((n) => n.type === 'article')).toHaveLength(1)
-          expect(readText(f.all().find((n) => n.type === 'h3')!)).toBe(section.names.join(' / '))
-        }
-        search.props['onUpdate:value']('')
-        await nextTick()
       }
     } finally {
       f.dispose()
@@ -733,5 +696,61 @@ test('verified item identity never falls back to an outdated or mode-specific po
   } finally {
     f.dispose()
     io.clientItems = old
+  }
+})
+
+test('latest cached content is visible while automatic official refresh is pending, without a baseline flash', async () => {
+  const cached = reply('16.22')
+  cached.value.publicPatch = '26.22'
+  cached.value.availablePatches = ['16.22', '16.21']
+  let finish!: (value: unknown) => void
+  const f = harness(true, cached, async (request) =>
+    request.cacheOnly
+      ? cached
+      : new Promise((resolve) => {
+          finish = resolve
+        })
+  )
+  try {
+    const select = () => f.all().find((n) => n.props.kind === 'NSelect')!
+    expect(select().props.value).toBeNull()
+    await vi.waitFor(() => expect(io.read).toHaveBeenCalledTimes(2))
+    expect(select().props.value).toBe('16.22')
+    expect(f.text()).toContain('Synthetic Hero')
+    expect(f.text()).not.toContain('官方 26.')
+    expect(io.read.mock.calls[0][0]).toMatchObject({ latest: true, cacheOnly: true })
+    expect(io.read.mock.calls[1][0]).toMatchObject({ patch: '16.22', latest: true, refresh: true })
+    const fresh = {
+      ...cached,
+      value: {
+        ...cached.value,
+        patch: '16.23',
+        publicPatch: '26.23',
+        availablePatches: ['16.23', '16.22']
+      }
+    }
+    finish(fresh)
+    await vi.waitFor(() => expect(select().props.value).toBe('16.23'))
+    expect(f.text()).toContain('Synthetic Hero')
+    expect(f.all().some((n) => n.props.kind === 'NInput')).toBe(false)
+  } finally {
+    f.dispose()
+  }
+})
+
+test('re-entering checks official updates again while keeping the displayed cache', async () => {
+  const f = harness()
+  try {
+    await vi.waitFor(() => expect(io.read).toHaveBeenCalledTimes(2))
+    f.active.value = false
+    await nextTick()
+    const calls = io.read.mock.calls.length
+    f.active.value = true
+    await nextTick()
+    await vi.waitFor(() => expect(io.read).toHaveBeenCalledTimes(calls + 1))
+    expect(io.read).toHaveBeenLastCalledWith({ patch: '16.21', latest: true, refresh: true })
+    expect(f.text()).toContain('Synthetic Hero')
+  } finally {
+    f.dispose()
   }
 })

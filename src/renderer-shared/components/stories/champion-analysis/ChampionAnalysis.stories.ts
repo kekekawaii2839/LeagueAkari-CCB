@@ -23,6 +23,8 @@ const analysis: AggregatedChampionAnalysis = {
     avgTowerDamageRatioToMax: 0.84,
     avgTowerDamagePercentageOfTeam: 0.39,
     avgVisionScore: 0,
+    avgVisionScorePerMinute: 0,
+    visionScorePerMinuteGames: 2,
     avgVisionScorePercentageOfTeam: 0,
     avgDamageGoldEfficiency: 3.7,
     avgKillParticipation: 0.66,

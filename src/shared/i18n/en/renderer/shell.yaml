@@ -218,3 +218,105 @@ startup:
 backgroundTasks:
   taskTitle: Ongoing Tasks ({{count}})
   emptyPlaceholder: No background tasks
+
+championPool:
+  title: Champion Pool
+  info: About the data
+  stale: Old cache
+  loadingShort: Fetching data…
+  referenceProgress: 'Preparing Top-3 z ranking · {{completed}} / {{total}}'
+  top3Help: 'Top-3 z: standardize interaction deltas using the equal-weight mean and population SD of all estimable picks in your role, then average your best 3 (or fewer for smaller pools). No score is shown while the reference scan is incomplete or pool data is missing. The reference may include rare off-role picks.'
+  top3Column: '{{target}} · Top-{{count}} z {{score}} · Estimable reference {{reference}} / {{total}}'
+  top3ColumnWithReason: '{{target}} · Top-{{count}} z {{score}} · Estimable reference {{reference}} / {{total}} · {{reason}}'
+  top3Reasons:
+    pending: Reference collection incomplete
+    missing-pool: Missing pool interaction
+    insufficient-reference: Insufficient reference
+    zero-variance: No reference variation
+    no-picks: No eligible picks
+  edit: Edit champion pool
+  role: Your role
+  champions: Pool
+  selectChampions: Search and add champions
+  analyze: Start analysis
+  cancel: Cancel
+  refresh: Refresh data
+  retry: Retry
+  source: 'Lolalytics · {{patch}} · Global · Emerald+ · Ranked solo/duo'
+  method: Raw interaction residual (percentage points, unshrunk), not a win probability. ≥0 indicates the model neutral line; small samples may be unstable.
+  matchup: Matchups
+  synergy: Synergies
+  targetRole: Target role
+  search: Search target champion
+  commonOnly: Role pick share ≥0.5% only
+  updated: 'Baseline data fetched at {{time}}'
+  tableLabel: Champion pool coverage heatmap, horizontally scrollable
+  heatmap:
+    delta: Interaction delta (percentage points)
+    scale: 'Negative / 0 / positive; color saturates at ±10, values are not truncated'
+    help: '— No estimate · × Champion taken. Click or press Enter for samples. Arrow keys move focus.'
+    caption: Champion pool coverage heatmap, pool champions in rows and targets in columns
+    axes: Your champion / Target
+    value: '{{delta}} percentage points'
+    unknownSample: Sample size unknown
+    detailsHint: Select a cell for pair sample, target pick share and coverage status.
+    details: '{{champion}} → {{target}} · {{result}} · {{sample}} · Target role pick share {{pickRate}}% · {{status}}'
+  target: Target champion
+  status: Coverage
+  pickRate: Role pick share
+  partial: Partial data
+  games: 'Pair sample: {{count}}'
+  best: Best or tied response
+  occupied: Champion already taken
+  missing: No estimable data
+  noTargets: No champions match these filters
+  changed: Pool changed. Run the analysis again.
+  empty: Select a role and champions, then start the analysis.
+  states:
+    covered: Covered
+    uncovered: Uncovered
+    unknown: Unknown
+    not-applicable: No eligible pick
+  roles:
+    TOP: Top
+    JUNGLE: Jungle
+    MID: Mid
+    ADC: Bot
+    SUP: Support
+  cellDetails:
+    open: 'View pair details for {{champion}} and {{target}}'
+    matchup: Matchup details
+    synergy: Synergy details
+    close: Close pair details
+    own: Your pick
+    opponent: Opponent
+    teammate: Teammate
+    split: '{{champion}} {{own}}, {{target}} {{other}}'
+    winRate: Win rate
+    overall: Overall
+    versus: Against each other
+    together: On the same team
+    notCollected: — Not collected
+    notApplicable: — Not applicable
+    delta: Interaction delta
+    deltaValue: '{{value}} percentage points'
+    sample: Pair games
+    games_one: '{{count}} game'
+    games_other: '{{count}} games'
+    unknownSample: Unknown
+    missing: — No estimate
+    unavailable: × Champion taken
+    missingHelp: No interaction-delta estimate is available; this does not imply zero or a disadvantage.
+    unavailableHelp: The same champion cannot occupy both places in this pair.
+    updated: 'Baseline data for this batch fetched at {{time}}'
+  errors:
+    storage: Could not read or save pool settings. The original file is retained. Retry.
+    cacheWrite: Analysis is available, but saving the disk cache failed. A future load may fetch again.
+    invalidSelection: Some saved champions are unavailable in this dataset. Adjust the pool before analyzing.
+    network: Could not fetch data. Retry; completed reference heroes can be reused.
+    rate-limit: Source rate limit reached. Retry later.
+    source-changed: Source data is incompatible or incomplete. Refresh and retry.
+    expired: Dataset expired. Refresh data before analyzing again.
+    cancelled: Fetch cancelled. Existing results are unchanged.
+    busy: Another request is running or ending. Retry shortly.
+    transport: Could not connect to the analysis service. Retry.

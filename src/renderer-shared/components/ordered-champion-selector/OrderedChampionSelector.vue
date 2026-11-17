@@ -167,7 +167,7 @@
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
 import { useCompositionAwareInput } from '@renderer-shared/composables/useCompositionAwareInput'
 import { useScrollFollow } from '@renderer-shared/composables/useScrollFollow'
-import { isChampionNameMatch } from '@shared/utils/string-match'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 import { RestrictToVerticalAxis } from '@dnd-kit/abstract/modifiers'
 import { DragDropProvider, type DragEndEvent } from '@dnd-kit/vue'
 import { isSortable } from '@dnd-kit/vue/sortable'
@@ -202,6 +202,7 @@ const props = withDefaults(
 
 const selectedChampionIds = defineModel<number[]>({ default: () => [] })
 const { t } = useTranslation()
+const { match } = useChampionNameMatch()
 const dragModifiers = [RestrictToVerticalAxis]
 const candidateScrollbar = useTemplateRef('candidateScrollbar')
 const selectedScrollbar = useTemplateRef('selectedScrollbar')
@@ -243,7 +244,7 @@ const filteredChampions = computed(() => {
       return props.matchChampion(pattern, champion)
     }
 
-    return isChampionNameMatch(pattern, champion.name) || champion.id.toString().includes(pattern)
+    return match(pattern, champion.name, champion.id)
   })
 })
 

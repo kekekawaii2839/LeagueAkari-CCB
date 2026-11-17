@@ -16,6 +16,19 @@ let nextRequestId = 0
 export class ChampionDataRendererLoader {
   constructor(private readonly _context: ChampionDataRendererContext) {}
 
+  loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options?: ChampionDataRendererRequestOptions
+  ) {
+    return this._load<number | null>(
+      'loadLaneKillRate',
+      [query, championId, targetChampionId],
+      options
+    )
+  }
+
   loadPatches(query: ChampionDataQuery, options?: ChampionDataRendererRequestOptions) {
     return this._load<string[]>('loadPatches', [query], options)
   }
@@ -33,7 +46,7 @@ export class ChampionDataRendererLoader {
   }
 
   private async _load<T>(
-    method: 'loadPatches' | 'loadOverview' | 'loadDetails',
+    method: 'loadPatches' | 'loadOverview' | 'loadDetails' | 'loadLaneKillRate',
     args: unknown[],
     options: ChampionDataRendererRequestOptions = {}
   ): Promise<ChampionDataLoadResult<T>> {

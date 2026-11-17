@@ -91,6 +91,11 @@ opgg:
     status: 选人状态与操作
     active: 进行中
     waitingForChampion: 等待选择英雄
+  enemyChampions:
+    title: 敌方已选
+    open: 查看 {{champion}} 的英雄详情
+    noData: 当前统计条件下暂无该英雄详情，请尝试切换版本或数据源
+    changedPosition: 已切换至有数据的统计分路：{{position}}（不代表敌方实际分路）
   matchup:
     title: 对位筛选（实验）
     prompt: 请选择本局的对位英雄
@@ -156,6 +161,19 @@ opgg:
     plays: 总场次
     banRate: 禁用率
     counter: 劣势对位
+    onlyPool: 只看我的英雄池
+    poolLoading: 正在读取英雄池…
+    poolUnavailable: 英雄池读取失败
+    poolMatchupMissing: 暂无对位数据
+    poolNoMatches: 当前对位范围内没有池内英雄
+    counterScope: 显示所有对位
+    counterMetric: 显示线杀率而非胜率
+    noLaneKillDisadvantages: 没有线杀率低于 50% 的有效对位
+    laneKillLoading: 正在加载线杀率…
+    laneKillPartial: 部分线杀率获取失败
+    laneKillUnavailable: 暂无线杀率数据
+    laneKillRate: 线杀率
+    laneKillRateDescription: 'OP.GG 线杀率：当前英雄对该对位英雄的对线期击杀占双方对线期击杀总数的比例，包含助攻，非单杀率；打野不适用。— 表示无数据。'
     allCounters: 所有对位
     counterC: 劣势
     allC: 所有

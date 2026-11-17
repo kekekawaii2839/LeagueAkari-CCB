@@ -1,6 +1,7 @@
 <template>
   <div class="relative flex flex-col px-2 pt-1 pb-2">
     <OpggTabAndFilters class="mb-1" />
+    <EnemyChampionShortcuts />
 
     <NEmpty
       v-if="isDataUnavailable"
@@ -31,6 +32,7 @@ import OpggChampion from './OpggChampion.vue'
 import OpggChampionTable from './OpggChampionTable.vue'
 import OpggTabAndFilters from './OpggTabAndFilters.vue'
 import { useOpgg } from './context'
+import EnemyChampionShortcuts from './widgets/EnemyChampionShortcuts.vue'
 import SessionChampions from './widgets/SessionChampions.vue'
 
 const { t } = useTranslation()

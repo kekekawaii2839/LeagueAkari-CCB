@@ -96,7 +96,7 @@ export const RENDER_GROUPS: RenderGroup[] = [
       { key: 'sightWardsBoughtInGame', render: 'integer' },
       { key: 'visionWardsBoughtInGame', render: 'integer' },
       { key: 'detectorWardsPlaced', render: 'integer' },
-      { key: 'visionScorePerMinute', render: 'integer' },
+      { key: 'visionScorePerMinute', render: 'fixed-2' },
       { key: 'wardTakedowns', render: 'integer' },
       { key: 'wardTakedownsBefore20M', render: 'integer' },
       { key: 'wardsGuarded', render: 'integer' },

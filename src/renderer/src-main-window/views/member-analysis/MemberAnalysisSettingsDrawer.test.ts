@@ -42,7 +42,8 @@ vi.mock('naive-ui', () => {
       slots.default?.(),
       slots.footer?.()
     ],
-    NFormItem: Stub,
+    NScrollbar: Stub,
+    useThemeVars: () => ({ value: { errorColor: 'red' } }),
     NInput: Stub,
     NIcon: Stub,
     NInputNumber: Stub,
@@ -101,7 +102,7 @@ describe('member analysis settings drawer', () => {
     expect(html).toContain('保存设置')
     expect(html).toContain('采集范围')
     expect(html).toContain('存储与参考')
-    expect(html).toContain('启用成员分析')
+    expect(html).toContain('启用五排分析')
     expect(html).toContain('阵容胜率预测')
     expect(html).not.toContain('阵容胜率预测（实验性）')
     const experiment = html.match(

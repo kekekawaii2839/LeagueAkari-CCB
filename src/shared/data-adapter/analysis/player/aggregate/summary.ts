@@ -3,7 +3,7 @@ import { MatchParticipant } from '@shared/data-adapter/match-history/participant
 import { calculateCoefficientOfVariation, noZero } from '../../../utils'
 import type { AggregatedSummaryAnalysis } from '../types/aggregated'
 import type { PreparedGame } from '../types/helpers'
-import { avgIfAllNonNull, avgOrOne, avgOrZero } from '../utils/math'
+import { avgIfAllNonNull, avgOrNull, avgOrOne, avgOrZero } from '../utils/math'
 
 /** 把 pings 各字段相加；pings 为 null 时返回 null（LCU 不提供） */
 export function sumPings(pings: MatchParticipant['pings']): number | null {
@@ -30,6 +30,11 @@ export function computeAggregatedSummary(games: PreparedGame[]): AggregatedSumma
   const summaries = games.map((g) => g.single.summary)
   const participants = games.map((g) => g.participant)
   const getVisionScore = (participant: MatchParticipant) => participant.visionScore ?? 0
+  const visionRates = participants
+    .map((p) => p.visionScorePerMinute)
+    .filter(
+      (rate): rate is number => typeof rate === 'number' && Number.isFinite(rate) && rate >= 0
+    )
 
   const kills = participants.reduce((s, p) => s + p.kills, 0)
   const deaths = participants.reduce((s, p) => s + p.deaths, 0)
@@ -58,6 +63,8 @@ export function computeAggregatedSummary(games: PreparedGame[]): AggregatedSumma
     avgTowerDamageRatioToMax: avgOrZero(summaries.map((s) => s.towerDamageRatioToMax)),
     avgTowerDamagePercentageOfTeam: avgOrZero(summaries.map((s) => s.towerDamagePercentageOfTeam)),
     avgVisionScore: avgOrZero(participants.map(getVisionScore)),
+    avgVisionScorePerMinute: avgOrNull(visionRates),
+    visionScorePerMinuteGames: visionRates.length,
     avgVisionScorePercentageOfTeam: avgOrZero(summaries.map((s) => s.visionScorePercentageOfTeam)),
     avgDamageGoldEfficiency: avgOrZero(summaries.map((s) => s.damageGoldEfficiency)),
     avgKillParticipation: avgOrZero(summaries.map((s) => s.killParticipation)),

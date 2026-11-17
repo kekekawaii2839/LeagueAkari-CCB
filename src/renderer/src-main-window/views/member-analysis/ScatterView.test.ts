@@ -657,3 +657,9 @@ test('a representable long signed Y axis declares one multiplier while native ti
   expect(data.table.rows.map((record: any) => record.y)).toEqual(values)
   expect(html).toContain('class="axis-tick axis-tick-x"')
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: { name: () => '', searchKeywords: () => [] }
+  })
+}))

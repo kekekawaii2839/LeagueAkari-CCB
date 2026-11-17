@@ -28,6 +28,12 @@ export function resolveChampionDataSourceGateAvailability(options: {
 }
 
 export interface ChampionDataSourceLoader {
+  loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options?: ChampionDataLoadOptions
+  ): Promise<number | null>
   loadPatches(
     source: ChampionDataSourceId,
     query: ChampionDataQuery,
@@ -51,6 +57,12 @@ export interface ChampionDataLoadOptions {
 }
 
 export interface ChampionDataService {
+  loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options?: ChampionDataLoadOptions
+  ): Promise<ChampionDataLoadResult<number | null>>
   loadPatches(
     query: ChampionDataQuery,
     options?: ChampionDataLoadOptions

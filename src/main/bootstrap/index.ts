@@ -10,6 +10,7 @@ import { AutoGameflowMain } from '@main/shards/auto-gameflow'
 import { AutoMiscMain } from '@main/shards/auto-misc'
 import { AutoSelectMain } from '@main/shards/auto-select'
 import { ChampionDataMain } from '@main/shards/champion-data'
+import { ChampionPoolMain } from '@main/shards/champion-pool'
 import { ClientInstallationMain } from '@main/shards/client-installation'
 import { ConfigMigrateMain } from '@main/shards/config-migrate'
 import { ExtraAssetsMain } from '@main/shards/extra-assets'
@@ -345,6 +346,7 @@ export function bootstrap() {
     manager.use(ChampionDataMain)
     manager.use(InGameSendMain)
     manager.use(MemberAnalysisMain)
+    manager.use(ChampionPoolMain)
     manager.use(OngoingGameMain)
     manager.use(RespawnTimerMain)
     manager.use(SavedPlayerMain)

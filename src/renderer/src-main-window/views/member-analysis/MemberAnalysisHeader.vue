@@ -1,9 +1,9 @@
 <template>
   <header class="member-analysis-header">
     <div class="member-analysis-heading">
-      <NIcon class="member-analysis-heading__icon" :component="AnalyticsRound" aria-hidden="true" />
+      <NIcon class="member-analysis-heading__icon" :component="GroupsRound" aria-hidden="true" />
       <div>
-        <div id="member-analysis-title" class="member-analysis-heading__title">成员分析</div>
+        <div id="member-analysis-title" class="member-analysis-heading__title">五排分析</div>
         <div v-if="showDataTimestamp" class="member-analysis-heading__subtitle">
           <time v-if="generatedAt" :datetime="generatedAt">更新于 {{ formattedGeneratedAt }}</time>
         </div>
@@ -53,10 +53,6 @@
           >
         </div>
       </NPopover>
-      <NButton aria-label="设置" secondary @click="$emit('settings')">
-        <template #icon><NIcon :component="SettingsRound" /></template>
-        设置
-      </NButton>
     </div>
     <p
       v-if="showRefresh && refreshReason?.kind === 'service'"
@@ -69,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { AnalyticsRound, InfoOutlined, RefreshRound, SettingsRound } from '@vicons/material'
+import { GroupsRound, InfoOutlined, RefreshRound } from '@vicons/material'
 import { NButton, NIcon, NPopover } from 'naive-ui'
 import { computed, nextTick, ref, watch } from 'vue'
 import { uiText } from './ui-text'

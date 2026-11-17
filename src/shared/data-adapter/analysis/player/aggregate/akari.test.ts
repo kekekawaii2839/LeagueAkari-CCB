@@ -24,6 +24,8 @@ const baseSummary: AggregatedAnalysis['summary'] = {
   avgTowerDamageRatioToMax: 0,
   avgTowerDamagePercentageOfTeam: 0,
   avgVisionScore: 0,
+  avgVisionScorePerMinute: null,
+  visionScorePerMinuteGames: 0,
   avgVisionScorePercentageOfTeam: 0,
   avgDamageGoldEfficiency: 0,
   avgKillParticipation: 0,

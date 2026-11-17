@@ -47,6 +47,20 @@ export class ChampionDataIpcHandlers {
           this._service.loadDetails(query, championId, { signal })
         )
     )
+    this._ipc.onCall(
+      namespace,
+      'loadLaneKillRate',
+      (
+        event,
+        requestId: string,
+        query: ChampionDataQuery,
+        championId: number,
+        targetChampionId: number
+      ) =>
+        this._requests.run(event.sender.id, requestId, (signal) =>
+          this._service.loadLaneKillRate(query, championId, targetChampionId, { signal })
+        )
+    )
     this._ipc.onCall(namespace, 'cancelRequest', (event, requestId: string) =>
       this._requests.cancel(event.sender.id, requestId)
     )

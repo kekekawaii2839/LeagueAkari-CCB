@@ -93,6 +93,30 @@ test('nested independent Lab cannot bypass either entrypoint before a first comm
   })
 })
 
+test('independent champion-pool layers receive the same privacy protection', () => {
+  withRepositories(({ akari }) => {
+    const roots = [
+      'src/main/shards/champion-pool',
+      'src/shared/shards/champion-pool',
+      'src/renderer/src-main-window/shards/champion-pool',
+      'src/renderer/src-main-window/views/champion-pool'
+    ]
+    roots.forEach((root, index) => {
+      const folder = path.join(akari, root)
+      mkdirSync(folder, { recursive: true })
+      writeFileSync(path.join(folder, `synthetic-${index}.ts`), '"SyntheticPlayer#DEMO"\n')
+    })
+    for (const entry of entrypoints) {
+      const result = run(process.execPath, [entry], akari)
+      assert.equal(result.status, 1)
+      roots.forEach((_root, index) =>
+        assert.ok(result.stderr.includes(`synthetic-${index}.ts: Riot ID`))
+      )
+      assert.equal(result.stderr.includes('SyntheticPlayer#DEMO'), false)
+    }
+  })
+})
+
 test('maintained Markdown candidates across repositories are checked without echoing values', () => {
   withRepositories(({ workspace, akari }) => {
     const lab = path.join(akari, 'packages/prediction-lab')

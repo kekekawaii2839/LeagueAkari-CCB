@@ -1,3 +1,6 @@
+shared-profile:
+  startup-error: 共享数据目录不兼容或暂时不可用，已停止启动以保护现有数据。请关闭另一版本，或使用兼容版本重试。
+
 tray:
   about: 关于
   settings: 设置
@@ -138,7 +141,7 @@ in-game-send-main:
         winRate: 胜率{{value}}
         kda: KDA{{value}}
         avgSoloKills: 场均单杀{{value}}
-        avgVisionScore: 场均视野得分{{value}}
+        avgVisionScore: 场均分均视野{{value}}
         avgChampionDamage: 伤害{{value}}
         avgDamageTaken: 承伤{{value}}
         avgGold: 经济{{value}}

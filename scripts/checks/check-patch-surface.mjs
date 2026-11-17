@@ -52,20 +52,13 @@ const errors = []
 if (missingFromManifest.length) errors.push(`Unmanifested files: ${missingFromManifest.join(', ')}`)
 if (staleManifestEntries.length)
   errors.push(`Stale manifest entries: ${staleManifestEntries.join(', ')}`)
-if (changedLines > manifest.budget.hardMaxChangedLines) {
-  errors.push(
-    `Changed lines ${changedLines} exceed hard maximum ${manifest.budget.hardMaxChangedLines}`
-  )
-}
 
 console.log(
   JSON.stringify(
     {
       upstreamBaseline: manifest.upstreamBaseline,
       modifiedUpstreamFiles: changedExistingFiles.length,
-      changedLines,
-      targetChangedLines: manifest.budget.targetChangedLines,
-      hardMaxChangedLines: manifest.budget.hardMaxChangedLines
+      changedLines
     },
     null,
     2

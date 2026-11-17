@@ -96,7 +96,14 @@ export enum OpggChampionPositionName {
   Top = 'TOP'
 }
 
+export interface OpggChampionCounterStatsResponse {
+  data: { champion_id: number; lane_kill: number | null; lane_death: number | null }[]
+  meta: { version: string; cached_at: string }
+}
+
 export interface OpggChampionCounter {
+  /** Selected champion's lane-kill share (0–1); absent is not fetched, null is unavailable. */
+  lane_kill_rate?: number | null
   champion_id: number
   play: number
   win: number

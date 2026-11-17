@@ -35,7 +35,7 @@
         v-if="renderAnalysisTabs"
         ref="navigationRoot"
         class="member-analysis-navigation"
-        aria-label="成员分析导航"
+        aria-label="五排分析导航"
         @click.capture="primaryMotion.capture"
       >
         <NTabs
@@ -106,14 +106,14 @@
         </p>
         <template v-if="!independentPageSelected">
           <div v-if="store.viewState === 'loading'" class="member-analysis-centered">
-            <NSpin size="large" description="正在初始化成员分析" />
+            <NSpin size="large" description="正在初始化五排分析" />
           </div>
 
           <NResult
             v-else-if="store.viewState === 'feature-disabled'"
             status="info"
-            title="成员分析已关闭"
-            description="在设置中重新启用后，才能更新和查看成员分析。"
+            title="五排分析已关闭"
+            description="在设置中重新启用后，才能更新和查看五排分析。"
           >
             <template #footer>
               <NButton type="primary" @click="openSettings()">打开设置</NButton>
@@ -136,7 +136,7 @@
             description="当前筛选范围内没有可显示的对局"
           />
 
-          <NAlert v-else-if="store.viewState === 'error'" type="error" title="成员分析暂时不可用">
+          <NAlert v-else-if="store.viewState === 'error'" type="error" title="五排分析暂时不可用">
             {{ unavailableMessage }}
             <NButton secondary @click="memberAnalysis.reload()">{{ uiText('retry') }}</NButton>
           </NAlert>
@@ -227,22 +227,6 @@
         </div>
       </div>
     </div>
-
-    <MemberAnalysisSettingsDrawer
-      v-if="store.settings"
-      v-model:show="store.settingsDrawerVisible"
-      :settings="store.settings"
-      :focus-section="store.settingsFocus"
-      :saving="savingSettings"
-      :save-error="settingsError"
-      :cleanup-error="cleanupError"
-      :storage-status="store.storageStatus"
-      :cleanup-preview="store.cleanupPreview"
-      :cleaning="cleaning"
-      @save="saveSettings"
-      @preview-cleanup="previewCleanup"
-      @confirm-cleanup="confirmCleanup"
-    />
   </main>
 </template>
 
@@ -277,10 +261,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { MemberAnalysisRenderer } from '@main-window/shards/member-analysis'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 import { selectMemberAnalysisSample } from './analytics'
+import { useMemberAnalysisChampionMatch } from './useMemberAnalysisChampionMatch'
 
 import MemberAnalysisFilters from './MemberAnalysisFilters.vue'
 import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
-import MemberAnalysisSettingsDrawer from './MemberAnalysisSettingsDrawer.vue'
 import ChampionView from './ChampionView.vue'
 import TeamMetricsView from './TeamMetricsView.vue'
 import EarlyConversionView from './EarlyConversionView.vue'
@@ -331,6 +315,7 @@ const allSections = [
 ] as const
 
 const store = useMemberAnalysisStore()
+const { matchChampion } = useMemberAnalysisChampionMatch()
 const message = useMessage()
 const availableSections = computed(() =>
   allSections.filter(
@@ -589,7 +574,8 @@ watch(
       overviewGames,
       store.filters,
       store.analysisSide,
-      store.sampleSize
+      store.sampleSize,
+      matchChampion
     ).sample
     if (
       overviewGames.filter((game) => game.gameId === gameId).length === 1 &&
@@ -607,10 +593,6 @@ function activateCombination(section: 'pairs' | 'synergy') {
   combinationSection.value = section
   activeSection.value = section
 }
-const savingSettings = ref(false)
-const settingsError = ref('')
-const cleanupError = ref('')
-const cleaning = ref(false)
 const jobRunning = computed(() =>
   store.job ? !['completed', 'failed', 'cancelled'].includes(store.job.status) : false
 )
@@ -777,57 +759,6 @@ watch(
   },
   { immediate: true }
 )
-
-async function saveSettings(
-  settings: Parameters<MemberAnalysisRenderer['updateSettings']>[0],
-  complete: (saved: NonNullable<typeof store.settings> | null) => void
-) {
-  if (savingSettings.value) {
-    complete(null)
-    return
-  }
-  savingSettings.value = true
-  try {
-    settingsError.value = ''
-    const result = await memberAnalysis.updateSettings(settings)
-    if (result.ok) complete(result.value)
-    else {
-      settingsError.value = uiText('saveFailed')
-      complete(null)
-    }
-  } catch {
-    settingsError.value = uiText('saveFailed')
-    complete(null)
-  } finally {
-    savingSettings.value = false
-  }
-}
-
-async function previewCleanup() {
-  cleaning.value = true
-  try {
-    cleanupError.value = ''
-    const result = await memberAnalysis.previewCleanup()
-    if (!result.ok) cleanupError.value = uiText('cleanupPreviewFailed')
-  } catch {
-    cleanupError.value = uiText('cleanupPreviewFailed')
-  } finally {
-    cleaning.value = false
-  }
-}
-
-async function confirmCleanup(previewId: string) {
-  cleaning.value = true
-  try {
-    cleanupError.value = ''
-    const result = await memberAnalysis.confirmCleanup(previewId)
-    if (!result.ok) cleanupError.value = uiText('cleanupFailed')
-  } catch {
-    cleanupError.value = uiText('cleanupFailed')
-  } finally {
-    cleaning.value = false
-  }
-}
 </script>
 
 <style scoped>

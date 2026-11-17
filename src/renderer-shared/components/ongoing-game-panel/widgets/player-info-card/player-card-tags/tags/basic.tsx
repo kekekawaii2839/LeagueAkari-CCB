@@ -540,13 +540,21 @@ export const AVERAGE_VISION_SCORE_TAG: PlayerCardTagDefinition = {
       label: (
         <div class={tagClass('bg-[#2451a6] text-white')}>
           {ctx.t('ongoingGame.playerCard.visionScore', {
-            count: truncateTailingZeros(analysis.summary.avgVisionScore)
+            count:
+              analysis.summary.avgVisionScorePerMinute !== null &&
+              Number.isFinite(analysis.summary.avgVisionScorePerMinute)
+                ? analysis.summary.avgVisionScorePerMinute.toFixed(2)
+                : '—'
           })}
         </div>
       ),
       popover: textPopover(
         ctx.t('ongoingGame.playerCard.visionScorePopover', {
-          count: analysis.summary.avgVisionScore.toFixed(3)
+          count:
+            analysis.summary.avgVisionScorePerMinute !== null &&
+            Number.isFinite(analysis.summary.avgVisionScorePerMinute)
+              ? analysis.summary.avgVisionScorePerMinute.toFixed(2)
+              : '—'
         })
       )
     }

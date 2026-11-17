@@ -1,6 +1,16 @@
-// Explicit output metrics reviewed against Riot's public 26.12–26.21 notes.
+// Explicit output metrics reviewed against Riot's public 26.12–26.22 notes.
 // Do not infer polarity from a suffix such as "damage" (self damage exists).
 export const positivePatchMetrics = new Set([
+  'big one damage',
+  'stack bonus damage',
+  'maximum stack damage',
+  'bonus damage per bolt',
+  'first hit damage',
+  'multi-hit damage',
+  'maximum damage ability power ratio',
+  'explosion damage',
+  'conjure damage',
+  'slow amount',
   'sweet spot bonus damage',
   'ability power healing ratio',
   'ability power ratio',

@@ -92,9 +92,13 @@ for (const { repoRoot, file, display, source, oid } of candidates) {
     repoRoot === akariRoot &&
     [
       'src/main/shards/member-analysis/',
+      'src/main/shards/champion-pool/',
       'src/shared/shards/member-analysis/',
+      'src/shared/shards/champion-pool/',
       'src/renderer/src-main-window/shards/member-analysis/',
+      'src/renderer/src-main-window/shards/champion-pool/',
       'src/renderer/src-main-window/views/member-analysis/',
+      'src/renderer/src-main-window/views/champion-pool/',
       'docs/fork/',
       'packages/prediction-lab/'
     ].some((root) => normalized.startsWith(root))

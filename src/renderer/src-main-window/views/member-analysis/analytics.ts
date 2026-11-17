@@ -226,9 +226,18 @@ export function laneGankDeathEvidence(
 
 export function filterMemberAnalysisGames(
   games: MemberAnalysisGame[],
-  filters: MemberAnalysisFilters
+  filters: MemberAnalysisFilters,
+  matchChampion?: (pattern: string, canonical: string) => boolean
 ) {
   const query = filters.query.toLocaleLowerCase('zh-CN')
+  // Many matches repeat the same heroes; resource/pinyin matching runs once per identity/query.
+  const championMatches = new Map<string, boolean>()
+  const matchesChampion = (canonical: string) => {
+    if (!matchChampion) return false
+    if (!championMatches.has(canonical))
+      championMatches.set(canonical, matchChampion(query, canonical))
+    return championMatches.get(canonical)!
+  }
   return games.filter((game) => {
     if (!isEligibleMemberAnalysisGame(game)) return false
     if (filters.outcome === 'win' && !game.win) return false
@@ -252,14 +261,17 @@ export function filterMemberAnalysisGames(
     )
       return false
     if (!query) return true
-    return [
-      game.gameId,
-      game.roster,
-      ...game.players.flatMap((row) => [row.player, row.player.split('#')[0], row.champion])
-    ]
-      .join(' ')
-      .toLocaleLowerCase('zh-CN')
-      .includes(query)
+    return (
+      [
+        game.gameId,
+        game.roster,
+        ...game.players.flatMap((row) => [row.player, row.player.split('#')[0], row.champion])
+      ]
+        .join(' ')
+        .toLocaleLowerCase('zh-CN')
+        .includes(query) ||
+      Boolean(matchChampion && game.players.some((row) => matchesChampion(row.champion)))
+    )
   })
 }
 
@@ -267,9 +279,10 @@ export function selectMemberAnalysisSample(
   games: MemberAnalysisGame[],
   filters: MemberAnalysisFilters,
   side: 'all' | 'Blue' | 'Red',
-  sampleSize: 20 | 50 | 100 | 'all'
+  sampleSize: 20 | 50 | 100 | 'all',
+  matchChampion?: (pattern: string, canonical: string) => boolean
 ) {
-  const globallyFiltered = filterMemberAnalysisGames(games, filters)
+  const globallyFiltered = filterMemberAnalysisGames(games, filters, matchChampion)
     .filter((game) => side === 'all' || game.side === side)
     .sort((left, right) => right.timestamp - left.timestamp || right.gameId - left.gameId)
   return {

@@ -37,7 +37,7 @@ import { useTranslation } from 'i18next-vue'
 import { NButton, NIcon, NSelect, SelectOption } from 'naive-ui'
 import { computed } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 
 import { useMatchHistoryFilterEditor } from '../context'
 import { IsChampionCombinator } from '../combinator-nodes'

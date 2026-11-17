@@ -31,6 +31,7 @@ function setup(preferredSource: ChampionDataSourceId = 'qq101') {
     sources: { opgg: { enabled: true }, qq101: { enabled: true } }
   })
   const loader: ChampionDataSourceLoader = {
+    loadLaneKillRate: vi.fn(async () => 0.6),
     loadPatches: vi.fn(async () => ['16.16']),
     loadOverview: vi.fn(async (source) => overview(source)),
     loadDetails: vi.fn()

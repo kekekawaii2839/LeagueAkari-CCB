@@ -1,4 +1,4 @@
-# Feature-owned overlay. Keep electron-builder.yml untouched to preserve the 9/9 upstream budget.
+# Feature-owned overlay. Keep the upstream base electron-builder.yml separate.
 extends: electron-builder.yml
 appId: com.ccb.leagueakari
 productName: League Akari CCB
@@ -8,6 +8,12 @@ artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: .phase7-package
 files:
+  # Positive roots prevent local recovery archives, legacy data and earlier packages from entering a candidate.
+  # electron-builder collects production node_modules separately.
+  - out/**
+  - resources/**
+  - package.json
+  - LICENSE
   - '!{.env,.env.*}'
   - '!logs{,/**}'
   - '!resources/member-analysis{,/**}'

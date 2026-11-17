@@ -11,7 +11,7 @@ import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
 import CombinationView from './CombinationView.vue'
 
 vi.mock('@vicons/material', () => ({
-  AnalyticsRound: () => null,
+  GroupsRound: () => null,
   InfoOutlined: () => null,
   RefreshRound: () => null,
   SettingsRound: () => null

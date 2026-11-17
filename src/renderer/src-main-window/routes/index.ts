@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 
 import Automation from '@main-window/views/automation/Automation.vue'
+import ChampionPool from '@main-window/views/champion-pool/ChampionPool.vue'
 import MemberAnalysis from '@main-window/views/member-analysis/MemberAnalysis.vue'
 import OngoingGame from '@main-window/views/ongoing-game/OngoingGame.vue'
 import PatchNotes from '@main-window/views/patch-notes/PatchNotes.vue'
@@ -31,6 +32,7 @@ const router = createRouter({
       path: '/patch-notes',
       component: PatchNotes
     },
+    { name: 'champion-pool', path: '/champion-pool', component: ChampionPool },
     {
       name: 'member-analysis',
       path: '/member-analysis/:section?',

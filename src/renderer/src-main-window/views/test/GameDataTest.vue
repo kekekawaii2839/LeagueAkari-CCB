@@ -128,6 +128,7 @@ import ItemDisplay from '@renderer-shared/components/widgets/ItemDisplay.vue'
 import PerkDisplay from '@renderer-shared/components/widgets/PerkDisplay.vue'
 import PerkstyleDisplay from '@renderer-shared/components/widgets/PerkstyleDisplay.vue'
 import SummonerSpellDisplay from '@renderer-shared/components/widgets/SummonerSpellDisplay.vue'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 import { useCompositionAwareInput } from '@renderer-shared/composables/useCompositionAwareInput'
 import { useInstance } from '@renderer-shared/shards'
 import { useLeagueClientStore } from '@renderer-shared/shards/league-client/store'
@@ -138,6 +139,7 @@ import { NButton, NIcon, NInput, NScrollbar, NSelect } from 'naive-ui'
 import { computed, nextTick, ref, useTemplateRef, watch, watchEffect } from 'vue'
 
 const lcs = useLeagueClientStore()
+const { match } = useChampionNameMatch()
 const wm = useInstance(WindowManagerRenderer)
 
 const selectedCategory = ref<string>('items')
@@ -250,6 +252,13 @@ const filteredData = computed(() => {
   if (!searchText.value) {
     return rawData.value
   }
+
+  if (selectedCategory.value === 'champions')
+    return rawData.value.filter(
+      (item) =>
+        match(searchText.value, item.name, item.id) ||
+        item.extra?.toLowerCase().includes(searchText.value.toLowerCase())
+    )
 
   const search = searchText.value.toLowerCase()
   return rawData.value.filter(

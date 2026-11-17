@@ -503,7 +503,7 @@ import {
 } from 'naive-ui'
 import { computed, ref, toRaw, watch } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 import { useMapAssets } from '@main-window/composables/useMapAssets'
 
 import RuneV2Edit from './RuneV2Edit.vue'

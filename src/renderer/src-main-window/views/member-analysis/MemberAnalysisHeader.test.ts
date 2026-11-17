@@ -6,10 +6,9 @@ import { expect, test, vi } from 'vitest'
 import MemberAnalysisHeader from './MemberAnalysisHeader.vue'
 
 vi.mock('@vicons/material', () => ({
-  AnalyticsRound: () => null,
+  GroupsRound: () => null,
   InfoOutlined: () => null,
-  RefreshRound: () => null,
-  SettingsRound: () => null
+  RefreshRound: () => null
 }))
 vi.mock('naive-ui', async (importOriginal) => ({
   ...(await importOriginal<typeof import('naive-ui')>()),
@@ -35,7 +34,8 @@ test('announcement context omits collection action, timestamp and collection ser
   expect(html).not.toContain('aria-label="刷新"')
   expect(html).not.toContain('<time')
   expect(html).not.toContain('合成采集服务提示')
-  expect(html).toContain('aria-label="设置"')
+  // Settings live in the global settings shell, not in this page header.
+  expect(html).not.toContain('aria-label="设置"')
 })
 
 test('existing analysis pages retain collection controls and timestamp by default', async () => {

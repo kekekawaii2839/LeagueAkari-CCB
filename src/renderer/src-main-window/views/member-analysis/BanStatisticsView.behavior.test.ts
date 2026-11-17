@@ -13,7 +13,12 @@ import BanStatisticsView from './BanStatisticsView.vue'
 const data = { games: ref<MemberAnalysisGame[]>([]) }
 vi.mock('./useMemberAnalysisData', () => ({ useMemberAnalysisData: () => data }))
 vi.mock('@renderer-shared/providers/akari-resource', () => ({
-  useAkariResourceProvider: () => ({ champions: { name: (id: number) => `Hero ${id}` } })
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: (id: number) => `Hero ${id}`,
+      searchKeywords: (id: number) => (id === 2 ? ['测试昵称'] : [])
+    }
+  })
 }))
 vi.mock('@renderer-shared/components/widgets/ChampionIcon.vue', () => ({ default: () => null }))
 vi.mock('naive-ui', () => ({
@@ -158,7 +163,7 @@ test('paginates ordered heroes, searches all pages and resets pagination for new
     expect(f.text()).toContain('Hero 18')
     f.control('NInput').props['onUpdate:value']('Hero 2')
     await nextTick()
-    expect(f.all().filter((n) => n.type === 'tr' && n.parent?.type === 'tbody')).toHaveLength(1)
+    expect(f.all().filter((n) => n.type === 'tr' && n.parent?.type === 'tbody')).toHaveLength(2)
     expect(f.text()).toContain('Hero 2')
     f.control('NInput').props['onUpdate:value']('not-a-hero')
     await nextTick()
@@ -196,6 +201,20 @@ test('sorts the displayed heroes with accessible headers and preserves sample co
     expect(f.text()).not.toContain('统计口径')
     expect(f.text()).not.toContain('与蓝方、红方无关')
     expect(f.text()).not.toContain('缓存')
+  } finally {
+    f.dispose()
+  }
+})
+
+test('ban search uses resource nickname and keeps sample scope unchanged', async () => {
+  data.games.value = [match([1, 2], [])]
+  const f = harness()
+  try {
+    f.control('NInput').props['onUpdate:value']('csnc')
+    await nextTick()
+    expect(f.all().filter((n) => n.type === 'tr' && n.parent?.type === 'tbody')).toHaveLength(1)
+    expect(f.text()).toContain('Hero 2')
+    expect(data.games.value).toHaveLength(1)
   } finally {
     f.dispose()
   }

@@ -115,6 +115,8 @@
   </div>
 </template>
 <script setup lang="ts">
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
+
 import { computed, ref, watch } from 'vue'
 import { NButton, NEmpty, NInput, NPagination } from 'naive-ui'
 import ChampionIcon from '@renderer-shared/components/widgets/ChampionIcon.vue'
@@ -125,6 +127,7 @@ import { uiText } from './ui-text'
 
 const { games } = useMemberAnalysisData()
 const resources = useAkariResourceProvider()
+const { match } = useChampionNameMatch()
 const side = ref<BanSide>('both')
 const query = ref('')
 const page = ref(1)
@@ -159,7 +162,7 @@ const filteredRows = computed(() => {
   const search = query.value.trim().toLocaleLowerCase()
   const { key, direction } = sort.value
   return result.value.rows
-    .filter((row) => !search || championName(row.championId).toLocaleLowerCase().includes(search))
+    .filter((row) => !search || match(search, championName(row.championId), row.championId))
     .sort((a, b) => {
       const comparison =
         key === 'championId'

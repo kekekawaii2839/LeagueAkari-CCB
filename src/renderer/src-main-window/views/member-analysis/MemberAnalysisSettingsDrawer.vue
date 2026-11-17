@@ -1,383 +1,432 @@
 <template>
-  <NDrawer
+  <component
+    :is="embedded ? 'div' : NDrawer"
+    :class="{ 'analysis-settings-embedded': embedded }"
     :show="show"
     :width="520"
     style="max-width: 100%"
     placement="right"
-    to=".member-analysis-page"
+    :to="embedded ? undefined : '.member-analysis-page'"
     @update:show="requestClose"
     @after-enter="focusRequestedSection"
   >
-    <NDrawerContent title="成员分析设置" closable>
-      <div class="member-analysis-settings">
-        <div
-          v-if="saveError || confirmDiscard"
-          ref="feedback"
-          tabindex="-1"
-          class="settings-feedback"
-        >
-          <NAlert v-if="saveError" type="error" role="alert">{{ saveError }}</NAlert>
-          <NAlert v-if="confirmDiscard" type="warning" class="settings-discard-warning">
-            <div class="settings-discard-content">
-              <span class="settings-discard-message">{{ uiText('discard') }}</span>
-              <div class="settings-discard-actions">
-                <NButton size="small" @click="discard">{{ uiText('discardConfirm') }}</NButton>
-                <NButton size="small" @click="confirmDiscard = false">{{
-                  uiText('keepEditing')
-                }}</NButton>
-              </div>
-            </div>
-          </NAlert>
-        </div>
-        <div class="member-analysis-settings__row">
-          <div>
-            <div class="member-analysis-settings__label">启用成员分析</div>
-            <div class="member-analysis-settings__description">
-              关闭后停止更新，已保存的本地分析数据不会自动删除。
-            </div>
-          </div>
-          <NSwitch v-model:value="draft.enabled" aria-label="启用成员分析" />
-        </div>
-
-        <h3 ref="collectionHeading" tabindex="-1" class="settings-group-heading">采集范围</h3>
-        <NFormItem
-          :label="uiText('collectionCount')"
-          :validation-status="fieldError('historyDepth') ? 'error' : undefined"
-          :show-feedback="false"
-        >
-          <div class="member-analysis-settings__field" data-validation-key="historyDepth">
-            <NSelect
-              v-model:value="draft.historyDepth"
-              :options="historyOptions"
-              :aria-invalid="Boolean(fieldError('historyDepth'))"
-              :aria-describedby="fieldError('historyDepth') ? errorId('historyDepth') : undefined"
-              @blur="touch('historyDepth')"
-            />
-            <p
-              v-if="fieldError('historyDepth')"
-              :id="errorId('historyDepth')"
-              class="settings-field-error"
-            >
-              {{ fieldError('historyDepth') }}
-            </p>
-            <div class="member-analysis-settings__description">
-              {{ uiText('collectionCountHelp') }}
-            </div>
-          </div>
-        </NFormItem>
-        <NFormItem
-          :label="uiText('historyQueryLimit')"
-          :validation-status="fieldError('scanLimitPerMember') ? 'error' : undefined"
-          :show-feedback="false"
-        >
-          <div class="member-analysis-settings__field" data-validation-key="scanLimitPerMember">
-            <NInputNumber
-              v-model:value="draft.scanLimitPerMember"
-              aria-label="每名成员最多查询场数"
-              :input-props="validationInputProps('scanLimitPerMember')"
-              @blur="touch('scanLimitPerMember')"
-              :min="100"
-              :max="5000"
-              :step="100"
-            />
-            <div class="member-analysis-settings__description">
-              {{ uiText('historyQueryLimitHelp') }}
-            </div>
-            <p
-              v-if="fieldError('scanLimitPerMember')"
-              :id="errorId('scanLimitPerMember')"
-              class="settings-field-error"
-            >
-              {{ fieldError('scanLimitPerMember') }}
-            </p>
-          </div>
-        </NFormItem>
-        <NFormItem
-          label="比赛模式"
-          :validation-status="fieldError('historyTag') ? 'error' : undefined"
-          :show-feedback="false"
-        >
-          <div class="member-analysis-settings__field" data-validation-key="historyTag">
-            <NSelect
-              v-model:value="draft.historyTag"
-              :options="historyTagOptions"
-              aria-label="比赛模式"
-              :aria-invalid="Boolean(fieldError('historyTag'))"
-              :aria-describedby="fieldError('historyTag') ? errorId('historyTag') : undefined"
-              @blur="touch('historyTag')"
-            />
-            <div class="member-analysis-settings__description">
-              {{ uiText('collectionModeHelp') }}
-            </div>
-            <p
-              v-if="fieldError('historyTag')"
-              :id="errorId('historyTag')"
-              class="settings-field-error"
-            >
-              {{ fieldError('historyTag') }}
-            </p>
-          </div>
-        </NFormItem>
-
-        <h3 class="settings-group-heading">存储与参考</h3>
-        <NFormItem
-          label="本地存储软上限（GiB）"
-          :validation-status="fieldError('storageLimitGiB') ? 'error' : undefined"
-          :show-feedback="false"
-        >
-          <div class="member-analysis-settings__field" data-validation-key="storageLimitGiB">
-            <NInputNumber
-              v-model:value="draft.storageLimitGiB"
-              :min="1"
-              :max="1000"
-              :input-props="validationInputProps('storageLimitGiB')"
-              @blur="touch('storageLimitGiB')"
-            />
-            <p
-              v-if="fieldError('storageLimitGiB')"
-              :id="errorId('storageLimitGiB')"
-              class="settings-field-error"
-            >
-              {{ fieldError('storageLimitGiB') }}
-            </p>
-          </div>
-        </NFormItem>
-
-        <div class="member-analysis-settings__row">
-          <div>
-            <div class="member-analysis-settings__label">OP.GG 公共参考数据</div>
-            <div class="member-analysis-settings__description">
-              {{ uiText('publicReferenceHelp') }}
-            </div>
-          </div>
-          <NSwitch v-model:value="draft.opggEnabled" aria-label="OP.GG 公共参考数据" />
-        </div>
-
-        <h3 class="settings-group-heading">{{ uiText('experimentalPredictionGroup') }}</h3>
-        <div class="member-analysis-settings__row">
-          <div>
-            <div id="experimental-prediction-label" class="member-analysis-settings__label">
-              {{ uiText('experimentalPredictionLabel') }}
-            </div>
-            <div id="experimental-prediction-help" class="member-analysis-settings__description">
-              {{ uiText('experimentalPredictionHelp') }}
-            </div>
-          </div>
-          <NSwitch
-            v-model:value="draft.experimentalPredictionEnabled"
-            aria-labelledby="experimental-prediction-label"
-            aria-describedby="experimental-prediction-help"
-            :disabled="saving"
-          />
-        </div>
-
-        <div class="member-analysis-settings__row">
-          <div>
-            <div id="experimental-lp-trend-label" class="member-analysis-settings__label">
-              {{ uiText('lpTrendSettingLabel') }}
-            </div>
-            <div id="experimental-lp-trend-help" class="member-analysis-settings__description">
-              {{ uiText('lpTrendSettingHelp') }}
-            </div>
-          </div>
-          <NSwitch
-            v-model:value="draft.experimentalLpTrendEnabled"
-            aria-labelledby="experimental-lp-trend-label"
-            aria-describedby="experimental-lp-trend-help"
-            :disabled="saving"
-          />
-        </div>
-
-        <div class="member-analysis-settings__row">
-          <div>
-            <div id="experimental-version-trend-label" class="member-analysis-settings__label">
-              {{ uiText('versionTrendSettingLabel') }}
-            </div>
-            <div id="experimental-version-trend-help" class="member-analysis-settings__description">
-              {{ uiText('versionTrendSettingHelp') }}
-            </div>
-          </div>
-          <NSwitch
-            v-model:value="draft.experimentalVersionTrendEnabled"
-            aria-labelledby="experimental-version-trend-label"
-            aria-describedby="experimental-version-trend-help"
-            :disabled="saving"
-          />
-        </div>
-
-        <section ref="memberList" tabindex="-1" data-validation-key="members">
-          <div class="member-analysis-settings__section-title">
-            <span>固定成员列表</span>
-            <NButton
-              size="tiny"
-              :disabled="sortingLocked || Boolean(draggedMember) || draft.members.length >= 20"
-              @click="addMember"
-              >添加成员</NButton
-            >
-          </div>
-          <div class="member-import" @dragover="allowImportDrop" @drop="dropImportFile">
-            <p class="member-analysis-settings__description">{{ uiText('memberImportHelp') }}</p>
-            <NInput
-              v-model:value="importServerId"
-              :disabled="sortingLocked"
-              :aria-label="uiText('memberImportServer')"
-              :placeholder="uiText('memberImportServer')"
-            />
-            <NInput
-              v-model:value="importText"
-              type="textarea"
-              :disabled="sortingLocked"
-              :aria-label="uiText('memberImportInput')"
-              :placeholder="uiText('memberImportInput')"
-              :autosize="{ minRows: 2, maxRows: 6 }"
-            />
-            <NButton
-              size="small"
-              :disabled="sortingLocked || Boolean(draggedMember) || !importText.trim()"
-              @click="importMembers(importText)"
-              >{{ uiText('memberImportReplace') }}</NButton
-            >
-            <p
-              v-if="importFeedback"
-              :class="
-                importFailed ? 'settings-field-error' : 'member-analysis-settings__description'
-              "
-              role="status"
-            >
-              {{ importFeedback }}
-            </p>
-          </div>
-          <p
-            v-if="draft.enabled && draft.members.length < 5"
-            class="settings-field-error"
-            role="status"
-          >
-            {{ uiText('settingsMemberCount', { count: draft.members.length }) }}
-          </p>
+    <component
+      :is="embedded ? 'div' : NDrawerContent"
+      title="五排分析设置"
+      closable
+      :class="{ 'analysis-settings-embedded-content': embedded }"
+    >
+      <component :is="embedded ? NScrollbar : 'div'" class="settings-scroll">
+        <div class="member-analysis-settings">
           <div
-            v-if="!draft.enabled && !draft.members.length"
-            class="member-analysis-settings__empty"
-          >
-            {{ uiText('membersRequired') }}
-          </div>
-          <span class="sr-only" role="status">{{ memberOrderFeedback }}</span>
-          <span :id="`${formId}-member-order-help`" class="sr-only">
-            拖动调整成员顺序；键盘使用上、下方向键移动，Home 移至首位，End 移至末位。
-          </span>
-          <TransitionGroup
-            name="member-order"
-            tag="div"
-            class="member-order-list"
-            @dragenter.capture="allowMemberDrop"
-            @dragenter="allowMemberDrop"
-            @dragover.capture="allowMemberDrop"
-            @dragover="dragOverMemberList"
-            @drop="dropMember($event)"
-          >
-            <div
-              v-for="(member, index) in displayedMembers"
-              :key="memberRowKey(member)"
-              :data-member-row="memberRowKey(member)"
-              class="member-analysis-member"
-              :class="{
-                'member-drop-target': dropTarget === member,
-                'member-drop-after': dropTarget === member && dropAfter
-              }"
-              role="group"
-              :aria-label="`成员 ${index + 1}：${member.gameName}#${member.tagLine}`"
-              @dragover="dragOverMember($event, member)"
-              @drop="dropMember($event, member)"
-              @keydown.esc="cancelMemberDrag($event)"
-            >
-              <button
-                type="button"
-                class="member-drag-handle"
-                :draggable="!sortingLocked"
-                :disabled="sortingLocked"
-                :aria-label="`拖动排序成员 ${member.gameName}#${member.tagLine}`"
-                :aria-describedby="`${formId}-member-order-help`"
-                @dragstart="startMemberDrag($event, member)"
-                @dragend="cancelMemberDrag()"
-                @keydown="moveMemberByKey($event, member)"
-              >
-                <NIcon :size="16"><DragHandleIcon /></NIcon>
-              </button>
-              <div
-                v-for="field in memberFields"
-                :key="field.key"
-                :data-validation-key="memberKey(draft.members.indexOf(member), field.key)"
-                class="member-input-field"
-              >
-                <NInput
-                  :value="member[field.key]"
-                  @update:value="updateMemberField(member, field.key, $event)"
-                  :input-props="memberInputProps(member, draft.members.indexOf(member), field.key)"
-                  :aria-label="field.label"
-                  :placeholder="field.placeholder"
-                  :status="
-                    fieldError(memberKey(draft.members.indexOf(member), field.key))
-                      ? 'error'
-                      : undefined
-                  "
-                  @blur="touch(memberKey(draft.members.indexOf(member), field.key))"
-                />
-                <p
-                  v-if="fieldError(memberKey(draft.members.indexOf(member), field.key))"
-                  :id="errorId(memberKey(draft.members.indexOf(member), field.key))"
-                  class="settings-field-error"
-                >
-                  {{ fieldError(memberKey(draft.members.indexOf(member), field.key)) }}
-                </p>
-              </div>
-              <div class="member-order-actions">
-                <NButton
-                  size="small"
-                  quaternary
-                  type="error"
-                  :disabled="sortingLocked"
-                  :aria-disabled="sortingLocked || Boolean(draggedMember)"
-                  :aria-label="`删除成员 ${member.gameName}#${member.tagLine}`"
-                  @click="removeMember(draft.members.indexOf(member))"
-                  >删除</NButton
-                >
-              </div>
-            </div>
-          </TransitionGroup>
-        </section>
-
-        <section class="member-analysis-storage">
-          <NAlert v-if="cleanupError" type="error">{{ cleanupError }}</NAlert>
-          <div class="member-analysis-settings__section-title">本地数据清理</div>
-          <div class="member-analysis-settings__description">
-            当前占用 {{ formatBytes(storageStatus?.totalBytes ?? 0) }}；软上限
-            {{
-              formatBytes(storageStatus?.limitBytes ?? (draft.storageLimitGiB ?? 0) * 1024 ** 3)
-            }}。 不会自动删除数据；清理仅移除最旧的历史原始数据，并保留设置和当前分析结果。
-          </div>
-          <NButton :loading="cleaning" @click="$emit('preview-cleanup')">预览清理</NButton>
-          <div
-            v-if="cleanupPreview"
-            ref="cleanupConfirmation"
+            v-if="saveError || confirmDiscard"
+            ref="feedback"
             tabindex="-1"
             class="settings-feedback"
           >
-            <NAlert type="warning" :title="uiText('confirmCleanupTitle')">
-              将清理 {{ cleanupPreview.gameCount }} 场最旧历史原始数据，预计释放
-              {{ formatBytes(cleanupPreview.reclaimableBytes) }}。当前可查看的分析结果不会被删除。
-              <NButton
-                class="member-analysis-storage__confirm"
-                size="small"
-                type="error"
-                :loading="cleaning"
-                @click="$emit('confirm-cleanup', cleanupPreview.previewId)"
-              >
-                确认清理
-              </NButton>
+            <NAlert v-if="saveError" type="error" role="alert">{{ saveError }}</NAlert>
+            <NAlert v-if="confirmDiscard" type="warning" class="settings-discard-warning">
+              <div class="settings-discard-content">
+                <span class="settings-discard-message">{{ uiText('discard') }}</span>
+                <div class="settings-discard-actions">
+                  <NButton size="small" @click="discard">{{ uiText('discardConfirm') }}</NButton>
+                  <NButton size="small" @click="confirmDiscard = false">{{
+                    uiText('keepEditing')
+                  }}</NButton>
+                </div>
+              </div>
             </NAlert>
           </div>
-        </section>
-      </div>
-      <template #footer>
+          <SettingsSection title="五排分析">
+            <SettingsRow
+              label="启用五排分析"
+              label-description="关闭后停止更新，已保存的本地分析数据不会自动删除。"
+            >
+              <NSwitch size="small" v-model:value="draft.enabled" aria-label="启用五排分析" />
+            </SettingsRow>
+          </SettingsSection>
+
+          <SettingsSection>
+            <template #header>
+              <h3
+                ref="collectionHeading"
+                tabindex="-1"
+                class="settings-section-title settings-heading"
+              >
+                采集范围
+              </h3>
+            </template>
+            <SettingsRow
+              :label="uiText('collectionCount')"
+              :label-description="uiText('collectionCountHelp')"
+            >
+              <div class="member-analysis-settings__field" data-validation-key="historyDepth">
+                <NSelect
+                  size="small"
+                  :status="fieldError('historyDepth') ? 'error' : undefined"
+                  :aria-label="uiText('collectionCount')"
+                  v-model:value="draft.historyDepth"
+                  :options="historyOptions"
+                  :aria-invalid="Boolean(fieldError('historyDepth'))"
+                  :aria-describedby="
+                    fieldError('historyDepth') ? errorId('historyDepth') : undefined
+                  "
+                  @blur="touch('historyDepth')"
+                />
+                <p
+                  v-if="fieldError('historyDepth')"
+                  :id="errorId('historyDepth')"
+                  class="settings-field-error"
+                >
+                  {{ fieldError('historyDepth') }}
+                </p>
+              </div>
+            </SettingsRow>
+            <SettingsRow
+              :label="uiText('historyQueryLimit')"
+              :label-description="uiText('historyQueryLimitHelp')"
+            >
+              <div class="member-analysis-settings__field" data-validation-key="scanLimitPerMember">
+                <NInputNumber
+                  size="small"
+                  :status="fieldError('scanLimitPerMember') ? 'error' : undefined"
+                  v-model:value="draft.scanLimitPerMember"
+                  aria-label="每名成员最多查询场数"
+                  :input-props="validationInputProps('scanLimitPerMember')"
+                  @blur="touch('scanLimitPerMember')"
+                  :min="100"
+                  :max="5000"
+                  :step="100"
+                />
+                <p
+                  v-if="fieldError('scanLimitPerMember')"
+                  :id="errorId('scanLimitPerMember')"
+                  class="settings-field-error"
+                >
+                  {{ fieldError('scanLimitPerMember') }}
+                </p>
+              </div>
+            </SettingsRow>
+            <SettingsRow label="比赛模式" :label-description="uiText('collectionModeHelp')">
+              <div class="member-analysis-settings__field" data-validation-key="historyTag">
+                <NSelect
+                  size="small"
+                  :status="fieldError('historyTag') ? 'error' : undefined"
+                  v-model:value="draft.historyTag"
+                  :options="historyTagOptions"
+                  aria-label="比赛模式"
+                  :aria-invalid="Boolean(fieldError('historyTag'))"
+                  :aria-describedby="fieldError('historyTag') ? errorId('historyTag') : undefined"
+                  @blur="touch('historyTag')"
+                />
+                <p
+                  v-if="fieldError('historyTag')"
+                  :id="errorId('historyTag')"
+                  class="settings-field-error"
+                >
+                  {{ fieldError('historyTag') }}
+                </p>
+              </div>
+            </SettingsRow>
+          </SettingsSection>
+
+          <SettingsSection title="存储与参考">
+            <SettingsRow label="本地存储软上限（GiB）">
+              <div class="member-analysis-settings__field" data-validation-key="storageLimitGiB">
+                <NInputNumber
+                  size="small"
+                  :status="fieldError('storageLimitGiB') ? 'error' : undefined"
+                  aria-label="本地存储软上限（GiB）"
+                  v-model:value="draft.storageLimitGiB"
+                  :min="1"
+                  :max="1000"
+                  :input-props="validationInputProps('storageLimitGiB')"
+                  @blur="touch('storageLimitGiB')"
+                />
+                <p
+                  v-if="fieldError('storageLimitGiB')"
+                  :id="errorId('storageLimitGiB')"
+                  class="settings-field-error"
+                >
+                  {{ fieldError('storageLimitGiB') }}
+                </p>
+              </div>
+            </SettingsRow>
+            <SettingsRow
+              label="OP.GG 公共参考数据"
+              :label-description="uiText('publicReferenceHelp')"
+            >
+              <NSwitch
+                size="small"
+                v-model:value="draft.opggEnabled"
+                aria-label="OP.GG 公共参考数据"
+              />
+            </SettingsRow>
+          </SettingsSection>
+
+          <SettingsSection :title="uiText('experimentalPredictionGroup')">
+            <SettingsRow>
+              <template #label
+                ><span id="experimental-prediction-label">{{
+                  uiText('experimentalPredictionLabel')
+                }}</span></template
+              >
+              <template #labelDescription
+                ><span id="experimental-prediction-help">{{
+                  uiText('experimentalPredictionHelp')
+                }}</span></template
+              >
+              <NSwitch
+                size="small"
+                v-model:value="draft.experimentalPredictionEnabled"
+                aria-labelledby="experimental-prediction-label"
+                aria-describedby="experimental-prediction-help"
+                :disabled="saving"
+              />
+            </SettingsRow>
+            <SettingsRow>
+              <template #label
+                ><span id="experimental-lp-trend-label">{{
+                  uiText('lpTrendSettingLabel')
+                }}</span></template
+              >
+              <template #labelDescription
+                ><span id="experimental-lp-trend-help">{{
+                  uiText('lpTrendSettingHelp')
+                }}</span></template
+              >
+              <NSwitch
+                size="small"
+                v-model:value="draft.experimentalLpTrendEnabled"
+                aria-labelledby="experimental-lp-trend-label"
+                aria-describedby="experimental-lp-trend-help"
+                :disabled="saving"
+              />
+            </SettingsRow>
+            <SettingsRow>
+              <template #label
+                ><span id="experimental-version-trend-label">{{
+                  uiText('versionTrendSettingLabel')
+                }}</span></template
+              >
+              <template #labelDescription
+                ><span id="experimental-version-trend-help">{{
+                  uiText('versionTrendSettingHelp')
+                }}</span></template
+              >
+              <NSwitch
+                size="small"
+                v-model:value="draft.experimentalVersionTrendEnabled"
+                aria-labelledby="experimental-version-trend-label"
+                aria-describedby="experimental-version-trend-help"
+                :disabled="saving"
+              />
+            </SettingsRow>
+          </SettingsSection>
+
+          <section ref="memberList" tabindex="-1" data-validation-key="members">
+            <SettingsSection>
+              <template #header>
+                <div class="settings-member-header">
+                  <h3 class="settings-section-title settings-heading">固定成员列表</h3>
+                  <NButton
+                    size="small"
+                    :disabled="
+                      sortingLocked || Boolean(draggedMember) || draft.members.length >= 20
+                    "
+                    @click="addMember"
+                    >添加成员</NButton
+                  >
+                </div>
+              </template>
+              <div class="settings-section-content">
+                <div class="member-import" @dragover="allowImportDrop" @drop="dropImportFile">
+                  <p class="member-analysis-settings__description">
+                    {{ uiText('memberImportHelp') }}
+                  </p>
+                  <NInput
+                    size="small"
+                    v-model:value="importServerId"
+                    :disabled="sortingLocked"
+                    :aria-label="uiText('memberImportServer')"
+                    :placeholder="uiText('memberImportServer')"
+                  />
+                  <NInput
+                    size="small"
+                    v-model:value="importText"
+                    type="textarea"
+                    :disabled="sortingLocked"
+                    :aria-label="uiText('memberImportInput')"
+                    :placeholder="uiText('memberImportInput')"
+                    :autosize="{ minRows: 2, maxRows: 6 }"
+                  />
+                  <NButton
+                    size="small"
+                    :disabled="sortingLocked || Boolean(draggedMember) || !importText.trim()"
+                    @click="importMembers(importText)"
+                    >{{ uiText('memberImportReplace') }}</NButton
+                  >
+                  <p
+                    v-if="importFeedback"
+                    :class="
+                      importFailed
+                        ? 'settings-field-error'
+                        : 'member-analysis-settings__description'
+                    "
+                    role="status"
+                  >
+                    {{ importFeedback }}
+                  </p>
+                </div>
+                <p
+                  v-if="draft.enabled && draft.members.length < 5"
+                  class="settings-field-error"
+                  role="status"
+                >
+                  {{ uiText('settingsMemberCount', { count: draft.members.length }) }}
+                </p>
+                <div
+                  v-if="!draft.enabled && !draft.members.length"
+                  class="member-analysis-settings__empty"
+                >
+                  {{ uiText('membersRequired') }}
+                </div>
+                <span class="sr-only" role="status">{{ memberOrderFeedback }}</span>
+                <span :id="`${formId}-member-order-help`" class="sr-only">
+                  拖动调整成员顺序；键盘使用上、下方向键移动，Home 移至首位，End 移至末位。
+                </span>
+                <TransitionGroup
+                  name="member-order"
+                  tag="div"
+                  class="member-order-list"
+                  @dragenter.capture="allowMemberDrop"
+                  @dragenter="allowMemberDrop"
+                  @dragover.capture="allowMemberDrop"
+                  @dragover="dragOverMemberList"
+                  @drop="dropMember($event)"
+                >
+                  <div
+                    v-for="(member, index) in displayedMembers"
+                    :key="memberRowKey(member)"
+                    :data-member-row="memberRowKey(member)"
+                    class="member-analysis-member"
+                    :class="{
+                      'member-drop-target': dropTarget === member,
+                      'member-drop-after': dropTarget === member && dropAfter
+                    }"
+                    role="group"
+                    :aria-label="`成员 ${index + 1}：${member.gameName}#${member.tagLine}`"
+                    @dragover="dragOverMember($event, member)"
+                    @drop="dropMember($event, member)"
+                    @keydown.esc="cancelMemberDrag($event)"
+                  >
+                    <button
+                      type="button"
+                      class="member-drag-handle"
+                      :draggable="!sortingLocked"
+                      :disabled="sortingLocked"
+                      :aria-label="`拖动排序成员 ${member.gameName}#${member.tagLine}`"
+                      :aria-describedby="`${formId}-member-order-help`"
+                      @dragstart="startMemberDrag($event, member)"
+                      @dragend="cancelMemberDrag()"
+                      @keydown="moveMemberByKey($event, member)"
+                    >
+                      <NIcon :size="16"><DragHandleIcon /></NIcon>
+                    </button>
+                    <div
+                      v-for="field in memberFields"
+                      :key="field.key"
+                      :data-validation-key="memberKey(draft.members.indexOf(member), field.key)"
+                      class="member-input-field"
+                    >
+                      <NInput
+                        size="small"
+                        :value="member[field.key]"
+                        @update:value="updateMemberField(member, field.key, $event)"
+                        :input-props="
+                          memberInputProps(member, draft.members.indexOf(member), field.key)
+                        "
+                        :aria-label="field.label"
+                        :placeholder="field.placeholder"
+                        :status="
+                          fieldError(memberKey(draft.members.indexOf(member), field.key))
+                            ? 'error'
+                            : undefined
+                        "
+                        @blur="touch(memberKey(draft.members.indexOf(member), field.key))"
+                      />
+                      <p
+                        v-if="fieldError(memberKey(draft.members.indexOf(member), field.key))"
+                        :id="errorId(memberKey(draft.members.indexOf(member), field.key))"
+                        class="settings-field-error"
+                      >
+                        {{ fieldError(memberKey(draft.members.indexOf(member), field.key)) }}
+                      </p>
+                    </div>
+                    <div class="member-order-actions">
+                      <NButton
+                        size="small"
+                        quaternary
+                        type="error"
+                        :disabled="sortingLocked"
+                        :aria-disabled="sortingLocked || Boolean(draggedMember)"
+                        :aria-label="`删除成员 ${member.gameName}#${member.tagLine}`"
+                        @click="removeMember(draft.members.indexOf(member))"
+                        >删除</NButton
+                      >
+                    </div>
+                  </div>
+                </TransitionGroup>
+              </div>
+            </SettingsSection>
+          </section>
+
+          <SettingsSection title="本地数据清理">
+            <SettingsRow label="历史原始数据">
+              <template #labelDescription>
+                当前占用 {{ formatBytes(storageStatus?.totalBytes ?? 0) }}；软上限
+                {{
+                  formatBytes(
+                    storageStatus?.limitBytes ?? (draft.storageLimitGiB ?? 0) * 1024 ** 3
+                  )
+                }}。 不会自动删除数据；清理仅移除最旧的历史原始数据，并保留设置和当前分析结果。
+              </template>
+              <NButton size="small" :loading="cleaning" @click="$emit('preview-cleanup')">
+                预览清理
+              </NButton>
+            </SettingsRow>
+            <div
+              v-if="cleanupError || cleanupPreview"
+              class="settings-section-content settings-feedback"
+            >
+              <NAlert v-if="cleanupError" type="error">{{ cleanupError }}</NAlert>
+              <div
+                v-if="cleanupPreview"
+                ref="cleanupConfirmation"
+                tabindex="-1"
+                class="settings-feedback"
+              >
+                <NAlert type="warning" :title="uiText('confirmCleanupTitle')">
+                  将清理 {{ cleanupPreview.gameCount }} 场最旧历史原始数据，预计释放
+                  {{
+                    formatBytes(cleanupPreview.reclaimableBytes)
+                  }}。当前可查看的分析结果不会被删除。
+                  <NButton
+                    class="member-analysis-storage__confirm"
+                    size="small"
+                    type="error"
+                    :loading="cleaning"
+                    @click="$emit('confirm-cleanup', cleanupPreview.previewId)"
+                  >
+                    确认清理
+                  </NButton>
+                </NAlert>
+              </div>
+            </div>
+          </SettingsSection>
+        </div>
+      </component>
+      <div class="analysis-settings-footer">
         <div class="settings-footer">
           <div v-if="!valid" class="settings-validation-summary">
             <span role="status">{{
@@ -387,13 +436,18 @@
               uiText('settingsShowIssues')
             }}</NButton>
           </div>
-          <NButton type="primary" :loading="saving" :disabled="!valid" @click="saveDraft"
+          <NButton
+            size="small"
+            type="primary"
+            :loading="saving"
+            :disabled="!valid"
+            @click="saveDraft"
             >保存设置</NButton
           >
         </div>
-      </template>
-    </NDrawerContent>
-  </NDrawer>
+      </div>
+    </component>
+  </component>
 </template>
 
 <script setup lang="ts">
@@ -402,17 +456,20 @@ import {
   NButton,
   NDrawer,
   NDrawerContent,
-  NFormItem,
+  NScrollbar,
   NInput,
   NInputNumber,
   NIcon,
   NSelect,
-  NSwitch
+  NSwitch,
+  useThemeVars
 } from 'naive-ui'
 import { ReOrderDotsVertical20Regular as DragHandleIcon } from '@vicons/fluent'
 import { uiText } from './ui-text'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, useId, watch } from 'vue'
 
+import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
+import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
 import { ALL_SGPTAG_VALUE, useSgpTagOptions } from '@renderer-shared/composables/useSgpTagOptions'
 
 import type {
@@ -430,6 +487,7 @@ type Member = MemberAnalysisSettings['members'][number]
 
 const props = defineProps<{
   show: boolean
+  embedded?: boolean
   focusSection?: 'collection' | 'members' | null
   settings: MemberAnalysisSettings
   saving: boolean
@@ -499,7 +557,7 @@ function saveDraft() {
     // The response acknowledges only the submitted revision, never newer input.
     if (JSON.stringify(draft) !== submittedDraft) return
     Object.assign(draft, cloneSettings(saved))
-    emit('update:show', false)
+    if (!props.embedded) emit('update:show', false)
   })
 }
 const confirmDiscard = ref(false)
@@ -523,12 +581,17 @@ watch([() => props.saveError, confirmDiscard], async ([error, discard]) => {
 function requestClose(show: boolean) {
   if (show) {
     emit('update:show', true)
-    return
+    return true
   }
-  if (props.saving || pendingSave.value) return
-  if (dirty.value) confirmDiscard.value = true
-  else emit('update:show', false)
+  if (props.saving || pendingSave.value) return false
+  if (dirty.value) {
+    confirmDiscard.value = true
+    return false
+  }
+  if (!props.embedded) emit('update:show', false)
+  return true
 }
+defineExpose({ requestClose })
 function discard() {
   pendingSave.value = null
   baseline.value = cloneSettings(props.settings)
@@ -546,6 +609,7 @@ watch(
     revealIssues.value = false
   }
 )
+const themeVars = useThemeVars()
 const formId = useId()
 const touched = ref(new Set<string>())
 const revealIssues = ref(false)
@@ -635,7 +699,7 @@ async function focusRequestedSection() {
   target?.scrollIntoView({ block: 'start' })
   target?.focus({ preventScroll: true })
 }
-watch(() => props.focusSection, focusRequestedSection)
+watch([() => props.focusSection, () => props.show], focusRequestedSection, { immediate: true })
 const akariHistoryTagOptions = useSgpTagOptions()
 const historyTagOptions = computed(() =>
   (akariHistoryTagOptions.value as any[])
@@ -964,17 +1028,19 @@ function formatBytes(value: number) {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  container-type: inline-size;
 }
-.member-analysis-settings__row,
-.member-analysis-settings__section-title {
+.settings-heading {
+  margin: 0;
+}
+.settings-member-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px;
 }
-.member-analysis-settings__label,
-.member-analysis-settings__section-title {
-  font-weight: 500;
+.settings-section-content {
+  padding: 12px;
 }
 .member-analysis-settings__description,
 .member-analysis-settings__empty {
@@ -985,7 +1051,7 @@ function formatBytes(value: number) {
 }
 .member-analysis-settings__field {
   display: flex;
-  flex: 1;
+  width: 160px;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
@@ -1008,37 +1074,24 @@ function formatBytes(value: number) {
   position: relative;
   margin-top: 8px;
 }
-.member-analysis-storage {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.member-analysis-settings > section {
-  padding-top: 16px;
-  border-top: 1px solid rgb(var(--la-card-border-rgb) / 0.16);
-}
 .member-analysis-storage__confirm {
   margin-top: 8px;
 }
-@media (max-width: 560px) {
+@container (max-width: 460px) {
   .member-analysis-member {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr);
   }
-}
-.settings-group-heading {
-  margin: 8px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--ma-grid);
-  font-size: 16px;
-  font-weight: 600;
-}
-.member-analysis-settings__description {
-  color: var(--ma-muted);
+  .member-input-field:nth-child(4) {
+    grid-column: 2;
+  }
+  .member-order-actions {
+    justify-content: flex-end;
+  }
 }
 .member-analysis-member {
   padding: 8px 0;
   border-bottom: 0;
-  box-shadow: inset 0 -1px var(--ma-grid);
+  box-shadow: inset 0 -1px rgb(var(--la-card-border-rgb) / 0.16);
 }
 .member-order-actions {
   display: flex;
@@ -1062,7 +1115,7 @@ function formatBytes(value: number) {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--ma-muted);
+  color: var(--la-color-text-primary);
   font: inherit;
   cursor: grab;
 }
@@ -1138,7 +1191,7 @@ function formatBytes(value: number) {
 .settings-field-error {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--ma-negative);
+  color: v-bind('themeVars.errorColor');
   line-height: 1.5;
 }
 .member-input-field {
@@ -1152,11 +1205,36 @@ function formatBytes(value: number) {
   gap: 8px;
   width: 100%;
 }
+.settings-footer > :last-child {
+  margin-inline-start: auto;
+}
 .settings-validation-summary {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   font-size: 12px;
+}
+</style>
+
+<style scoped>
+.analysis-settings-embedded {
+  height: 100%;
+  min-height: 0;
+}
+.analysis-settings-embedded-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.analysis-settings-embedded .settings-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.analysis-settings-embedded .analysis-settings-footer {
+  flex: none;
+  padding: 12px;
+  border-top: 1px solid rgb(var(--la-card-border-rgb) / 0.14);
 }
 </style>

@@ -3,6 +3,23 @@ import { describe, expect, test } from 'vitest'
 
 import { officialPatchMetadata, parseOfficialPatchNotes } from './patch-notes-parser'
 
+test('paragraph change rows and split arrows retain data without swallowing rationale or ability boundaries', () => {
+  const notes = parseOfficialPatchNotes(`<title>Patch 26.1 Notes</title>
+    <h2>Champions</h2><h3>Synthetic Hero</h3><h4>Q - Synthetic</h4>
+    <blockquote><p>Intent: more damage, but no numerical comparison.</p></blockquote>
+    <ul><li>Damage: 20 ⇒ 25</li></ul><p>Bonus Damage: 40 ⇒ 50</p>
+    <li>Cooldown: 10 / 8</li><li>⇒ 9 / 7</li>
+    <h4>W - Other</h4><li>⇒ 6</li>`)!
+  expect(
+    notes.sections[0].entries.map(({ text, before, after }) => ({ text, before, after }))
+  ).toEqual([
+    { text: 'Damage: 20 ⇒ 25', before: '20', after: '25' },
+    { text: 'Bonus Damage: 40 ⇒ 50', before: '40', after: '50' },
+    { text: 'Cooldown: 10 / 8 ⇒ 9 / 7', before: '10 / 8', after: '9 / 7' },
+    { text: '⇒ 6', before: '', after: '6' }
+  ])
+})
+
 // Synthetic content in the observed Riot SSR structure. No real article copy.
 const page = `<html><head><title>Patch 26.1 Notes</title><script type="application/ld+json">{"@graph":[{"@type":"TechArticle","headline":"Patch 26.1 Notes","datePublished":"2026-01-07T19:00:00.000Z"}]}</script></head><body><div data-testid="title">Patch 26.1 Notes</div><div id="patch-notes-container">
 <h2 id="patch-large-changes">Mid-Patch Updates</h2><h3><img src="https://ddragon.leagueoflegends.com/cdn/16.1.1/img/champion/SyntheticHero.png">Synthetic Hero</h3><h4>Q - Synthetic Skill</h4><ul><li><strong>Damage</strong>: 10 / 20 ⇒ <strong>12 / 24</strong></li></ul>
@@ -66,7 +83,7 @@ describe('observed Riot SSR patch structure', () => {
       publishedAt: '2026-01-07T19:00:00.000Z'
     })
     const result = parseOfficialPatchNotes(page)!
-    expect(result.parserVersion).toBe(6)
+    expect(result.parserVersion).toBe(7)
     expect(result.truncated).toBe(false)
     expect(result.sections.map((section) => section.category)).toEqual([
       'champion',

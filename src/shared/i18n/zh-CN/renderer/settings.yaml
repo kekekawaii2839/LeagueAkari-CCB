@@ -1,4 +1,6 @@
 settings:
+  memberAnalysis:
+    title: 五排分析
   modal:
     title: 设置
   commandPalette:
@@ -272,7 +274,7 @@ settings:
         showAverageEnemyMissingPingsTag:
           label: 场均敌方消失信号数
         showAverageVisionScoreTag:
-          label: 场均视野得分
+          label: 场均分均视野
         showAkariScoreTag:
           label: Akari Score
         showAverageKillDamageEfficiencyTag:

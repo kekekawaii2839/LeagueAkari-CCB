@@ -1162,3 +1162,9 @@ test('axis ticks share precision while data labels keep their original metric pr
     f.app.unmount()
   }
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: { name: () => '', searchKeywords: () => [] }
+  })
+}))

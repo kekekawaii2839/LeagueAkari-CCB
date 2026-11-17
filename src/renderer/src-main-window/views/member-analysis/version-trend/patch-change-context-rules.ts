@@ -2,6 +2,104 @@
 // Exact text/category/ability matching preserves unreported numerical baselines.
 export const contextualPatchRules = [
   {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Soul Ignition',
+    text: 'Duration: 6s ⇒ 5s',
+    change: 'nerf',
+    reason: 'Reduced duration of Locke’s beneficial Soul Ignition window.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'Q - Radiant Volley',
+    text: 'New - Now Refunds CD it hits an enemy champion at least once: 0.5s - 1.0s Refund (scaling with Champion Level)',
+    change: 'buff',
+    reason:
+      'Adds a cooldown refund on champion hit; official text explicitly identifies a new benefit without reporting an old numerical value.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'Q - Radiant Volley',
+    text: 'Missile Speed: 3800 ⇒ 3200 (takes .047s longer to travel to max range)',
+    change: 'nerf',
+    reason:
+      'Lower projectile speed; the parenthesis explains increased travel time, not another scaling coefficient.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Unleashes a nova that expands to 400u Radius over 0.75 seconds. The nova destroys enemy projectiles and shields and grants move speed to Mel and Allies within. Destroyed missiles are retaliated against at the end of the nova.',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Retaliation Damage: 35 / 40 / 45 / 50 / 55 (+10% AP), reduced to 5 / 10 / 15 / 20 / 25 (+5% AP) for subsequent hits against the same enemy, up to 7 retaliations per enemy for a total of 65 - 205 (+40% AP)',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Shield: 80 / 110 / 140 / 170 / 200 (+70% AP) for 2 seconds',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Move Speed: 10 - 30% (scaling with Champion Level) for 2 seconds',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Mana Cost: 100 / 80 / 60 / 40 / 0',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'W - Rebuttal - Reworked',
+    text: 'Cooldown: 30 / 28.5 / 27 / 25.5 / 24',
+    change: 'adjusted',
+    reason:
+      'Official Mel midscope: a replacement ability, not an old/new numerical comparison. Reflection is replaced by area projectile destruction and retaliation; do not invent old values.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'E - Solar Snare',
+    text: 'Root Duration: 1.5 seconds ⇒ [0.8 - 1.6] / [0.85 - 1.75] / [0.9 - 1.9] / [0.95 - 2.05] / [1.0 - 2.2] seconds, increasing with distance',
+    change: 'adjusted',
+    reason:
+      'Old flat 1.5s is replaced by distance-dependent ranges at each rank: shorter close up, longer far away. Neither pure buff nor pure nerf.'
+  },
+  {
+    patch: '16.22',
+    category: 'champion',
+    ability: 'R - The Equalizer',
+    text: 'Damage per Second: 120 / 200 / 280 (+35% AP) ⇒ (+40% AP)',
+    change: 'buff',
+    reason:
+      'Official context says AP ratio buff from 35% to 40%; the right side omits the unchanged base damage, not a deletion of base damage.'
+  },
+  {
     patch: '16.18',
     category: 'champion',
     ability: 'W - Ultrashock Laser',

@@ -51,6 +51,17 @@ export function patchChange(entry: Entry, category: string, sectionHeading = '')
   // stats/items retain resource semantics; absent context must not guess.
   if (label === 'mana' && category === 'champion' && /^[QWER](?:\s|$)/i.test(entry.ability ?? ''))
     label = 'mana cost'
+  if (category === 'champion' && entry.ability === 'Base Stats') {
+    if (label === 'ar') label = 'armor'
+    if (label === 'as') label = 'attack speed'
+  }
+  // Damage lost to minions is a penalty, not damage dealt.
+  if (label === 'first stack damage against minions') {
+    const penalty = /^(\d+(?:\.\d+)?)% Less$/i
+    const a = penalty.exec(entry.before),
+      b = penalty.exec(entry.after)
+    if (a && b) return comparePatchExpressions(a[1], b[1], -1, true)
+  }
   // Reviewed mechanic transitions, not a blanket "removed = nerf" rule.
   // Removing small-monster targeting prevents Mounting Dread being wasted;
   // removing slow stacking takes power away from Arc of Judgement.
@@ -240,6 +251,29 @@ export function patchChange(entry: Entry, category: string, sectionHeading = '')
   }
   const beforeText = normalizeFormula(entry.before),
     afterText = normalizeFormula(entry.after)
+  if (label === 'total magic damage') {
+    // A shared duration is a fixed condition, not an extra damage coefficient.
+    const duration = / over (\d+(?:\.\d+)?)s$/
+    const a = duration.exec(beforeText),
+      b = duration.exec(afterText)
+    if (a && b && a[1] === b[1])
+      return comparePatchExpressions(
+        canonicalPatchExpression(beforeText.slice(0, a.index)),
+        canonicalPatchExpression(afterText.slice(0, b.index)),
+        1,
+        false
+      )
+  }
+  if (label === 'retribution') {
+    const condition = ', based on % Missing Health'
+    if (beforeText.endsWith(condition) && afterText.endsWith(condition))
+      return comparePatchExpressions(
+        canonicalPatchExpression(beforeText.slice(0, -condition.length)),
+        canonicalPatchExpression(afterText.slice(0, -condition.length)),
+        1,
+        false
+      )
+  }
   // Explicit output per input ratios: a smaller denominator is a buff when
   // output is beneficial. Keep metric/unit/source identical and denominator > 0.
   if (/^(?:attack speed scaling|passive bonus ad and ap on kill\/takedown)$/.test(label)) {
@@ -305,7 +339,7 @@ export function patchChange(entry: Entry, category: string, sectionHeading = '')
     sign,
     lowerBetter.test(label) ||
       negativePatchMetrics.has(label) ||
-      ['duration', 'lifesteal', 'life steal', 'move speed'].includes(label)
+      ['duration', 'lifesteal', 'life steal', 'move speed', 'slow amount'].includes(label)
   )
 }
 

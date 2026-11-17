@@ -112,7 +112,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 import { useSelfHostedLcuDataStore } from '@main-window/shards/self-hosted-lcu-data/store'
 import {
   ORDERED_CHAMPION_POSITIONS,

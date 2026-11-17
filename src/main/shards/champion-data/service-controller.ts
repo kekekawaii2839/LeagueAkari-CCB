@@ -17,6 +17,27 @@ export class ChampionDataServiceController {
     private readonly _sourceLoader: ChampionDataSourceLoader
   ) {}
 
+  loadLaneKillRate(
+    query: ChampionDataQuery,
+    championId: number,
+    targetChampionId: number,
+    options: ChampionDataLoadOptions = {}
+  ) {
+    return this._load(
+      query,
+      async (source) => {
+        if (source !== 'opgg') return null
+        return this._sourceLoader.loadLaneKillRate(
+          { ...query, source },
+          championId,
+          targetChampionId,
+          options
+        )
+      },
+      options
+    )
+  }
+
   loadPatches(query: ChampionDataQuery, options: ChampionDataLoadOptions = {}) {
     return this._load(
       query,

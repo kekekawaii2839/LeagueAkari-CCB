@@ -4,6 +4,7 @@ import {
   OpggAramMayhemChampionAugmentsResponse,
   OpggAramMayhemTierResponse,
   OpggChampionBuildResponse,
+  OpggChampionCounterStatsResponse,
   OpggChampionsResponse,
   OpggTiersResponse,
   OpggVersionsResponse,
@@ -64,6 +65,19 @@ export class OpggHttpApiAxiosHelper {
       },
       signal: options.signal
     })
+  }
+
+  getCounterStats(
+    region: RegionType,
+    championId: number,
+    position: PositionType,
+    targetChampionId: number,
+    options: OpggChampionOptions = {}
+  ) {
+    return this._http.get<OpggChampionCounterStatsResponse>(
+      `/api/${region}/champions/ranked/${championId}/${position}/counters/${targetChampionId}`,
+      { params: { tier: options.tier, version: options.version }, signal: options.signal }
+    )
   }
 
   getAramBalance(options: HttpApiRequestOptions = {}) {

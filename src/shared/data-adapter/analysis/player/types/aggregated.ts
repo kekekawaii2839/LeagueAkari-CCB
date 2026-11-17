@@ -21,6 +21,10 @@ export interface AggregatedSummaryAnalysis {
   avgTowerDamageRatioToMax: number
   avgTowerDamagePercentageOfTeam: number
   avgVisionScore: number
+  /** Arithmetic mean of valid per-game vision score / minutes (each game has equal weight). */
+  avgVisionScorePerMinute: number | null
+  /** Games with finite nonnegative raw vision and finite positive game duration. */
+  visionScorePerMinuteGames: number
   avgVisionScorePercentageOfTeam: number
   avgDamageGoldEfficiency: number
   avgKillParticipation: number

@@ -25,7 +25,6 @@ function fixture(count = 1) {
   for (const file of files) writeFileSync(path.join(cwd, file), 'changed\n')
   const manifest = {
     upstreamBaseline,
-    budget: { targetChangedLines: 800, hardMaxChangedLines: 900 },
     patches: files.map((upstreamFile) => ({ upstreamFile }))
   }
   const run = () => {
@@ -39,15 +38,15 @@ function fixture(count = 1) {
   return { cwd, files, manifest, run }
 }
 
-test('registered upstream file count is observable, not capped, while line limits remain', () => {
+test('registered upstream file and line counts are observable, not capped', () => {
   const { run } = fixture(45)
   const result = run()
   assert.equal(result.status, 0, result.stderr)
   const output = JSON.parse(result.stdout)
   assert.equal(output.modifiedUpstreamFiles, 45)
   assert.equal(output.changedLines, 90)
-  assert.equal(output.targetChangedLines, 800)
-  assert.equal(output.hardMaxChangedLines, 900)
+  assert.equal('targetChangedLines' in output, false)
+  assert.equal('hardMaxChangedLines' in output, false)
   assert.equal('targetFiles' in output, false)
   assert.equal('hardMaxFiles' in output, false)
 })
@@ -68,16 +67,23 @@ test('stale registration still fails', () => {
   assert.match(result.stderr, /Stale manifest entries: not-modified\.txt/)
 })
 
-test('the 800-line target stays informational and the 900-line hard limit is enforced', () => {
-  const { cwd, files, run } = fixture()
-  const append = (lines) =>
-    writeFileSync(path.join(cwd, files[0]), `baseline\n${'additional\n'.repeat(lines)}`)
-  append(900)
-  const atLimit = run()
-  assert.equal(atLimit.status, 0, atLimit.stderr)
-  assert.equal(JSON.parse(atLimit.stdout).changedLines, 900)
-  append(901)
-  const overLimit = run()
-  assert.notEqual(overLimit.status, 0)
-  assert.match(overLimit.stderr, /Changed lines 901 exceed hard maximum 900/)
+test('large registered changes pass without a numeric line cap, including legacy budget metadata', () => {
+  const { cwd, files, manifest, run } = fixture()
+  manifest.budget = { targetChangedLines: 800, hardMaxChangedLines: 900 }
+  for (const lines of [900, 901, 2500, 10000]) {
+    writeFileSync(path.join(cwd, files[0]), 'baseline\n' + 'additional\n'.repeat(lines))
+    const result = run()
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(JSON.parse(result.stdout).changedLines, lines)
+  }
+})
+
+test('large unregistered changes still fail the registration gate rather than a line budget', () => {
+  const { cwd, files, manifest, run } = fixture()
+  writeFileSync(path.join(cwd, files[0]), 'baseline\n' + 'additional\n'.repeat(2500))
+  manifest.patches = []
+  const result = run()
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /Unmanifested files: source-0\.txt/)
+  assert.doesNotMatch(result.stderr, /hard maximum|line limit/)
 })

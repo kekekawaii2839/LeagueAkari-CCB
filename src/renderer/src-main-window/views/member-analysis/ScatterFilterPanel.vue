@@ -25,6 +25,7 @@
         }}<NSelect
           :value="modelValue.champion"
           :options="champions"
+          :filter="filterChampion"
           clearable
           filterable
           @update:value="update({ champion: $event })"
@@ -130,10 +131,16 @@
   </div>
 </template>
 <script setup lang="ts">
+import { useMemberAnalysisChampionMatch } from './useMemberAnalysisChampionMatch'
+import type { SelectOption } from 'naive-ui'
+
 import { computed, ref } from 'vue'
 import { NButton, NInput, NInputNumber, NSelect } from 'naive-ui'
 import { defaultScatterFilters, hasScatterFilters, type ScatterFilters } from './scatter-filters'
 import { uiText } from './ui-text'
+const { matchChampion } = useMemberAnalysisChampionMatch()
+const filterChampion = (pattern: string, option: SelectOption) =>
+  matchChampion(pattern, String(option.value ?? ''), String(option.label ?? ''))
 const props = defineProps<{
   modelValue: ScatterFilters
   members: { label: string; value: string }[]

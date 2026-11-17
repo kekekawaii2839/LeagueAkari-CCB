@@ -28,7 +28,7 @@ function patchImage(html: string): string | null {
   return null
 }
 
-export const PATCH_NOTES_PARSER_VERSION = 6
+export const PATCH_NOTES_PARSER_VERSION = 7
 export const plainPatchText = (html: string) =>
   html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -150,7 +150,16 @@ export function parseOfficialPatchNotes(
         cursor.active?.title === 'Varus' &&
         /no longer deal reduced damage to subsequent targets/i.test(value) &&
         /fixing that bug/i.test(value)
-      if (!paragraphSystemHeading.test(heading) && !scoreboardContext && !hotfixMechanic) continue
+      // Some official change rows are paragraphs adjacent to the list, not li.
+      // Require a labelled arrow (or a split-arrow continuation), never rationale.
+      const changeParagraph = cursor.active && /^(?:.{1,180}?:\s+.+|\s*)[⇒→]/.test(value)
+      if (
+        !paragraphSystemHeading.test(heading) &&
+        !scoreboardContext &&
+        !hotfixMechanic &&
+        !changeParagraph
+      )
+        continue
     }
     previousEnd = match.index! + match[0].length
     if (tag === 'h2' && /^Related Articles$/i.test(value)) break
@@ -256,7 +265,23 @@ export function parseOfficialPatchNotes(
         truncated = true
         continue
       }
-      const text = value.slice(0, 2400)
+      let text = value.slice(0, 2400)
+      const previous = cursor.active.entries.at(-1)
+      // Riot may put the old value and the arrow/new value in separate rows.
+      // Merge only adjacent rows in the same ability with an explicit old label.
+      if (
+        /^[⇒→]/.test(text) &&
+        previous &&
+        previous.ability === ability &&
+        previous.before === null &&
+        /^.{1,180}?:\s+\d/.test(previous.text)
+      ) {
+        const combined = `${previous.text} ${text}`
+        if (combined.length > 2400) truncated = true
+        text = combined.slice(0, 2400)
+        cursor.active.entries.pop()
+        cursor.active.changes.pop()
+      }
       if (value.length > 2400) truncated = true
       const arrow = /\s*(?:⇒|→|⟶|->)\s*/.exec(text)
       let label: string | null = null,

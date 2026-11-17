@@ -513,6 +513,8 @@ test('champion labels follow client resources while canonical filtering and sele
       ['UnknownSyntheticHero', 'UnknownSyntheticHero']
     ])
     expect(select().props.filter('剑魔', options()[0])).toBe(true)
+    expect(select().props.filter('ayjm', options()[0])).toBe(true)
+    expect(select().props.filter('测试昵称', options()[0])).toBe(true)
     expect(select().props.filter('aatROX', options()[0])).toBe(true)
     expect(select().props.filter("Kha'Zix", options()[1])).toBe(true)
     expect(select().props.filter('剑魔', options()[1])).toBe(false)
@@ -594,3 +596,16 @@ test('long failure copy and scoped retry action share one status row without los
     f.dispose()
   }
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: () => '',
+      searchKeywords: (id: number) => (id === 1 || id === 266 ? ['合成别名', '测试昵称'] : [])
+    }
+  })
+}))
+
+vi.mock('@renderer-shared/shards/extra-assets/store', () => ({
+  useExtraAssetsStore: () => ({ heroListMap: {} })
+}))

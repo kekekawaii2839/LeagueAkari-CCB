@@ -275,3 +275,37 @@ describe('champion data legacy view model', () => {
     expect(toOpggChampionDetailsViewModel(details).data.core_items).toEqual([])
   })
 })
+
+it('carries the completed OPGG lane-kill snapshot into both full and original unfavorable rows', () => {
+  const details: ChampionDataDetails = {
+    metadata: { source: 'opgg', mode: 'ranked', patch: '16.22', dataDate: null, updatedAt: null },
+    championId: 266,
+    summary: { championId: 266, position: 'top', performance, counterChampionIds: [24, 39] },
+    sections: {
+      matchups: [
+        { championId: 24, relationship: 'unknown', performance: recommendation, laneKillRate: 0 },
+        { championId: 39, relationship: 'unknown', performance: recommendation, laneKillRate: 0.8 },
+        {
+          championId: 777,
+          relationship: 'unknown',
+          performance: recommendation,
+          laneKillRate: null
+        }
+      ]
+    }
+  }
+  const result = toOpggChampionDetailsViewModel(details)
+  expect(result.data.counters?.map((row) => row.lane_kill_rate)).toEqual([0, 0.8, null])
+  expect(
+    result.data.summary.positions?.[0].counters.map((row) => [row.champion_id, row.lane_kill_rate])
+  ).toEqual([
+    [24, 0],
+    [39, 0.8]
+  ])
+  details.metadata.source = 'qq101'
+  expect(
+    toOpggChampionDetailsViewModel(details).data.counters?.every(
+      (row) => row.lane_kill_rate === undefined
+    )
+  ).toBe(true)
+})

@@ -138,7 +138,7 @@ import { useTranslation } from 'i18next-vue'
 import { NButton, NModal, NSelect, NTooltip, SelectOption, useMessage } from 'naive-ui'
 import { VNode, computed, ref, watch } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 
 const { t } = useTranslation()
 const componentName = useComponentName()

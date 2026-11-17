@@ -1,3 +1,6 @@
+shared-profile:
+  startup-error: The shared profile is incompatible or unavailable. Startup was stopped to protect your data. Close the other version or retry with a compatible application.
+
 tray:
   about: About
   settings: Settings
@@ -138,7 +141,7 @@ in-game-send-main:
         winRate: Win Rate {{value}}
         kda: KDA {{value}}
         avgSoloKills: Avg Solo Kills {{value}}
-        avgVisionScore: Vision {{value}}
+        avgVisionScore: Avg Vision per Minute {{value}}
         avgChampionDamage: Damage {{value}}
         avgDamageTaken: Taken {{value}}
         avgGold: Gold {{value}}

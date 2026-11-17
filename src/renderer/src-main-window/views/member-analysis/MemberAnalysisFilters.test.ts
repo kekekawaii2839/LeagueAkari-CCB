@@ -268,6 +268,9 @@ test('champion labels follow actual client names while selection and canonical s
   )!
   expect(option.label).toBe('合成英雄')
   expect(championControl.filter!('合成英', option)).toBe(true)
+  expect(championControl.filter!('hcyx', option)).toBe(true)
+  expect(championControl.filter!('测试昵称', option)).toBe(true)
+  expect(championControl.filter!('no-unrelated-match', option)).toBe(false)
   expect(championControl.filter!('syntheticcanonical', option)).toBe(true)
   expect(
     championControl.options.find((option) => option.value === 'SyntheticNoMapping_TEST_ONLY')?.label
@@ -287,3 +290,12 @@ test('champion labels follow actual client names while selection and canonical s
     championControl.options.find((option) => option.value === store.filters.champion)?.label
   ).toBe('Synthetic client hero')
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: () => '',
+      searchKeywords: (id: number) => (id === 1 || id === 266 ? ['合成别名', '测试昵称'] : [])
+    }
+  })
+}))

@@ -16,11 +16,12 @@ import OpponentRankDetails from './opponent-ranks/OpponentRankDetails.vue'
 
 // Decorative icons do not participate in these control/recovery assertions.
 vi.mock('@vicons/material', () => ({
-  AnalyticsRound: () => null,
+  GroupsRound: () => null,
   InfoOutlined: () => null,
   RefreshRound: () => null,
   SettingsRound: () => null
 }))
+vi.mock('@vicons/fluent', () => ({ ReOrderDotsVertical20Regular: () => null }))
 
 const callbacks = vi.hoisted(() => ({
   buttons: [] as { text: string; disabled: boolean; click?: Function }[]
@@ -39,6 +40,7 @@ vi.mock('@renderer-shared/providers/akari-resource', () => ({
 vi.mock('naive-ui', () => {
   const Stub = (_: unknown, { slots }: { slots: Record<string, Function> }) => slots.default?.()
   return {
+    useThemeVars: () => ({ value: { errorColor: 'red' } }),
     useMessage: () => ({ error: vi.fn(), success: vi.fn(), warning: vi.fn(), info: vi.fn() }),
     NIcon: Stub,
     NEmpty: Stub,
@@ -54,6 +56,7 @@ vi.mock('naive-ui', () => {
     NSelect: () => null,
     NSwitch: () => null,
     NDrawer: Stub,
+    NScrollbar: Stub,
     NDrawerContent: (_: unknown, { slots }: { slots: Record<string, Function> }) => [
       slots.default?.(),
       slots.footer?.()
@@ -223,8 +226,8 @@ describe('member-analysis feedback and recovery', () => {
   })
 })
 
-test('page wires member recovery and ordinary settings to the same drawer without stale focus', async () => {
-  // Decoration is outside this real page/drawer wiring test's boundary.
+test('page requests global member settings without a local settings button', async () => {
+  // Decoration is outside this recovery-entry wiring test's boundary.
   vi.doMock('@vicons/carbon', () => ({ Close: () => null, ErrorFilled: () => null }))
   vi.doMock('@renderer-shared/shards', () => ({ useInstance: () => ({ reload: vi.fn() }) }))
   vi.doMock('vue-router', () => ({
@@ -263,13 +266,10 @@ test('page wires member recovery and ordinary settings to the same drawer withou
   callbacks.buttons.find((button) => button.text === '配置成员')?.click?.()
   expect(store.settingsDrawerVisible).toBe(true)
   expect(store.settingsFocus).toBe('members')
-  store.settingsDrawerVisible = false
-  callbacks.buttons.find((button) => button.text === '设置')?.click?.()
-  expect(store.settingsDrawerVisible).toBe(true)
-  expect(store.settingsFocus).toBeNull()
+  expect(callbacks.buttons.some((button) => button.text === '设置')).toBe(false)
 })
 
-test('header keeps title, slotted match controls and refresh/settings in reading order', async () => {
+test('header keeps title, slotted match controls and refresh in reading order without a local settings button', async () => {
   const app = createSSRApp({
     render: () =>
       h(
@@ -297,6 +297,6 @@ test('header keeps title, slotted match controls and refresh/settings in reading
   expect(heading).toBeGreaterThanOrEqual(0)
   expect(filters).toBeGreaterThan(heading)
   expect(refresh).toBeGreaterThan(filters)
-  expect(settings).toBeGreaterThan(refresh)
+  expect(settings).toBe(-1)
   expect(html).toContain('datetime="2026-10-14T00:00:00Z"')
 })

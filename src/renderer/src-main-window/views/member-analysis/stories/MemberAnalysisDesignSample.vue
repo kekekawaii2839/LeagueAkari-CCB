@@ -3,7 +3,7 @@
     <header class="sample-header">
       <div class="page-identity">
         <NIcon :component="AnalyticsOutline" />
-        <h1>成员分析</h1>
+        <h1>五排分析</h1>
       </div>
       <nav class="sample-nav" aria-label="页面结构预览，其他页面未接入">
         <span

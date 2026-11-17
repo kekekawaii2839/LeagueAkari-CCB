@@ -31,6 +31,7 @@ import { SgpRenderer } from '@renderer-shared/shards/sgp'
 import { StorageRenderer } from '@renderer-shared/shards/storage'
 import { WindowManagerRenderer } from '@renderer-shared/shards/window-manager'
 
+import { ChampionPoolRenderer } from './champion-pool'
 import { LeagueClientPeekRenderer } from './league-client-peek'
 import { MainWindowUiRenderer } from './main-window-ui'
 import { MemberAnalysisRenderer } from './member-analysis'
@@ -61,6 +62,7 @@ manager.use(LeagueClientUxRenderer)
 manager.use(LoggerRenderer)
 manager.use(MainWindowUiRenderer)
 manager.use(MemberAnalysisRenderer)
+manager.use(ChampionPoolRenderer)
 manager.use(NetworkRenderer)
 manager.use(PlayerTabsRenderer)
 manager.use(OngoingGameRenderer)

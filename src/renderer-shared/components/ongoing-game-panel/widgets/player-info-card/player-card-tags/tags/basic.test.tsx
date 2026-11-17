@@ -7,6 +7,7 @@ import type { PlayerCardTagContext } from '../types'
 import {
   AVERAGE_CS_PER_MINUTE_TAG,
   AVERAGE_DAMAGE_GOLD_EFFICIENCY_TAG,
+  AVERAGE_VISION_SCORE_TAG,
   getEasyGankTag,
   getKillDamageEfficiencyTag
 } from './basic'
@@ -63,6 +64,41 @@ const createContext = (overrides: Partial<PlayerCardTagContext> = {}): PlayerCar
   }) as PlayerCardTagContext
 
 describe('basic player card tags', () => {
+  it.each([
+    [0.87654, 12, '0.88'],
+    [0, 20, '0.00'],
+    [null, 0, '—']
+  ])(
+    'renders per-match mean vision per minute %s without sample details',
+    (rate, valid, expected) => {
+      const context = createContext({
+        settings: {
+          ...createDefaultOngoingGamePanelPlayerCardTagSettings(),
+          showAverageVisionScoreTag: true
+        },
+        analysis: createAnalysis({
+          summary: {
+            avgVisionScore: 999,
+            avgVisionScorePerMinute: rate,
+            visionScorePerMinuteGames: valid
+          } as AggregatedAnalysis['summary']
+        }),
+        t: ((_key: string, values: Record<string, unknown>) =>
+          JSON.stringify(values)) as PlayerCardTagContext['t']
+      })
+      const result = AVERAGE_VISION_SCORE_TAG.render(context)!
+      expect(JSON.parse(collectText(result.label))).toEqual({ count: expected })
+      expect(JSON.parse(collectText(result.popover!.content))).toEqual({ count: expected })
+      expect(
+        AVERAGE_VISION_SCORE_TAG.render({
+          ...context,
+          settings: createDefaultOngoingGamePanelPlayerCardTagSettings()
+        })
+      ).toBeNull()
+      expect(AVERAGE_VISION_SCORE_TAG.render({ ...context, analysis: null })).toBeNull()
+    }
+  )
+
   it('derives easy-gank tag thresholds from analyzed early jungle deaths', () => {
     expect(
       getEasyGankTag(

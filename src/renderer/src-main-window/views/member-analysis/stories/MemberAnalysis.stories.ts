@@ -6,6 +6,7 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite'
 import { getCurrentInstance, h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import MemberAnalysisSettings from '@main-window/components/settings-modal/MemberAnalysisSettings.vue'
 import { useMemberAnalysisStore } from '@main-window/shards/member-analysis/store'
 
 import MemberAnalysis from '../MemberAnalysis.vue'
@@ -392,7 +393,9 @@ const meta: Meta = {
       return () =>
         ready.value
           ? h('div', { style: 'height: calc(100vh - 48px); min-height: 400px' }, [
-              h(args.designSample ? MemberAnalysisDesignSample : MemberAnalysis)
+              args.settingsPanel
+                ? h(MemberAnalysisSettings, { active: true })
+                : h(args.designSample ? MemberAnalysisDesignSample : MemberAnalysis)
             ])
           : null
     }
@@ -415,7 +418,12 @@ export const MixedRoster: StoryObj = { args: { sampleState: 'mixed' } }
 
 export const ManyHeroes: StoryObj = { args: { sampleState: 'manyHeroes' } }
 
-export const SettingsSuccess: StoryObj = { args: { sampleState: 'settingsSuccess' } }
+export const SettingsSuccess: StoryObj = {
+  args: { sampleState: 'settingsSuccess', settingsPanel: true }
+}
+export const SettingsFailure: StoryObj = {
+  args: { sampleState: 'settingsFailure', settingsPanel: true }
+}
 
 export const RefreshLifecycle: StoryObj = { args: { sampleState: 'refresh' } }
 export const RefreshFailure: StoryObj = { args: { sampleState: 'refreshFailure' } }

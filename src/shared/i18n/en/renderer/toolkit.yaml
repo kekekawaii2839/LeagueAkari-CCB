@@ -383,8 +383,8 @@ toolkit:
             label: Avg Solo Kills
             description: Average solo kills; requires the SGP data source
           avgVisionScore:
-            label: Average Vision Score
-            description: Average vision score in recent matches
+            label: Average Vision Score per Minute
+            description: Average of per-match vision scores per minute across valid matches
           avgChampionDamage:
             label: Damage
             description: Show average share of team champion damage

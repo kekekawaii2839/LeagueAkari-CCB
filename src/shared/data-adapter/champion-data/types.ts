@@ -151,6 +151,8 @@ export interface ChampionRecommendationPerformance {
 }
 
 export interface ChampionMatchup {
+  /** Selected champion's share of both champions' lane kills (0–1); null is unavailable. */
+  laneKillRate?: number | null
   championId: number
   relationship: 'favorable' | 'unfavorable' | 'unknown'
   performance: ChampionRecommendationPerformance

@@ -283,7 +283,7 @@ function buildRatingStats(
   if (options.avgVisionScore && summary !== null) {
     parts.push(
       presetT('rating.metrics.avgVisionScore', {
-        value: formatNullableNumber(summary.avgVisionScore, 1)
+        value: formatNullableNumber(summary.avgVisionScorePerMinute, 2)
       })
     )
   }

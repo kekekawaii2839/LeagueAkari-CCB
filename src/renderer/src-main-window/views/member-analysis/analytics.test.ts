@@ -626,6 +626,35 @@ describe('member analysis Phase 4 anonymous golden metrics', () => {
     expect(selected.map((row) => row.gameId)).toEqual([1])
   })
 
+  test('hero fuzzy callback broadens only text matching and keeps all structured filters', () => {
+    const defaults: MemberAnalysisFilters = {
+      outcome: 'all',
+      patch: 'all',
+      dateFrom: '',
+      dateTo: '',
+      durationMin: null,
+      durationMax: null,
+      participant: 'all',
+      matchRole: 'all',
+      champion: 'all',
+      query: 'synthetic-nickname'
+    }
+    const heroMatch = (pattern: string, canonical: string) =>
+      pattern === 'synthetic-nickname' && canonical === 'Gwen'
+    const expected = games.filter((game) => game.players.some((row) => row.champion === 'Gwen'))
+    expect(filterMemberAnalysisGames(games, defaults, heroMatch)).toEqual(expected)
+    expect(
+      selectMemberAnalysisSample(games, defaults, 'all', 'all', heroMatch).sample
+    ).toHaveLength(expected.length)
+    expect(
+      filterMemberAnalysisGames(games, { ...defaults, patch: 'never-matching-patch' }, heroMatch)
+    ).toEqual([])
+    const original = filterMemberAnalysisGames(games, { ...defaults, query: 'alice' })
+    expect(filterMemberAnalysisGames(games, { ...defaults, query: 'alice' }, () => false)).toEqual(
+      original
+    )
+  })
+
   test('applies global side filters before exactly one sample-size window and keeps all unbounded', () => {
     const large = Array.from({ length: 150 }, (_, index) => ({
       ...games[index % 2],

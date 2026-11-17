@@ -178,8 +178,8 @@ ongoingGame:
     damageGoldEfficiencyPopoverUsage: 用于判断玩家把经济转化为英雄伤害的效率。
     enemyMissingPings: 问号 {{count}} 次
     enemyMissingPingsPopover: 该玩家平均每局发送敌方消失信号 {{count}} 次
-    visionScore: 视野分 {{count}}
-    visionScorePopover: 该玩家平均每局视野得分 {{count}} 分
+    visionScore: 场均分均视野 {{count}}
+    visionScorePopover: 逐局以视野得分除以对局分钟数，再取平均：{{count}}。
     killDamageEfficiencyHigh: K 头
     killDamageEfficiencyLow: 打工
     killDamageEfficiencyHighPopover: 在最近的 {{count}} 场对局中，该玩家的平均击杀伤害比率为 {{rate}}%，以较少的队伍伤害换取了较多的击杀数

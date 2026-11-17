@@ -15,7 +15,7 @@
             size="small"
             v-model:value="currentChampionId"
             filterable
-            :filter="(a, b) => isChampionNameMatch(a, b.label as string)"
+            :filter="(a, b) => match(a, b.label as string, b.value as number)"
             :render-label="renderLabel"
             :options="strawberryChampions"
           ></NSelect>
@@ -81,6 +81,8 @@
 </template>
 
 <script setup lang="tsx">
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
+
 import LcuImage from '@renderer-shared/components/LcuImage.vue'
 import SettingsRow from '@renderer-shared/components/SettingsRow.vue'
 import SettingsSection from '@renderer-shared/components/SettingsSection.vue'
@@ -103,6 +105,7 @@ import { shallowRef, watchEffect } from 'vue'
 import { computed, ref } from 'vue'
 
 const { t } = useTranslation()
+const { match } = useChampionNameMatch()
 const componentName = useComponentName()
 
 const lcs = useLeagueClientStore()

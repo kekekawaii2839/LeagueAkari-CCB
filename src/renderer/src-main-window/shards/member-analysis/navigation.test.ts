@@ -4,6 +4,7 @@ import { router } from '@main-window/routes'
 
 import { MEMBER_ANALYSIS_NAVIGATION, MEMBER_ANALYSIS_ROUTE } from './navigation'
 
+vi.mock('@main-window/views/champion-pool/ChampionPool.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/patch-notes/PatchNotes.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/automation/Automation.vue', () => ({ default: {} }))
 vi.mock('@main-window/views/member-analysis/MemberAnalysis.vue', () => ({ default: {} }))
@@ -24,7 +25,7 @@ describe('member analysis navigation contract', () => {
     })
     expect(MEMBER_ANALYSIS_NAVIGATION).toEqual({
       key: 'member-analysis',
-      label: '成员分析'
+      label: '五排分析'
     })
   })
 

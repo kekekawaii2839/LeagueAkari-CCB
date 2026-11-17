@@ -4,7 +4,9 @@ import { z } from 'zod'
 export const PatchNotesRequestSchema = z
   .object({
     patch: z.string().regex(/^(?:15|16)\.(?:[1-9]|1[0-9]|2[0-4])$/),
-    refresh: z.boolean().optional()
+    refresh: z.boolean().optional(),
+    latest: z.boolean().optional(),
+    cacheOnly: z.boolean().optional()
   })
   .strict()
 export type PatchNotesRequest = z.infer<typeof PatchNotesRequestSchema>
@@ -56,7 +58,14 @@ export const PatchNotesSchema = z
     publishedAt: z.string().nullable(),
     status: z.enum(['available', 'unavailable']),
     stale: z.boolean(),
-    parserVersion: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+    parserVersion: z.union([
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+      z.literal(6),
+      z.literal(7)
+    ]),
     truncated: z.boolean(),
     sections: z
       .array(

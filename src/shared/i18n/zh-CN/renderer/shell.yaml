@@ -217,3 +217,104 @@ startup:
 backgroundTasks:
   taskTitle: 正在进行 ({{count}})
   emptyPlaceholder: 无后台任务
+
+championPool:
+  title: 英雄池构建
+  info: 数据说明
+  stale: 旧缓存
+  loadingShort: 正在获取数据…
+  referenceProgress: '正在准备 Top-3 z 排序 · {{completed}} / {{total}}'
+  top3Help: 'Top-3 z：将交互差值按当前分路全部可估英雄的等权均值与总体标准差标准化，取池内最高 3 项的平均，不足 3 项按实际数量。参考未采齐或池内数据缺失时不评分；参照可能包含低出场的副位置英雄。'
+  top3Column: '{{target}} · Top-{{count}} z {{score}} · 可估参照 {{reference}} / {{total}}'
+  top3ColumnWithReason: '{{target}} · Top-{{count}} z {{score}} · 可估参照 {{reference}} / {{total}} · {{reason}}'
+  top3Reasons:
+    pending: 排序参考尚未采齐
+    missing-pool: 池内存在缺失数据
+    insufficient-reference: 可估参照不足
+    zero-variance: 参照无差异
+    no-picks: 无可选英雄
+  edit: 编辑英雄池
+  role: 我的分路
+  champions: 英雄池
+  selectChampions: 搜索并添加英雄
+  analyze: 开始分析
+  cancel: 取消
+  refresh: 刷新数据
+  retry: 重试
+  source: 'Lolalytics · {{patch}} · 全球 · 翡翠+ · 单双排'
+  method: 原始交互差值（百分点，未收缩），不是实际胜率预测；≥0 仅表示模型中性线以上，小样本可能不稳定。
+  matchup: 对位情况
+  synergy: 协同情况
+  targetRole: 目标分路
+  search: 搜索目标英雄
+  commonOnly: 只看分路出场占比 ≥0.5%
+  updated: '本批基础数据获取于 {{time}}'
+  tableLabel: 英雄池覆盖热力图，可横向滚动
+  heatmap:
+    delta: 交互差值（百分点）
+    scale: '负值 / 0 / 正值；色深固定 ±10 封顶，数字不截断'
+    help: '— 暂无可估数据 · × 英雄已占用。点击或按 Enter 查看样本，方向键移动。'
+    caption: 英雄池覆盖热力图，行是池内英雄，列是目标英雄
+    axes: 我的英雄 / 目标
+    value: '{{delta}} 个百分点'
+    unknownSample: 样本量未知
+    detailsHint: 选择格子查看配对样本、目标出场占比与覆盖状态。
+    details: '{{champion}} → {{target}} · {{result}} · {{sample}} · 目标分路出场占比 {{pickRate}}% · {{status}}'
+  target: 目标英雄
+  status: 覆盖状态
+  pickRate: 分路出场占比
+  partial: 数据不完整
+  games: '配对样本 {{count}} 场'
+  best: 并列或最佳应对
+  occupied: 该英雄已被占用
+  missing: 暂无可估数据
+  noTargets: 当前条件下没有目标英雄
+  changed: 英雄池已更改，请重新分析。
+  empty: 选择分路与英雄后，点击「开始分析」。
+  states:
+    covered: 已覆盖
+    uncovered: 未覆盖
+    unknown: 未知
+    not-applicable: 无可选英雄
+  roles:
+    TOP: 上路
+    JUNGLE: 打野
+    MID: 中路
+    ADC: 下路
+    SUP: 辅助
+  cellDetails:
+    open: '查看 {{champion}} 与 {{target}} 的配对详情'
+    matchup: 对位详情
+    synergy: 协同详情
+    close: 关闭配对详情
+    own: 我方
+    opponent: 对手
+    teammate: 队友
+    split: '{{champion}} {{own}}，{{target}} {{other}}'
+    winRate: 胜率
+    overall: 整体
+    versus: 彼此对阵
+    together: 同队出场
+    notCollected: — 未采集
+    notApplicable: — 不适用
+    delta: 交互差值
+    deltaValue: '{{value}} 个百分点'
+    sample: 配对场数
+    games: '{{count}} 场'
+    unknownSample: 未知
+    missing: — 暂无可估数据
+    unavailable: × 英雄已占用
+    missingHelp: 交互差值暂无估计，不能视为 0 或劣势。
+    unavailableHelp: 同一英雄不能同时出现在这个配对中。
+    updated: '本批基础数据获取于 {{time}}'
+  errors:
+    storage: 选池设置读取或保存失败，原文件保留，请重试。
+    cacheWrite: 分析可用，但磁盘缓存保存失败，下次可能需要重新获取。
+    invalidSelection: 已保存的部分英雄不在当前数据范围，请调整选择后再分析。
+    network: 数据获取失败，请检查网络后重试；已完成的参考可继续复用。
+    rate-limit: 数据源请求过于频繁，请稍后重试。
+    source-changed: 数据源返回不兼容或不完整的数据，请刷新重试。
+    expired: 数据批次已过期，请先刷新数据，再重新分析。
+    cancelled: 已取消获取，已有结果保持不变。
+    busy: 上次请求正在结束或其他窗口正在获取，请稍后重试。
+    transport: 无法连接分析服务，请重试。

@@ -20,7 +20,7 @@ afterEach(async () => {
 })
 const html = `<h1>Patch 26.1 Notes</h1><h2>Champions</h2><h3>Synthetic Hero</h3><h4>Q</h4><ul><li>Damage 10 &rArr; 12</li></ul><h2>Items</h2><h3>Synthetic Item</h3><li>Cost 100 &rArr; 90</li><h2>System</h2><h3>Minions</h3><li>Spawn time 30 &rArr; 25</li><h2>ARAM</h2><h3>Not SR</h3><li>Do not include</li><script>alert('no')</script>`
 describe('fixed official patch notes adapter', () => {
-  test.each([2, 3, 4, 5])(
+  test.each([2, 3, 4, 5, 6])(
     'refreshes v%s cache automatically and retains it as stale if offline',
     async (parserVersion) => {
       const directory = await root()
@@ -44,7 +44,7 @@ describe('fixed official patch notes adapter', () => {
       const fetch = vi.fn(async () => html)
       const current = await new PatchNotesLoader(directory, fetch, () => 3000).read('16.1')
       expect(fetch).toHaveBeenCalled()
-      expect(current.parserVersion).toBe(6)
+      expect(current.parserVersion).toBe(7)
     }
   )
   test('maps every client 15/16 patch to official annual names including seasonal exceptions', () => {
@@ -177,4 +177,73 @@ test('unpublished and mismatched cached announcements never extend the dropdown'
     )
     expect((await current.read('16.21')).availablePatches).not.toContain('16.22')
   }
+})
+
+test('opening the latest baseline discovers published releases without requiring refresh', async () => {
+  const fetch = vi.fn(async (url: string) => {
+    if (url === patchNotesSources('16.21')[0]) return html.replace('26.1', '26.21')
+    if (url === patchNotesSources('16.22')[0]) return html.replace('26.1', '26.22')
+    return '<h1>Not Found</h1>'
+  })
+  const loader = new PatchNotesLoader(await root(), fetch)
+  const first = await loader.read('16.21')
+  expect(first.availablePatches?.slice(0, 2)).toEqual(['16.22', '16.21'])
+  expect(first.availablePatches).not.toContain('16.23')
+  fetch.mockClear()
+  expect((await loader.read('16.21')).availablePatches).toEqual(first.availablePatches)
+  expect(fetch).not.toHaveBeenCalled() // Negative cache prevents repeated future probes.
+})
+
+test('latest cache is returned without network even when expired; discovery remains explicit', async () => {
+  const directory = await root()
+  const seed = new PatchNotesLoader(
+    directory,
+    async (url) =>
+      url === patchNotesSources('16.22')[0] ? html.replace('26.1', '26.22') : '<h1>Not Found</h1>',
+    () => 1000
+  )
+  await seed.read('16.22')
+  const fetch = vi.fn(async (url: string) =>
+    url === patchNotesSources('16.23')[0] ? html.replace('26.1', '26.23') : '<h1>Not Found</h1>'
+  )
+  const restarted = new PatchNotesLoader(directory, fetch, () => 1000 + 7 * 3600000)
+  expect(await restarted.read('16.21', false, true, true)).toMatchObject({
+    patch: '16.22',
+    status: 'available',
+    stale: true
+  })
+  expect(fetch).not.toHaveBeenCalled()
+  expect(await restarted.read('16.21', true, true)).toMatchObject({
+    patch: '16.23',
+    status: 'available'
+  })
+  expect(fetch).toHaveBeenCalled()
+})
+test('cache-first falls back to the newest actually cached baseline, not an uncached release', async () => {
+  const directory = await root()
+  await new PatchNotesLoader(directory, async () => html.replace('26.1', '26.20')).read('16.20')
+  const fetch = vi.fn()
+  expect(
+    await new PatchNotesLoader(directory, fetch).read('16.21', false, true, true)
+  ).toMatchObject({ patch: '16.20', status: 'available' })
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+test('offline automatic refresh retains the last cached baseline and does not hide cache beyond a catalog gap', async () => {
+  const directory = await root()
+  await new PatchNotesLoader(directory, async () => html.replace('26.1', '26.20')).read('16.20')
+  const offline = async () => {
+    throw new Error('offline')
+  }
+  expect(await new PatchNotesLoader(directory, offline).read('16.20', true, true)).toMatchObject({
+    patch: '16.20',
+    status: 'available',
+    stale: true
+  })
+  await new PatchNotesLoader(directory, async () => html.replace('26.1', '26.23')).read('16.23')
+  expect(await new PatchNotesLoader(directory, offline).read('16.21', true, true)).toMatchObject({
+    patch: '16.23',
+    status: 'available',
+    stale: true
+  })
 })

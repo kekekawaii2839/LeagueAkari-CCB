@@ -152,7 +152,7 @@ import { useTranslation } from 'i18next-vue'
 import { NButton, NIcon, NInput, NModal, NSpin, NVirtualList } from 'naive-ui'
 import { computed, ref, shallowRef, watch } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 
 import { CHAMPION_MASTERY_MODAL_ITEM_SIZE } from '../constants'
 

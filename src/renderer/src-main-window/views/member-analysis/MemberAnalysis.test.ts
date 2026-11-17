@@ -228,9 +228,9 @@ describe('member analysis native page', () => {
   })
 
   test.each([
-    ['feature-disabled', '成员分析已关闭'],
+    ['feature-disabled', '五排分析已关闭'],
     ['first-run', '尚未生成分析数据'],
-    ['loading', '正在初始化成员分析'],
+    ['loading', '正在初始化五排分析'],
     ['empty', '当前筛选范围内没有可显示的对局'],
     ['error', '无法读取分析数据，请稍后重试。'],
     ['ready', '成员分路']
@@ -340,3 +340,12 @@ test('exposes only the current primary section for feature-local layout scoping'
   renderer.route.params.section = 'roles'
   expect(await renderState('ready')).toContain('data-active-section="roles"')
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: {
+      name: () => '',
+      searchKeywords: (id: number) => (id === 1 || id === 266 ? ['合成别名', '测试昵称'] : [])
+    }
+  })
+}))

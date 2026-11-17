@@ -107,6 +107,12 @@ jobs:
         shell: pwsh
         run: ./packaging/setup-worker-python.ps1 -RunnerTemp $env:RUNNER_TEMP
 
+      - name: Test the offline shared-profile merge with synthetic inputs
+        shell: pwsh
+        run: |
+          & $env:WORKER_BOOTSTRAP_PYTHON -I -m unittest discover -s scripts/member-analysis -p test_merge_local_ccb_profiles.py -v
+          if ($LASTEXITCODE -ne 0) { throw "Shared-profile merge regressions failed" }
+
       - name: Rebuild the source-current worker in isolation
         shell: pwsh
         run: |

@@ -3,6 +3,25 @@ import { expect, test } from 'vitest'
 import { patchChange } from './patch-change'
 
 test.each([
+  ['AR', '+4/Level', '+5/Level', 'Base Stats', 'buff'],
+  ['AS', '3%/Level', '2%/Level', 'Base Stats', 'nerf'],
+  ['First Stack Damage Against Minions', '50% Less', '40% Less', 'Passive - Synthetic', 'buff'],
+  ['Slow Amount', '30%', '20 / 30 / 40%', 'E - Synthetic', 'adjusted'],
+  ['Explosion Damage', '10 (+30% AP)', '20 (+20% AP)', 'W - Synthetic', 'adjusted'],
+  ['Total Magic Damage', '10 (+20% AP) over 5s', '20 (+20% AP) over 5s', 'E - Synthetic', 'buff'],
+  [
+    'Total Magic Damage',
+    '10 (+20% AP) over 5s',
+    '20 (+20% AP) over 3s',
+    'E - Synthetic',
+    'unknown'
+  ],
+  ['AR', '10', '20', 'Q - Synthetic', 'unknown']
+])('reviewed metric normalization: %s %s -> %s', (label, before, after, ability, expected) => {
+  expect(patchChange({ text: '', label, before, after, ability }, 'champion')).toBe(expected)
+})
+
+test.each([
   ['Mana', '60 / 65 / 70 / 75 / 80', '50 / 55 / 60 / 65 / 70', 'E - Nevermove', 'buff'],
   ['Mana', '30 / 35 / 40 / 45 / 50', '15 / 20 / 25 / 30 / 35', 'Q - Rapid Fire', 'buff'],
   ['Mana', '65 / 70 / 75 / 80 / 85', '75 / 80 / 85 / 90 / 95', 'W - Soul Furnace', 'nerf'],

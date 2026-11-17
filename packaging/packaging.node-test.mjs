@@ -60,3 +60,52 @@ test('sensitive text inside asar cannot evade outer directory scan', async () =>
   assert.notEqual(r.status, 0)
   assert.match(r.stderr, /Sensitive or local source-path text in asar/)
 })
+
+test('release file matcher admits runtime roots but never enumerates local data, recovery archives or earlier packages', () => {
+  const require = createRequire(import.meta.url)
+  const { FileMatcher } = require('app-builder-lib/out/fileMatcher.js')
+  const { parse } = require('yaml')
+  const base = parse(readFileSync(resolve('electron-builder.yml'), 'utf8'))
+  const ccb = parse(readFileSync(resolve('packaging/member-analysis-builder.yml'), 'utf8'))
+  const root = resolve('synthetic-packaging-root')
+  const matcher = new FileMatcher(root, resolve(root, 'destination'), (value) => value, [
+    ...base.files,
+    ...ccb.files
+  ])
+  const include = matcher.createFilter()
+  const file = { isDirectory: () => false }
+  const directory = { isDirectory: () => true }
+  for (const name of [
+    'out/main/main.js',
+    'out/preload/index.js',
+    'out/renderer/main-window.html',
+    'resources/LA_ICON.ico',
+    'resources/magic/magic.win32-x64.node',
+    'package.json',
+    'LICENSE'
+  ])
+    assert.equal(include(join(root, name), file), true, name)
+  for (const name of [
+    '.local',
+    '.cache',
+    '.phase7-package',
+    'raw_data',
+    'analysis_output',
+    'outputs',
+    'scratch',
+    'akari-public-sanitize',
+    'akari-sync-review',
+    'storybook-static'
+  ])
+    assert.equal(include(join(root, name), directory), false, name)
+  for (const name of [
+    'akari-pre-public-backup.bundle',
+    '.env.riot.local',
+    'src/main/main.ts',
+    'docs/private.md',
+    'resources/member-analysis/worker/member-analysis-worker.exe',
+    'out/main/main.js.map',
+    'collect.log'
+  ])
+    assert.equal(include(join(root, name), file), false, name)
+})

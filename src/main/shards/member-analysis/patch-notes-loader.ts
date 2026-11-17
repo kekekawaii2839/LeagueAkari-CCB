@@ -44,20 +44,49 @@ export class PatchNotesLoader {
     this.disposed = true
     for (const controller of this.controllers) controller.abort()
   }
-  async read(patch: string, refresh = false): Promise<PatchNotes> {
+  async read(
+    patch: string,
+    refresh = false,
+    latest = false,
+    cacheOnly = false
+  ): Promise<PatchNotes> {
     PatchNotesRequestSchema.parse({ patch })
     if (this.disposed) throw new Error('disposed')
+    const available =
+      latest || cacheOnly
+        ? await this.catalog(cacheOnly ? false : refresh, latest && !cacheOnly)
+        : null
+    if (latest && available) patch = available[0]
+    if (cacheOnly) {
+      for (const candidate of latest ? available! : [patch]) {
+        const cached = await this.load(candidate, false, true)
+        if (cached.status === 'available') return { ...cached, availablePatches: available! }
+      }
+      return { ...(await this.load(patch, false, true)), availablePatches: available! }
+    }
     const pending = this.pending.get(patch)
     if (pending) return pending
     if (this.pending.size >= 2) throw new Error('busy')
     const promise = this.load(patch, refresh)
-      .then(async (notes) => ({ ...notes, availablePatches: await this.catalog(refresh) }))
+      .then(async (notes) => {
+        if (!latest || notes.status === 'available') return notes
+        const cached = await this.read(patch, false, true, true)
+        return cached.status === 'available' ? { ...cached, stale: true } : notes
+      })
+      .then(async (notes) => ({
+        ...notes,
+        availablePatches: await this.catalog(
+          latest ? false : refresh,
+          !latest && patch === releasedPatchNotes[0]
+        )
+      }))
       .finally(() => this.pending.delete(patch))
     this.pending.set(patch, promise)
     return promise
   }
-  private async catalog(refresh: boolean): Promise<string[]> {
+  private async catalog(refresh: boolean, discover: boolean): Promise<string[]> {
     const available = [...releasedPatchNotes]
+    let probing = refresh || discover
     for (let minor = 22; minor <= 24; minor++) {
       const patch = `16.${minor}`
       let cached: PatchNotes | null = null
@@ -72,13 +101,13 @@ export class PatchNotesLoader {
         notes.status === 'available' &&
         patchNotesSources(patch).includes(notes.sourceUrl) &&
         (notes.publishedAt === null || Date.parse(notes.publishedAt) <= this.now())
-      if (!published(cached) && refresh && !this.disposed) cached = await this.load(patch, true)
+      if (!published(cached) && probing && !this.disposed) cached = await this.load(patch, refresh)
       if (published(cached)) available.unshift(patch)
-      else if (refresh) break
+      else probing = false
     }
     return available
   }
-  private async load(patch: string, refresh: boolean): Promise<PatchNotes> {
+  private async load(patch: string, refresh: boolean, cacheOnly = false): Promise<PatchNotes> {
     const urls = patchNotesSources(patch),
       path = join(this.root, 'patch-notes', `${patch}.json`)
     const fallback: PatchNotes = {
@@ -103,6 +132,21 @@ export class PatchNotesLoader {
       }
     } catch {
       /* Missing or invalid public cache is fetched again. */
+    }
+    if (cacheOnly) {
+      if (
+        cached?.status !== 'available' ||
+        (cached.publishedAt !== null && Date.parse(cached.publishedAt) > this.now())
+      )
+        return fallback
+      return {
+        ...cached,
+        stale:
+          cached.stale ||
+          cached.parserVersion !== PATCH_NOTES_PARSER_VERSION ||
+          this.now() - cached.fetchedAt < 0 ||
+          this.now() - cached.fetchedAt >= 6 * 3600000
+      }
     }
     if (
       !refresh &&

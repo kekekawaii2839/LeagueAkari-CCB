@@ -194,8 +194,8 @@ ongoingGame:
     enemyMissingPings: Missing pings {{count}}
     enemyMissingPingsPopover_one: This player has sent enemy missing pings an average of {{count}} time per game
     enemyMissingPingsPopover_other: This player has sent enemy missing pings an average of {{count}} times per game
-    visionScore: Vision Score {{count}}
-    visionScorePopover: This player's average vision score is {{count}}
+    visionScore: Avg Vision per Minute {{count}}
+    visionScorePopover: 'Mean of each match’s vision score divided by match minutes: {{count}}.'
     killDamageEfficiencyHigh: KS
     killDamageEfficiencyLow: Damage Dealer
     killDamageEfficiencyHighPopover: In the recent {{count}} games, this player's average kill damage efficiency is {{rate}}%, achieving more kills with less team damage.

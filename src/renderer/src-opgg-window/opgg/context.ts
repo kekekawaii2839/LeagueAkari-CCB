@@ -150,6 +150,7 @@ export type OpggContext = {
   changeTier: (tier: TierType) => Promise<void>
   changeVersion: (version: string) => Promise<void>
   changeChampion: (championId: number) => Promise<void>
+  openEnemyChampion: (championId: number) => Promise<boolean>
   changeMatchupChampion: (championId: number | null) => Promise<boolean>
 
   refresh: () => Promise<void>
@@ -271,12 +272,14 @@ export function provideOpgg() {
   const isLoading = ref(false)
   let updateGeneration = 0
   let loadedPatchContext: string | null = null
+  let loadedOverviewQuery: string | null = null
   let sourceChangeInProgress = false
 
   const unwrapResult = <T>(
     result: ChampionDataLoadResult<T>,
     generation: number,
-    preserveCurrentData = false
+    preserveCurrentData = false,
+    deferState = false
   ) => {
     if (result.status === 'unavailable') {
       if (!preserveCurrentData) {
@@ -294,11 +297,11 @@ export function provideOpgg() {
         result.attempts.some((attempt) => attempt.outcome === 'failed')
       )
     }
-    if (generation === updateGeneration) {
+    if (generation === updateGeneration && !deferState) {
       effectiveSource.value = result.effectiveSource
       fallbackReason.value = result.fallbackReason
+      isDataUnavailable.value = false
     }
-    isDataUnavailable.value = false
     return result.data
   }
 
@@ -309,6 +312,7 @@ export function provideOpgg() {
     opts: {
       reload: boolean
       preferredVersion?: string | null
+      preserveState?: boolean
     },
     generation: number
   ): Promise<string | null> => {
@@ -338,7 +342,7 @@ export function provideOpgg() {
         { tags: ['opgg-group'] }
       )
 
-      const patches = unwrapResult(result, generation)
+      const patches = unwrapResult(result, generation, opts.preserveState, opts.preserveState)
       if (generation !== updateGeneration) return null
       versions.value = patches
       loadedPatchContext = patchContext
@@ -368,6 +372,7 @@ export function provideOpgg() {
     position?: PositionType
     matchupChampionId?: number | null
     preserveCurrentDataOnFailure?: boolean
+    browseEnemyChampion?: boolean
     force?: boolean
   }) => {
     const generation = ++updateGeneration
@@ -386,7 +391,7 @@ export function provideOpgg() {
         opts.matchupChampionId !== undefined ? opts.matchupChampionId : matchupChampionId.value
       const capability = getChampionDataCapability(targetSource, toChampionDataMode(targetMode))
 
-      if (targetSource !== 'opgg' || targetMode !== 'ranked') {
+      if (opts.browseEnemyChampion || targetSource !== 'opgg' || targetMode !== 'ranked') {
         targetMatchupChampionId = null
       }
 
@@ -409,6 +414,7 @@ export function provideOpgg() {
           // version 和 mode 需要刷新 version
           // 但也没那么强制，但 mode 变化必须刷新 version
           reload: opts.force || opts.mode !== undefined || opts.version !== undefined,
+          preserveState: opts.browseEnemyChampion,
           preferredVersion: opts.version ?? version.value
         },
         generation
@@ -452,16 +458,69 @@ export function provideOpgg() {
         opts.mode ||
         opts.version ||
         opts.tier ||
-        opts.position
+        opts.position ||
+        opts.browseEnemyChampion
       ) {
-        const result = await queueKeeper.add(
-          'default',
-          'champion-data-load-overview',
-          ({ signal }) => championData.loadOverview(query, { signal }),
-          { tags: ['opgg-group'] }
-        )
+        const overviewKey = JSON.stringify([
+          query.source,
+          query.mode,
+          query.region,
+          query.tier,
+          query.patch,
+          query.position
+        ])
+        if (opts.browseEnemyChampion && loadedOverviewQuery === overviewKey && overview.value) {
+          updatedOverviewData = overview.value
+        } else {
+          const result = await queueKeeper.add(
+            'default',
+            'champion-data-load-overview',
+            ({ signal }) => championData.loadOverview(query, { signal }),
+            { tags: ['opgg-group'] }
+          )
+          updatedOverviewData = unwrapResult(
+            result,
+            generation,
+            opts.preserveCurrentDataOnFailure,
+            opts.browseEnemyChampion
+          )
+        }
+        if (generation !== updateGeneration) return false
 
-        updatedOverviewData = unwrapResult(result, generation)
+        // Enemy roles are not revealed by BP. Keep the current statistical lane when
+        // supported; otherwise find a supported lane, without guessing their actual role.
+        if (opts.browseEnemyChampion && capability.filters.includes('position')) {
+          const lanes: ChampionDataPosition[] = ['top', 'jungle', 'middle', 'bottom', 'utility']
+          for (const lane of lanes) {
+            if (
+              updatedOverviewData.sections.champions.some((c) => c.championId === targetChampionId)
+            )
+              break
+            if (lane === query.position) continue
+            const laneResult = await queueKeeper.add(
+              'default',
+              'champion-data-enemy-lane',
+              ({ signal }) => championData.loadOverview({ ...query, position: lane }, { signal }),
+              { tags: ['opgg-group'] }
+            )
+            const laneOverview = unwrapResult(laneResult, generation, true, true)
+            if (generation !== updateGeneration) return false
+            if (laneOverview.sections.champions.some((c) => c.championId === targetChampionId)) {
+              updatedOverviewData = laneOverview
+              query.position = lane
+              targetPosition = UNIFIED_TO_OPGG_POSITION[lane]
+              break
+            }
+          }
+        }
+
+        if (
+          opts.browseEnemyChampion &&
+          !updatedOverviewData.sections.champions.some((c) => c.championId === targetChampionId)
+        ) {
+          message.info(() => t('opgg.enemyChampions.noData'))
+          return false
+        }
         updatedChampionsData = toOpggChampionOverviewViewModel(updatedOverviewData)
 
         if (targetChampionId && !capability.features.includes('champion-summary')) {
@@ -483,6 +542,7 @@ export function provideOpgg() {
       }
 
       let updatedChampionData: OpggChampionBuildResponse | null = null
+      let browsedResult: ChampionDataLoadResult<unknown> | null = null
       let updatedKiwiAugmentsData: OpggAramMayhemChampionAugmentsResponse | null = null
 
       if (targetChampionId) {
@@ -492,7 +552,13 @@ export function provideOpgg() {
           ({ signal }) => championData.loadDetails(query, targetChampionId, { signal }),
           { tags: ['opgg-group'] }
         )
-        const details = unwrapResult(result, generation, opts.preserveCurrentDataOnFailure ?? false)
+        const details = unwrapResult(
+          result,
+          generation,
+          opts.preserveCurrentDataOnFailure ?? false,
+          opts.browseEnemyChampion
+        )
+        if (opts.browseEnemyChampion) browsedResult = result
         updatedChampionData = toOpggChampionDetailsViewModel(details)
         updatedKiwiAugmentsData = toOpggMayhemAugmentsViewModel(
           details,
@@ -502,7 +568,20 @@ export function provideOpgg() {
 
       if (generation !== updateGeneration) return false
 
+      if (
+        opts.browseEnemyChampion &&
+        (lcs.gameflow.phase !== 'ChampSelect' ||
+          !enemyChampionIds.value.includes(targetChampionId!))
+      )
+        return false
+
+      const previousPosition = position.value
       // commit
+      if (browsedResult?.status === 'success') {
+        effectiveSource.value = browsedResult.effectiveSource
+        fallbackReason.value = browsedResult.fallbackReason
+        isDataUnavailable.value = false
+      }
       version.value = nextVersion
       region.value = targetRegion
       mode.value = targetMode
@@ -511,10 +590,19 @@ export function provideOpgg() {
       championId.value = targetChampionId
       matchupChampionId.value = targetMatchupChampionId
       if (shouldShowChampionList) currentTab.value = 'champions'
+      if (opts.browseEnemyChampion) currentTab.value = 'champion'
 
       if (updatedChampionsData) {
         champions.value = updatedChampionsData
         overview.value = updatedOverviewData
+        loadedOverviewQuery = JSON.stringify([
+          query.source,
+          query.mode,
+          query.region,
+          query.tier,
+          query.patch,
+          query.position
+        ])
       }
 
       if (updatedChampionData) {
@@ -525,6 +613,13 @@ export function provideOpgg() {
 
       // 会在模式不匹配时主动清空
       kiwiAugments.value = updatedKiwiAugmentsData
+      if (opts.browseEnemyChampion && previousPosition !== targetPosition) {
+        message.info(() =>
+          t('opgg.enemyChampions.changedPosition', {
+            position: t(`opgg.filters.positions.${targetPosition}`)
+          })
+        )
+      }
       return true
     } catch (error) {
       if (generation !== updateGeneration || isAbortError(error)) {
@@ -598,6 +693,25 @@ export function provideOpgg() {
 
   const changeChampion = async (championId0: number) => {
     await update({ championId: championId0 })
+  }
+
+  const openEnemyChampion = async (championId0: number) => {
+    if (
+      isLoading.value ||
+      lcs.gameflow.phase !== 'ChampSelect' ||
+      !enemyChampionIds.value.includes(championId0) ||
+      !getChampionDataCapability(
+        preferredSource.value,
+        toChampionDataMode(mode.value)
+      )?.features.includes('champion-summary')
+    )
+      return false
+
+    return update({
+      championId: championId0,
+      browseEnemyChampion: true,
+      preserveCurrentDataOnFailure: true
+    })
   }
 
   const changeMatchupChampion = async (championId0: number | null) => {
@@ -920,6 +1034,7 @@ export function provideOpgg() {
     changeTier,
     changeVersion,
     changeChampion,
+    openEnemyChampion,
     changeMatchupChampion,
     refresh,
 

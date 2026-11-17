@@ -95,6 +95,20 @@ export function useValueRenderer() {
   }
 
   return {
+    'fixed-2': (value: number) => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return emptyValue()
+      }
+
+      const formatted = value.toFixed(2)
+      return value === 0 ? (
+        <span class="text-black/50 dark:text-white/50" title={value.toString()}>
+          {formatted}
+        </span>
+      ) : (
+        <span title={value.toString()}>{formatted}</span>
+      )
+    },
     float: (value: number) => {
       if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
         return emptyValue()

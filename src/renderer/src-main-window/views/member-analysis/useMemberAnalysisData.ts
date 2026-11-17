@@ -10,6 +10,7 @@ import {
   aggregateSynergy,
   selectMemberAnalysisSample
 } from './analytics'
+import { useMemberAnalysisChampionMatch } from './useMemberAnalysisChampionMatch'
 
 const sharedData = new WeakMap<
   ReturnType<typeof useMemberAnalysisStore>,
@@ -17,6 +18,7 @@ const sharedData = new WeakMap<
 >()
 
 function createData(store: ReturnType<typeof useMemberAnalysisStore>) {
+  const { matchChampion } = useMemberAnalysisChampionMatch()
   let previousOverview: typeof store.overview = null
   let previousSelection: ReturnType<typeof selectMemberAnalysisSample> | null = null
   const sameGames = (
@@ -32,7 +34,8 @@ function createData(store: ReturnType<typeof useMemberAnalysisStore>) {
       toRaw(overview?.games ?? []),
       store.filters,
       store.analysisSide,
-      store.sampleSize
+      store.sampleSize,
+      matchChampion
     )
     if (
       previousOverview === overview &&

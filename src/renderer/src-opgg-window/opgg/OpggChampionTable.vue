@@ -59,7 +59,7 @@ import {
 } from 'naive-ui'
 import { computed } from 'vue'
 
-import { useChampionNameMatch } from '@main-window/composables/useChampionNameMatch'
+import { useChampionNameMatch } from '@renderer-shared/composables/useChampionNameMatch'
 
 import { useOpgg } from './context'
 import { getTierTextColorClass } from './utils/theme'

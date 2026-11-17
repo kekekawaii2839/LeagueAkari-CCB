@@ -667,7 +667,11 @@ test('official patch notes IPC rejects foreign callers and URL/path injection, a
       ok: true,
       value: { patch: '16.1' }
     })
-    expect(read).toHaveBeenCalledWith('16.1', undefined)
+    expect(read).toHaveBeenCalledWith('16.1', undefined, undefined, undefined)
+    expect(await invoke(event, { patch: '16.21', latest: true, cacheOnly: true })).toMatchObject({
+      ok: true
+    })
+    expect(read).toHaveBeenLastCalledWith('16.21', undefined, true, true)
   } finally {
     read.mockRestore()
   }

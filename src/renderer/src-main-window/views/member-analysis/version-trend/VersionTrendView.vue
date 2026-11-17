@@ -337,6 +337,8 @@ export function calculateTrendPlotHeight(
 }
 </script>
 <script setup lang="ts">
+import { useMemberAnalysisChampionMatch } from '../useMemberAnalysisChampionMatch'
+
 import { computed, h, ref, useId, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import {
   NButton,
@@ -426,6 +428,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:request': [request: TrendRequest] }>()
 const league = useLeagueClientStore()
+const { matchChampion } = useMemberAnalysisChampionMatch()
 const statusTheme = useThemeVars()
 const championSearchText = (value: string) => value.toLowerCase().replace(/[^a-z0-9\p{L}]/gu, '')
 // Display labels follow the same client game-data source as the hero pool.
@@ -445,13 +448,8 @@ const championOptions = computed(() =>
     label: championLabels.value.get(championSearchText(option.value)) ?? option.value
   }))
 )
-const filterChampion = (pattern: string, option: SelectOption) => {
-  const query = championSearchText(pattern)
-  return [
-    typeof option.label === 'string' ? option.label : '',
-    typeof option.value === 'string' ? option.value : ''
-  ].some((value) => championSearchText(value).includes(query))
-}
+const filterChampion = (pattern: string, option: SelectOption) =>
+  matchChampion(pattern, String(option.value ?? ''), String(option.label ?? ''))
 const advanced = ref(false)
 const root = ref<HTMLElement | null>(null)
 const plotArea = ref<HTMLElement | null>(null)

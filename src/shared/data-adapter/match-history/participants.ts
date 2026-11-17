@@ -92,6 +92,8 @@ export type MatchParticipant = {
   totalDamageToTowers: number
   totalHeal: number
   visionScore: number
+  /** Derived from raw vision score / game minutes; missing/invalid inputs remain null. */
+  visionScorePerMinute: number | null
   timeCCingOthers: number
   soloKills: number | null
   effectiveHealAndShielding: number | null
@@ -170,6 +172,19 @@ export function toParticipants(
   basicInfo: MatchBasicInfo
 ): MatchParticipant[] {
   const { source, data } = summary
+  const visionScorePerMinute = (score: unknown): number | null => {
+    if (
+      typeof score !== 'number' ||
+      !Number.isFinite(score) ||
+      score < 0 ||
+      !Number.isFinite(basicInfo.gameDuration) ||
+      basicInfo.gameDuration <= 0
+    )
+      return null
+
+    const rate = score / (basicInfo.gameDuration / 60)
+    return Number.isFinite(rate) ? rate : null
+  }
 
   if (source === 'sgp') {
     const totalKills = data.json.participants.reduce(
@@ -244,6 +259,7 @@ export function toParticipants(
         totalDamageToTowers: p.damageDealtToTurrets,
         totalHeal: p.totalHeal,
         visionScore: p.visionScore ?? 0,
+        visionScorePerMinute: visionScorePerMinute(p.visionScore),
         timeCCingOthers: p.timeCCingOthers,
         soloKills: p.challenges?.soloKills ?? null,
         effectiveHealAndShielding: p.challenges?.effectiveHealAndShielding ?? null,
@@ -370,6 +386,7 @@ export function toParticipants(
         totalDamageToTowers: participant.stats.damageDealtToTurrets,
         totalHeal: participant.stats.totalHeal,
         visionScore: participant.stats.visionScore ?? 0,
+        visionScorePerMinute: visionScorePerMinute(participant.stats.visionScore),
         timeCCingOthers: participant.stats.timeCCingOthers,
 
         effectiveHealAndShielding: null, // lcu has no effective heal and shielding record

@@ -1,10 +1,6 @@
 {
   "schemaVersion": 1,
   "upstreamBaseline": "5109b2f7fcce6e02312e534cd1729ed0f2142b51",
-  "budget": {
-    "targetChangedLines": 800,
-    "hardMaxChangedLines": 900
-  },
   "excludedPaths": [
     ".agents/skills/league-akari-mcp-debug/SKILL.md",
     ".agents/skills/league-akari-sgp-data-source/SKILL.md",
@@ -278,14 +274,308 @@
     {
       "id": "ccb-windows-taskbar-identity",
       "upstreamFile": "src/main/main.ts",
-      "purpose": "Use the CCB application user-model identity on Windows, matching packaged appId without changing official userData or protocol logic",
-      "replacementIfUpstreamChanges": "Preserve a distinct CCB Windows taskbar identity through an upstream-supported application identity hook"
+      "purpose": "Use the CCB Windows app identity and select an explicitly opted-in machine-local CCB shared profile before taking its single-instance lock; reject incompatible shared formats before opening shards, preserving custom test profiles and official Akari isolation",
+      "replacementIfUpstreamChanges": "Preserve the distinct CCB identity and a pre-lock profile-selection/compatibility hook without exposing renderer filesystem access"
     },
     {
       "id": "ccb-deep-link-namespace",
       "upstreamFile": "src/main/utils/deep-link.ts",
       "purpose": "Use distinct CCB production and development deep-link namespaces for registration, jump-list links and uninstall cleanup without owning official Akari protocols",
       "replacementIfUpstreamChanges": "Preserve CCB-specific protocol constants through an upstream-supported fork identity configuration"
+    },
+    {
+      "id": "ccb-030-01-context",
+      "upstreamFile": "src/main/shards/champion-data/context.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-02-ipc-handlers",
+      "upstreamFile": "src/main/shards/champion-data/ipc-handlers.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-03-service-controller-test",
+      "upstreamFile": "src/main/shards/champion-data/service-controller.test.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-04-service-controller",
+      "upstreamFile": "src/main/shards/champion-data/service-controller.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-05-index-test",
+      "upstreamFile": "src/main/shards/in-game-send/presets/index.test.ts",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-06-rating",
+      "upstreamFile": "src/main/shards/in-game-send/presets/rating.ts",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-07-championanalysiscontent",
+      "upstreamFile": "src/renderer-shared/components/champion-analysis/ChampionAnalysisContent.vue",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-08-matchcarddetailstab",
+      "upstreamFile": "src/renderer-shared/components/match-card/tabs/MatchCardDetailsTab.vue",
+      "purpose": "Add the fixed-two-decimal numeric render kind for per-minute vision in native match details, including zero/missing rendering and numeric comparison charts",
+      "replacementIfUpstreamChanges": "Use an upstream typed fixed-precision renderer without reverting per-minute vision to integer rounding"
+    },
+    {
+      "id": "ccb-030-09-groups",
+      "upstreamFile": "src/renderer-shared/components/match-card/utils/details-table/groups.ts",
+      "purpose": "Add the fixed-two-decimal numeric render kind for per-minute vision in native match details, including zero/missing rendering and numeric comparison charts",
+      "replacementIfUpstreamChanges": "Use an upstream typed fixed-precision renderer without reverting per-minute vision to integer rounding"
+    },
+    {
+      "id": "ccb-030-10-renderers",
+      "upstreamFile": "src/renderer-shared/components/match-card/utils/details-table/renderers.tsx",
+      "purpose": "Add the fixed-two-decimal numeric render kind for per-minute vision in native match details, including zero/missing rendering and numeric comparison charts",
+      "replacementIfUpstreamChanges": "Use an upstream typed fixed-precision renderer without reverting per-minute vision to integer rounding"
+    },
+    {
+      "id": "ccb-030-11-types",
+      "upstreamFile": "src/renderer-shared/components/match-card/utils/details-table/types.ts",
+      "purpose": "Add the fixed-two-decimal numeric render kind for per-minute vision in native match details, including zero/missing rendering and numeric comparison charts",
+      "replacementIfUpstreamChanges": "Use an upstream typed fixed-precision renderer without reverting per-minute vision to integer rounding"
+    },
+    {
+      "id": "ccb-030-12-basic-test",
+      "upstreamFile": "src/renderer-shared/components/ongoing-game-panel/widgets/player-info-card/player-card-tags/tags/basic.test.tsx",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-13-basic",
+      "upstreamFile": "src/renderer-shared/components/ongoing-game-panel/widgets/player-info-card/player-card-tags/tags/basic.tsx",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-14-orderedchampionselector",
+      "upstreamFile": "src/renderer-shared/components/ordered-champion-selector/OrderedChampionSelector.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-15-championanalysis-stories",
+      "upstreamFile": "src/renderer-shared/components/stories/champion-analysis/ChampionAnalysis.stories.ts",
+      "purpose": "Display and test mean valid per-match vision score per minute with two decimals and explicit missingness instead of total vision score; keep synthetic fixtures and existing send/tag controls",
+      "replacementIfUpstreamChanges": "Use an upstream per-minute vision metric with the same valid-sample denominator, null behavior and precision"
+    },
+    {
+      "id": "ccb-030-16-data-loader",
+      "upstreamFile": "src/renderer-shared/shards/champion-data/data-loader.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-17-index",
+      "upstreamFile": "src/renderer-shared/shards/champion-data/index.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
+    },
+    {
+      "id": "ccb-030-18-app",
+      "upstreamFile": "src/renderer/src-main-window/App.vue",
+      "purpose": "Host member-analysis settings in the native global settings modal and route existing feature entry points there; guard unsaved edits across tab, navigation, menu and close transitions",
+      "replacementIfUpstreamChanges": "Use an upstream settings contribution and before-leave guard while preserving unsaved-edit confirmation and feature ownership"
+    },
+    {
+      "id": "ccb-030-19-settingsmodal",
+      "upstreamFile": "src/renderer/src-main-window/components/settings-modal/SettingsModal.vue",
+      "purpose": "Host member-analysis settings in the native global settings modal and route existing feature entry points there; guard unsaved edits across tab, navigation, menu and close transitions",
+      "replacementIfUpstreamChanges": "Use an upstream settings contribution and before-leave guard while preserving unsaved-edit confirmation and feature ownership"
+    },
+    {
+      "id": "ccb-030-20-navigation",
+      "upstreamFile": "src/renderer/src-main-window/components/settings-modal/navigation.ts",
+      "purpose": "Host member-analysis settings in the native global settings modal and route existing feature entry points there; guard unsaved edits across tab, navigation, menu and close transitions",
+      "replacementIfUpstreamChanges": "Use an upstream settings contribution and before-leave guard while preserving unsaved-edit confirmation and feature ownership"
+    },
+    {
+      "id": "ccb-030-21-usechampionnamematch",
+      "upstreamFile": "src/renderer/src-main-window/composables/useChampionNameMatch.ts",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-22-registry",
+      "upstreamFile": "src/renderer/src-main-window/settings-navigation/registry.ts",
+      "purpose": "Host member-analysis settings in the native global settings modal and route existing feature entry points there; guard unsaved edits across tab, navigation, menu and close transitions",
+      "replacementIfUpstreamChanges": "Use an upstream settings contribution and before-leave guard while preserving unsaved-edit confirmation and feature ownership"
+    },
+    {
+      "id": "ccb-030-23-championconfig",
+      "upstreamFile": "src/renderer/src-main-window/views/automation/components/auto-champ-config/ChampionConfig.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-24-orderedchampionlist",
+      "upstreamFile": "src/renderer/src-main-window/views/automation/components/ordered-champion-list/OrderedChampionList.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-25-championmasterymodal",
+      "upstreamFile": "src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/ChampionMasteryModal.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-26-simplematchhistoryfilter",
+      "upstreamFile": "src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/match-history-filters/SimpleMatchHistoryFilter.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-27-ischampion",
+      "upstreamFile": "src/renderer/src-main-window/views/player-tabs/components/player-tab/widgets/match-history-filters/combinator-components/IsChampion.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-28-gamedatatest",
+      "upstreamFile": "src/renderer/src-main-window/views/test/GameDataTest.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-29-strawberrytool",
+      "upstreamFile": "src/renderer/src-main-window/views/toolkit/lobby/StrawberryTool.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-30-summonerprofile",
+      "upstreamFile": "src/renderer/src-main-window/views/toolkit/misc/SummonerProfile.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-31-opggchampiontable",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/OpggChampionTable.vue",
+      "purpose": "Share the native resource-keyword/pinyin/name/ID champion matcher across windows and selectors; retain custom matcher support, role/order restrictions and non-champion/map search semantics",
+      "replacementIfUpstreamChanges": "Use an upstream renderer-shared champion matcher with offline keyword fallback and keep existing control/filter behavior"
+    },
+    {
+      "id": "ccb-030-32-opggview",
+      "upstreamFile": "src/renderer/src-opgg-window/opgg/OpggView.vue",
+      "purpose": "Place the feature-owned publicly visible enemy-BP champion shortcut entry in the existing champion-data window without selecting own champions or applying game configuration",
+      "replacementIfUpstreamChanges": "Use an upstream optional champion-table accessory slot with the same public-selection-only and no-auto-apply behavior"
+    },
+    {
+      "id": "ccb-030-33-akari-test",
+      "upstreamFile": "src/shared/data-adapter/analysis/player/aggregate/akari.test.ts",
+      "purpose": "Derive nullable finite per-minute vision from raw score and positive duration; retain valid-game count and average each valid game equally without replacing unknown inputs with zero",
+      "replacementIfUpstreamChanges": "Use equivalent upstream duration-aware vision normalization and preserve the valid-sample count contract"
+    },
+    {
+      "id": "ccb-030-34-summary",
+      "upstreamFile": "src/shared/data-adapter/analysis/player/aggregate/summary.ts",
+      "purpose": "Derive nullable finite per-minute vision from raw score and positive duration; retain valid-game count and average each valid game equally without replacing unknown inputs with zero",
+      "replacementIfUpstreamChanges": "Use equivalent upstream duration-aware vision normalization and preserve the valid-sample count contract"
+    },
+    {
+      "id": "ccb-030-35-aggregated",
+      "upstreamFile": "src/shared/data-adapter/analysis/player/types/aggregated.ts",
+      "purpose": "Derive nullable finite per-minute vision from raw score and positive duration; retain valid-game count and average each valid game equally without replacing unknown inputs with zero",
+      "replacementIfUpstreamChanges": "Use equivalent upstream duration-aware vision normalization and preserve the valid-sample count contract"
+    },
+    {
+      "id": "ccb-030-36-participants",
+      "upstreamFile": "src/shared/data-adapter/match-history/participants.ts",
+      "purpose": "Derive nullable finite per-minute vision from raw score and positive duration; retain valid-game count and average each valid game equally without replacing unknown inputs with zero",
+      "replacementIfUpstreamChanges": "Use equivalent upstream duration-aware vision normalization and preserve the valid-sample count contract"
+    },
+    {
+      "id": "ccb-030-37-common",
+      "upstreamFile": "src/shared/i18n/en/common.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-38-main",
+      "upstreamFile": "src/shared/i18n/en/main.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-39-ongoing-game",
+      "upstreamFile": "src/shared/i18n/en/renderer/ongoing-game.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-40-settings",
+      "upstreamFile": "src/shared/i18n/en/renderer/settings.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-41-shell",
+      "upstreamFile": "src/shared/i18n/en/renderer/shell.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-42-toolkit",
+      "upstreamFile": "src/shared/i18n/en/renderer/toolkit.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-43-common",
+      "upstreamFile": "src/shared/i18n/zh-CN/common.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-44-main",
+      "upstreamFile": "src/shared/i18n/zh-CN/main.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-45-ongoing-game",
+      "upstreamFile": "src/shared/i18n/zh-CN/renderer/ongoing-game.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-46-settings",
+      "upstreamFile": "src/shared/i18n/zh-CN/renderer/settings.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-47-shell",
+      "upstreamFile": "src/shared/i18n/zh-CN/renderer/shell.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-48-toolkit",
+      "upstreamFile": "src/shared/i18n/zh-CN/renderer/toolkit.yaml",
+      "purpose": "Maintain localized labels and units for per-minute vision, member-analysis global settings and the champion-pool/search/paired-rate UI; sentence order and punctuation stay in locale resources",
+      "replacementIfUpstreamChanges": "Merge equivalent upstream locale keys while retaining explicit units, missingness and feature-specific user-approved copy"
+    },
+    {
+      "id": "ccb-030-49-index",
+      "upstreamFile": "src/shared/types/opgg/index.ts",
+      "purpose": "Add the typed cancellable OP.GG lane-kill-rate request and snapshot contract; unsupported sources retain null and service regressions preserve source/cancellation semantics",
+      "replacementIfUpstreamChanges": "Adopt an upstream typed lane-counter capability while retaining bounded sender-owned cancellation and nullable rates"
     }
   ]
 }

@@ -77,12 +77,14 @@ function averageStats(performance: ChampionPerformance): OpggChampionAverageStat
 
 function counter(
   championId: number,
-  performance?: ChampionRecommendationPerformance
+  performance?: ChampionRecommendationPerformance,
+  laneKillRate?: number | null
 ): OpggChampionCounter {
   return {
     champion_id: championId,
     play: performance?.games ?? 0,
-    win: performance ? inferredWins(performance) : 0
+    win: performance ? inferredWins(performance) : 0,
+    ...(laneKillRate === undefined ? {} : { lane_kill_rate: laneKillRate })
   }
 }
 
@@ -175,7 +177,11 @@ export function toOpggChampionDetailsViewModel(
   details: ChampionDataDetails
 ): OpggChampionBuildResponse {
   const matchupCounters = (details.sections.matchups ?? []).map((item) =>
-    counter(item.championId, item.performance)
+    counter(
+      item.championId,
+      item.performance,
+      details.metadata.source === 'opgg' ? item.laneKillRate : undefined
+    )
   )
   const matchupCountersByChampionId = new Map(
     matchupCounters.map((item) => [item.champion_id, item])

@@ -249,6 +249,7 @@ const groups = computed(() => {
               item.render === 'compat' ||
               item.render === 'integer' ||
               item.render === 'float' ||
+              item.render === 'fixed-2' ||
               item.render === 'percentage'
             ) {
               const chartData = rowCells.map((cell, index) => {

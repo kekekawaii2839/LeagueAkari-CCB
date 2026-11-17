@@ -647,3 +647,9 @@ describe('real scatter component selection survives readable reloads', () => {
     }
   })
 })
+
+vi.mock('@renderer-shared/providers/akari-resource', () => ({
+  useAkariResourceProvider: () => ({
+    champions: { name: () => '', searchKeywords: () => [] }
+  })
+}))

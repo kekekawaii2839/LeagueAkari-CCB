@@ -5,5 +5,5 @@ export const MEMBER_ANALYSIS_ROUTE = {
 
 export const MEMBER_ANALYSIS_NAVIGATION = {
   key: MEMBER_ANALYSIS_ROUTE.name,
-  label: '成员分析'
+  label: '五排分析'
 } as const
